@@ -1,0 +1,14 @@
+{
+  "programId": "hilbert-thick-gradient",
+  "programVersion": "1.0.0",
+  "name": "Sparse",
+  "params": {
+    "order": 6,
+    "minExtra": 0,
+    "maxExtra": 7,
+    "step": 1.2
+  },
+  "programState": {},
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T18:37:23.522Z"
+}

@@ -5,9 +5,10 @@
   "params": {
     "lineCount": 80,
     "stepsPerLine": 600,
-    "maxAmplitude": 1.375,
-    "maxFrequency": 0.48
+    "maxAmplitude": 2.375,
+    "maxFrequency": 0.59
   },
+  "programState": {},
   "createdAt": "2026-05-05T12:00:00.000Z",
-  "updatedAt": "2026-05-05T12:00:00.000Z"
+  "updatedAt": "2026-05-05T18:39:19.725Z"
 }
