@@ -14,10 +14,11 @@ import { program as hilbertLoopsGradientProgram } from "../hilbert-loops-gradien
 import { program as hilbertThickGradientProgram } from "../hilbert-thick-gradient/index";
 import { program as imageCirclesProgram } from "../image-circles/index";
 import { program as imageJiggleProgram } from "../image-jiggle/index";
+import { program as isometricRibbonsProgram } from "../isometric-ribbons/index";
 import { program as logoProgram } from "../logo/index";
 import { program as referencePosterProgram } from "../reference-poster/index";
 import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as trochoidProgram } from "../trochoid/index";
 import { program as wavesProgram } from "../waves/index";
 
-export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, fieldProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, logoProgram, referencePosterProgram, tilepathGridProgram, trochoidProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];
+export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, fieldProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, isometricRibbonsProgram, logoProgram, referencePosterProgram, tilepathGridProgram, trochoidProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];
