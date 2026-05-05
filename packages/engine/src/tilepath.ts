@@ -16,6 +16,7 @@ export type TilepathOptions = Readonly<{
   seed?: number;
   tileSize?: number;
   lockedRotations?: Readonly<Record<number, number>>;
+  rotations?: readonly number[];
 }>;
 
 export type TilepathResult = Readonly<{
@@ -79,6 +80,7 @@ function normalizeOptions(options: TilepathOptions): Required<TilepathOptions> {
     seed: Math.max(1, Math.floor(options.seed ?? DEFAULT_OPTIONS.seed)),
     tileSize: options.tileSize ?? 0,
     lockedRotations: options.lockedRotations ?? {},
+    rotations: options.rotations ? [...options.rotations] : [],
   };
 }
 
@@ -715,6 +717,14 @@ function tracePaths(instances: readonly StrandInstance[]): Polyline[] {
   return result.sort((left, right) => right.points.length - left.points.length);
 }
 
+function normalizeResolvedRotations(grid: TileGrid, rotations: readonly number[]): number[] {
+  if (rotations.length !== grid.tiles.length) {
+    throw new Error(`need ${grid.tiles.length} rotations, got ${rotations.length}`);
+  }
+
+  return rotations.map((rotation, index) => normalizeTileRotation(grid.tiles[index]!, rotation));
+}
+
 export function generateTilepaths(
   bounds: Bounds,
   grid: TileGrid,
@@ -723,7 +733,16 @@ export function generateTilepaths(
   const normalized = normalizeOptions(options);
   const { cellSize, origin } = fitGrid(bounds, grid, normalized);
   const shapes = precomputeShapes(normalized, cellSize);
-  const solved = solveRotations(grid, normalized, shapes);
+  const explicitRotations =
+    normalized.rotations.length > 0
+      ? normalizeResolvedRotations(grid, normalized.rotations)
+      : null;
+  const solved = explicitRotations
+    ? {
+        rotations: explicitRotations,
+        ...scoreLayout(grid, normalized.lanes, explicitRotations, shapes),
+      }
+    : solveRotations(grid, normalized, shapes);
   const instances = buildInstances(grid, normalized, cellSize, origin, solved.rotations, shapes);
 
   return {

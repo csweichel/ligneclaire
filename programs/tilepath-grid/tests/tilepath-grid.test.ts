@@ -1,7 +1,7 @@
 import { calculateDocumentMetrics, normalizeParams, resolveProgramState } from "@ligneclaire/sdk";
 import { describe, expect, it } from "vitest";
 import { expectDeterministicProgramRender } from "../../test-helpers";
-import { buildTilepathLayout, program } from "../index";
+import { applyToolToState, buildTilepathLayout, program } from "../index";
 import defaultSet from "../params/default.json";
 
 describe("tilepath-grid program", () => {
@@ -31,5 +31,24 @@ describe("tilepath-grid program", () => {
 
     expect(counts.arc).toBeGreaterThan(0);
     expect(counts.line).toBeGreaterThan(0);
+  });
+
+  it("keeps the seeded base layout stable when a cell override is applied", () => {
+    const normalized = normalizeParams(program.params, defaultSet.params);
+    const state = resolveProgramState(program, normalized.params, defaultSet.programState);
+    const base = buildTilepathLayout(normalized.params, state);
+    const next = buildTilepathLayout(
+      normalized.params,
+      applyToolToState(state, "cell:0:0", "arc-se")
+    );
+
+    let rotationChanges = 0;
+    for (let index = 0; index < base.result.rotations.length; index += 1) {
+      if (base.result.rotations[index] !== next.result.rotations[index]) {
+        rotationChanges += 1;
+      }
+    }
+
+    expect(rotationChanges).toBe(1);
   });
 });

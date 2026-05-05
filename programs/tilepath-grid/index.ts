@@ -238,8 +238,30 @@ export function buildTilepathLayout(
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const gridChoice = chooseTileGrid({ width, height }, params.tile);
-  const tiles = [...generateTileKinds(gridChoice.rows, gridChoice.cols, params.seed, params.arc)];
-  const lockedRotations: Record<number, number> = {};
+  const baseTiles = [...generateTileKinds(gridChoice.rows, gridChoice.cols, params.seed, params.arc)];
+  const baseGrid = createTileGrid(gridChoice.rows, gridChoice.cols, baseTiles);
+  const baseResult = generateTilepaths(bounds, baseGrid, {
+    lanes: params.lanes,
+    arcSegments: params.segments,
+    searchPasses: params.passes,
+    searchRestarts: params.restarts,
+    seed: params.seed,
+    tileSize: gridChoice.tileSize,
+  });
+
+  if (Object.keys(programState.cells).length === 0) {
+    return {
+      bounds,
+      rows: gridChoice.rows,
+      cols: gridChoice.cols,
+      tileSize: gridChoice.tileSize,
+      grid: baseGrid,
+      result: baseResult,
+    };
+  }
+
+  const tiles = [...baseTiles];
+  const rotations = [...baseResult.rotations];
 
   for (const [id, override] of Object.entries(programState.cells)) {
     const parsed = parseCellId(id);
@@ -253,7 +275,7 @@ export function buildTilepathLayout(
 
     const index = parsed.row * gridChoice.cols + parsed.col;
     tiles[index] = override.kind;
-    lockedRotations[index] = normalizeTileRotation(override.kind, override.rotation);
+    rotations[index] = normalizeTileRotation(override.kind, override.rotation);
   }
 
   const grid = createTileGrid(gridChoice.rows, gridChoice.cols, tiles);
@@ -264,7 +286,7 @@ export function buildTilepathLayout(
     searchRestarts: params.restarts,
     seed: params.seed,
     tileSize: gridChoice.tileSize,
-    lockedRotations,
+    rotations,
   });
 
   return {
