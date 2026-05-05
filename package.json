@@ -1,0 +1,36 @@
+{
+  "name": "ligneclaire",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "pnpm generate:registry && pnpm typecheck && pnpm --filter @ligneclaire/studio build",
+    "generate:registry": "tsx scripts/generate-program-registry.ts",
+    "lc": "tsx packages/cli/src/index.ts",
+    "lint": "eslint .",
+    "runtime": "tsx packages/node-runtime/src/server.ts",
+    "studio": "pnpm --filter @ligneclaire/studio dev",
+    "test": "pnpm generate:registry && vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ligneclaire/engine": "workspace:*",
+    "@ligneclaire/node-runtime": "workspace:*",
+    "@ligneclaire/sdk": "workspace:*",
+    "@ligneclaire/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "25.6.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "10.3.0",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.59.2",
+    "vitest": "4.1.5"
+  }
+}

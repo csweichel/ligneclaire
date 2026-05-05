@@ -1,0 +1,14 @@
+{
+  "name": "@ligneclaire/cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "lc": "./src/index.ts"
+  },
+  "dependencies": {
+    "@ligneclaire/node-runtime": "workspace:*",
+    "@ligneclaire/sdk": "workspace:*"
+  }
+}
+

@@ -1,0 +1,22 @@
+{
+  "programId": "waves",
+  "programVersion": "1.0.0",
+  "name": "Density",
+  "params": {
+    "seed": 71765,
+    "bands": 180,
+    "amplitude": 40,
+    "frequency": 8,
+    "warp": 2,
+    "mirror": true
+  },
+  "programState": {
+    "focus": {
+      "x": 123.52938134135776,
+      "y": 129.34854934883654
+    },
+    "falloff": 0.15
+  },
+  "createdAt": "2026-05-05T08:24:08.971Z",
+  "updatedAt": "2026-05-05T08:34:34.922Z"
+}

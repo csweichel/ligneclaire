@@ -1,0 +1,12 @@
+services:
+    studio:
+        name: LigneClaire Studio
+        description: Runs the local runtime and Vite studio, then exposes port 5173 to the environment creator only.
+        commands:
+            start: |
+                ./scripts/run-studio-service.sh
+            ready: |
+                ./scripts/check-studio-service.sh
+        triggeredBy:
+            - manual
+

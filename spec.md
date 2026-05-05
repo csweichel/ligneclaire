@@ -1,0 +1,877 @@
+# LigneClaire Specification
+
+Status: implementation-ready v1 plan
+
+## 1. Product Summary
+
+LigneClaire is a local-first creative coding framework for pen plotters.
+
+Its core job is to let agents author plot programs quickly, while letting humans parameterize those programs safely and comfortably through a polished React/TypeScript/Tailwind studio UI and a reproducible headless CLI.
+
+Programs produce plotter-ready SVG. Optimized SVG and G-code export are first-class v1 features and must run through `vpype` plus `vpype-gcode` rather than a separate native G-code backend.
+
+The system is intentionally opinionated:
+
+- Programs are trusted in-repo TypeScript modules, not remote plug-ins.
+- Framework-generated controls operate on `int`, `float`, and `bool` parameters; custom editors may also persist arbitrary JSON `programState`.
+- Parameter sets live on disk alongside each program.
+- The same program + parameter set combination must reproduce the same SVG output.
+
+## 2. Goals
+
+- Make it easy for agents to create new plot programs with a strict, well-documented contract.
+- Make it easy for humans to browse programs, edit parameters, preview results, save named parameter sets, and export SVG/G-code.
+- Preserve reproducibility between studio previews and headless exports.
+- Provide a starter ingredient library inspired by GoPen-style generative tools: noise, Hilbert curves, image sampling, vector fields, clipping, contours, and curve helpers.
+- Keep the repo secure and predictable: exact dependency pins, no `npx`, no remote bootstrap scripts, no runtime code download, no shell-string command execution.
+
+## 3. Non-Goals
+
+- Sandboxing untrusted third-party program or editor code.
+- Multi-user or cloud-hosted collaboration in v1.
+- A marketplace or remote plugin system in v1.
+- Arbitrary generated-inspector parameter types such as free-form strings, enums, file paths, or JSON blobs in v1.
+- A general-purpose vector illustration tool.
+- A fallback native G-code exporter that bypasses `vpype`.
+
+## 4. Explicit Product Decisions
+
+- Required v1 plotter export baseline: `vpype` + `vpype-gcode`.
+- Required frontend/toolchain baseline: `pnpm` + `Vite`.
+- Program-specific interactive editors are trusted in-repo React modules.
+- The framework is local-first and intended to run on a developer workstation with a local filesystem.
+- SVG is the canonical authored output. G-code is a derived export.
+
+## 5. Functional Requirements
+
+### 5.1 Program Model
+
+Every program must define:
+
+- Stable `id`.
+- Human-readable `title` and `description`.
+- `version` or `schemaVersion`.
+- Canvas defaults.
+- Parameter schema.
+- Pure render function.
+- Optional custom editor module.
+- Optional parameter migration function.
+- Optional saved-state migration or normalization function.
+- Optional local assets manifest.
+
+Programs are authored as TypeScript source files in the repo and compiled as part of the workspace build.
+
+Programs must render to a typed internal vector document, not directly to arbitrary SVG strings. This is required so the framework can:
+
+- Validate output.
+- Generate metrics.
+- Reuse the same render path for preview and CLI.
+- Keep SVG generation deterministic.
+
+### 5.2 Typed Parameter Schema
+
+The generated inspector schema covers scalar, framework-managed controls. It does not need to describe every persisted structure a program-specific editor may save.
+
+Generated-inspector parameter types in v1:
+
+- `int`
+- `float`
+- `bool`
+
+Rules:
+
+- `int` and `float` parameters must declare `min`, `max`, and `default`.
+- `bool` parameters must declare `default`.
+- Parameter names must be stable, ASCII-safe identifiers.
+- Schema-declared values must be normalized and clamped on load, save, preview, and export.
+- The auto-generated inspector edits only schema-declared values.
+- Programs may also persist additional arbitrary JSON-serializable `programState` alongside schema-declared values.
+- Custom editors may read and write both schema-declared values and `programState`.
+- Any editor-only ephemeral interaction state that should not survive save/reload must stay out of the saved parameter set.
+
+Recommended optional metadata for UI quality:
+
+- `label`
+- `description`
+- `step`
+- `group`
+- `advanced`
+- `unit`
+
+### 5.3 Parameter Sets
+
+Humans must be able to:
+
+- List parameter sets for a selected program.
+- Load an existing parameter set.
+- Create a new parameter set from program defaults.
+- Duplicate an existing parameter set.
+- Rename a parameter set.
+- Save changes.
+- Delete a parameter set.
+
+Parameter sets are stored on disk alongside the program source:
+
+```text
+programs/<program-id>/params/<param-set-slug>.json
+```
+
+Each parameter set file must include:
+
+- `programId`
+- `programVersion` or `schemaVersion`
+- `name`
+- `params`
+- `programState` optional
+- `createdAt`
+- `updatedAt`
+
+Rules:
+
+- The slug used in the filename is path-safe and generated by the framework.
+- Writes must be atomic.
+- Invalid parameter-set files must never overwrite valid files.
+- `params` must conform to the current typed schema after normalization or migration.
+- `programState` may be any JSON-serializable structure owned by the program/editor.
+- If a program schema or persisted `programState` shape changes, the framework must either migrate the parameter set or block loading with a clear error.
+
+### 5.4 Studio UI
+
+The studio must provide:
+
+- Program browser.
+- Parameter set browser for the selected program.
+- Auto-generated parameter inspector from schema.
+- Optional program-specific custom editor surface.
+- Live SVG preview.
+- Export actions for raw SVG, optimized SVG, and G-code.
+- Clear validation and environment status reporting.
+
+Core flow:
+
+1. Human selects a program.
+2. Human selects an existing parameter set or creates a new one.
+3. Studio loads the parameter schema, current schema-declared values, and optional saved `programState`.
+4. Human edits schema-declared values with the generated inspector and/or richer `programState` through the custom editor.
+5. Preview refreshes from the same render runtime used by the CLI.
+6. Human saves the parameter set to disk.
+7. Human exports SVG and optionally G-code.
+
+### 5.5 Headless CLI
+
+The CLI must support:
+
+- Listing programs.
+- Listing parameter sets for a program.
+- Validating a program against checked-in validation cases and budgets.
+- Rendering raw SVG from a program + parameter set.
+- Rendering optimized SVG via `vpype`.
+- Exporting G-code via `vpype-gcode gwrite`.
+- Emitting machine-readable JSON output for agents and scripts.
+
+Example command surface:
+
+```text
+pnpm lc list-programs
+pnpm lc list-params --program waves
+pnpm lc render --program waves --params dense-a3 --out out/waves.svg
+pnpm lc optimize-svg --program waves --params dense-a3 --out out/waves.optimized.svg
+pnpm lc export-gcode --program waves --params dense-a3 --device axidraw-a3 --out out/waves.gcode
+pnpm lc validate-program --program waves --strict --json --out-dir .artifacts/validate/waves
+pnpm lc create-program --id waves
+```
+
+Rules:
+
+- Commands must be non-interactive by default.
+- Commands must return non-zero exit codes on failure.
+- Export commands must fail clearly if `vpype` or `vpype-gcode` is unavailable.
+- No shell pipelines assembled from user input.
+- `validate-program` must emit a machine-readable report with metrics, budget checks, determinism status, and artifact paths.
+
+### 5.6 Program-Specific Interactive Editors
+
+Programs may optionally define a custom React editor module.
+
+Custom editors may:
+
+- Read current parameter values and saved `programState`.
+- Update declared parameter values.
+- Produce and persist arbitrary JSON-serializable `programState`.
+- Render overlays aligned with the preview canvas.
+- Respond to pointer gestures, dragging, and selection interactions.
+- Request preview rerenders through framework hooks.
+
+Custom editors may not:
+
+- Persist undeclared typed parameters outside the schema-defined `params` namespace.
+- Save arbitrary files directly.
+- Execute remote code loading.
+
+The framework must provide reusable editor helpers so agent-authored programs do not need to hand-roll preview math for every editor.
+
+### 5.7 Agent Authoring Support
+
+The repo must contain:
+
+- Root `AGENTS.md` describing architecture, contracts, and safe commands.
+- A dedicated skill file for creating/editing programs.
+- A scaffolding template for new programs.
+- Validation scripts that check a new program for contract compliance.
+
+Agent workflows must be file-driven and deterministic. Avoid wizard-like interactive scaffolds.
+
+Agent-facing validation and backpressure requirements:
+
+- Every program must declare at least one checked-in validation case, typically the default parameter set, and may add more named validation fixtures for dense, extreme, or slow paths.
+- Programs may declare validation budgets such as max render time, max art-layer count, max path count, max segment count, max draw distance, and max pen-up distance.
+- `pnpm lc validate-program --program <id> --strict` must render each validation case at least twice, fail on non-deterministic output or metrics, and reject invalid geometry such as NaN/Infinity coordinates, empty or degenerate polylines where disallowed, and art geometry outside permitted bounds.
+- Validation must also confirm that debug geometry is isolated from export geometry and is not included in normal SVG/G-code export artifacts.
+- The validation command must emit a `validation-report.json` plus preview artifacts for each case, including a debug-preview artifact when the program emits debug geometry.
+- Local agent workflows and CI must treat validation failures and budget overruns as hard gates before a new program is considered compliant.
+
+## 6. Non-Functional Requirements
+
+### 6.1 Security
+
+- Pin all direct dependency versions exactly.
+- Commit and honor `pnpm-lock.yaml`.
+- Set the root `packageManager` field to an exact `pnpm` version.
+- Do not use `npx`.
+- Do not use `pnpm dlx`.
+- Do not depend on remote code bootstrap tools.
+- Use `pnpm exec` only for checked-in local dependencies.
+- Prefer a small dependency surface over convenience libraries.
+- Ban `eval`, `new Function`, remote dynamic import, and runtime code fetch.
+- Ban direct `fs`, `net`, `http`, `https`, and `child_process` imports from program and editor source files.
+- Route all file and process access through framework-owned node services.
+- Normalize and validate all filesystem paths before reading or writing.
+- Restrict writes to approved locations: parameter-set directories, export directories, temp directories generated by the framework.
+- Spawn `vpype` with argument arrays, never shell strings.
+- Store device/export presets as typed config, not user-editable command templates.
+
+### 6.2 Determinism
+
+- The same program source + parameter set + asset inputs must yield the same raw SVG.
+- Randomness must flow through a seeded RNG helper.
+- Templates should include a `seed` integer parameter by default.
+- SVG serialization order must be stable.
+- Output timestamps must not affect SVG bytes.
+
+### 6.3 Performance
+
+Local preview performance target for typical programs:
+
+- Under 250 ms for parameter changes that produce up to a few thousand paths on a normal development machine.
+
+Hard requirement:
+
+- Stale preview jobs must be cancelable.
+
+### 6.4 Quality
+
+- TypeScript strict mode.
+- Strong lint rules around unsafe APIs and disallowed imports.
+- Unit tests for schema validation, parameter migration, SVG serialization, and CLI argument handling.
+- Snapshot or structural tests for representative sample programs.
+- Integration tests for `vpype` export when the toolchain is available in CI or local dev.
+- Strict validation reports that enforce determinism and complexity budgets for checked-in validation cases.
+
+## 7. Rendering and Geometry Model
+
+### 7.1 Internal Coordinate System
+
+Use a math-friendly internal plot coordinate system:
+
+- Units: millimeters.
+- Origin: bottom-left inside the page.
+- Positive Y: upward.
+
+The SVG serializer is responsible for converting internal coordinates to SVG space.
+
+### 7.2 Document Model
+
+The render function returns a `PlotDocument`:
+
+```ts
+type PlotDocument = {
+  canvas: CanvasSpec;
+  layers: PlotLayer[];
+  debugLayers?: PlotLayer[];
+  metadata?: Record<string, string>;
+};
+
+type CanvasSpec = {
+  widthMm: number;
+  heightMm: number;
+  marginMm: number;
+};
+
+type PlotLayer = {
+  id: string;
+  label: string;
+  pen?: string;
+  stroke?: string;
+  paths: Polyline[];
+};
+
+type Polyline = {
+  points: Array<{ x: number; y: number }>;
+  closed?: boolean;
+};
+```
+
+`layers` are the exported art layers. They support multi-color rendering through per-layer stroke colors even though v1 G-code export treats color as visualization/export metadata rather than automatic pen changes.
+
+`debugLayers` are optional studio-only or validation-only overlay geometry. Programs may emit them on any render, but they are excluded from normal SVG and G-code exports unless a dedicated debug-preview artifact is requested.
+
+v1 output constraints:
+
+- Final exported geometry is stroke-only.
+- Final SVG export may preserve distinct layer stroke colors.
+- Debug geometry lives in `debugLayers`, not in exported art layers.
+- Studio preview may optionally overlay `debugLayers` on top of art layers.
+- No fills.
+- No text elements.
+- No filters, masks, gradients, or embedded raster output.
+- Curves must be flattened to polylines before SVG export.
+- G-code export ignores color semantics beyond layer ordering in v1.
+
+This keeps `vpype` processing simple and predictable.
+
+### 7.3 Metrics
+
+The runtime should compute at least:
+
+- Art-layer and debug-layer count.
+- Path count.
+- Segment count.
+- Draw distance.
+- Pen-up distance estimate.
+- Bounding box.
+
+These metrics power both UI feedback and CLI JSON output.
+
+## 8. Starter Ingredient Library
+
+The framework should ship with a first-party ingredient library inspired by GoPen-style building blocks. v1 should include:
+
+- Seeded RNG helpers.
+- Perlin or simplex noise sampling.
+- Hilbert curve generation.
+- Continuous and discrete curve helpers.
+- Vector field helpers and line tracing.
+- Raster image sampling from local assets.
+- Polyline clipping and bounds helpers.
+- Contour lane / offset helpers.
+- Hatching and spacing utilities.
+
+Important constraint:
+
+- These helpers live in framework packages and are imported by programs.
+- Programs should not need direct low-level filesystem or image-decoding code.
+
+## 9. Program Contract
+
+Suggested authoring API:
+
+```ts
+export const program = defineProgram({
+  id: "waves",
+  title: "Waves",
+  version: "1.0.0",
+  canvas: {
+    widthMm: 420,
+    heightMm: 297,
+    marginMm: 10,
+  },
+  params: {
+    seed: intParam({ min: 1, max: 999999, default: 1337 }),
+    bands: intParam({ min: 1, max: 300, default: 64 }),
+    amplitude: floatParam({ min: 0, max: 50, default: 12, step: 0.1 }),
+  },
+  validation: {
+    cases: ["default", "dense-a3"],
+    budgets: {
+      maxRenderMs: 250,
+      maxArtLayers: 8,
+      maxPaths: 50000,
+      maxSegments: 250000,
+      maxDrawDistanceMm: 400000,
+    },
+  },
+  render(ctx) {
+    return buildPlotDocument(ctx);
+  },
+  editor: lazyEditor(() => import("./editor")),
+  migrateParamSet(oldSet) {
+    return oldSet;
+  },
+});
+```
+
+Programs may also declare a typed `programState` contract and provide defaulting, normalization, or migration hooks for it; the scalar `params` schema is only for framework-generated controls.
+
+Programs should also declare validation fixtures and budgets so agent-authored changes are forced through a deterministic render/metrics gate before they are considered acceptable.
+
+Required properties of the SDK:
+
+- Strong TypeScript inference from parameter schema and optional `programState` type to render/editor props.
+- Minimal API surface so agents can follow examples.
+- Helpers for canvas bounds, seeded randomness, layers, and asset loading.
+- Validation helpers for declaring fixtures, budgets, and debug-preview expectations.
+
+## 10. Filesystem Layout
+
+Recommended repo layout:
+
+```text
+apps/
+  studio/
+packages/
+  engine/
+  sdk/
+  node-runtime/
+  ui/
+  cli/
+programs/
+  waves/
+    index.ts
+    editor.tsx
+    README.md
+    assets/
+    params/
+      default.json
+      dense-a3.json
+    tests/
+config/
+  plotters/
+    axidraw-a4.json
+    axidraw-a3.json
+scripts/
+  generate-program-registry.ts
+templates/
+  program/
+.codex/
+  skills/
+    plot-program-authoring/
+      SKILL.md
+AGENTS.md
+spec.md
+```
+
+Notes:
+
+- `programs/` is the human- and agent-authored source of truth.
+- `params/` lives with the program to keep code and parameter data colocated.
+- Program discovery should come from a generated registry step rather than arbitrary runtime directory execution.
+
+## 11. Runtime Architecture
+
+### 11.1 Shared Packages
+
+`packages/engine`
+
+- Core document model.
+- Geometry helpers.
+- SVG serializer.
+- Metrics.
+- Deterministic RNG.
+- Parameter normalization.
+
+`packages/sdk`
+
+- `defineProgram`.
+- Parameter builders.
+- Editor typing.
+- Asset access abstractions.
+- Program validation helpers.
+
+`packages/ui`
+
+- Shared studio components.
+- Generated inspector controls.
+- Preview helpers.
+- Editor interaction hooks.
+
+### 11.2 Node-Only Runtime
+
+`packages/node-runtime`
+
+- Program registry loading.
+- Parameter-set filesystem IO.
+- Asset resolution.
+- Preview render execution.
+- `vpype` and `vpype-gcode` integration.
+- Export profile resolution.
+- Process spawning.
+
+This package is the boundary between trusted local code execution and the browser UI.
+
+### 11.3 CLI
+
+`packages/cli`
+
+- Thin wrapper around the node runtime.
+- Non-interactive commands.
+- JSON output mode for automation.
+- Validation and scaffolding commands.
+
+### 11.4 Studio App
+
+`apps/studio`
+
+- Vite-powered React application.
+- Tailwind styling.
+- Program browser.
+- Parameter-set management.
+- Preview pane.
+- Export controls.
+- Environment diagnostics pane.
+
+The browser app must not read or write the filesystem directly. All persistence and exports go through the local node runtime API.
+
+## 12. Preview and Export Pipeline
+
+### 12.1 Raw SVG Preview
+
+Flow:
+
+1. Studio or CLI resolves program + parameter set.
+2. Runtime validates and normalizes params.
+3. Program renders `PlotDocument`.
+4. Engine computes metrics.
+5. Engine serializes raw SVG.
+
+Raw SVG is used for:
+
+- Studio preview.
+- Snapshot tests.
+- Direct SVG export.
+
+Studio preview requests may optionally include debug layers. Normal export endpoints must ignore them.
+
+### 12.2 Optimized SVG Export
+
+Flow:
+
+1. Generate raw SVG in a temp directory.
+2. Run a framework-owned `vpype` command chain.
+3. Write the optimized SVG to the requested output path.
+
+Default v1 optimization pipeline:
+
+```text
+vpype read input.svg linemerge linesimplify reloop linesort write output.svg
+```
+
+This pipeline must be represented as typed config in code, not editable shell text.
+
+### 12.3 G-code Export
+
+Flow:
+
+1. Generate raw SVG in a temp directory.
+2. Run the same or similar optimization chain through `vpype`.
+3. Emit G-code using `gwrite` with a framework-generated or framework-owned profile.
+
+Device/export presets must capture:
+
+- Units.
+- Feed rates.
+- Pen-up and pen-down commands.
+- Coordinate flips.
+- Page/layout assumptions.
+
+The framework should generate whatever config file shape `vpype-gcode` requires, but that generation stays internal to the node runtime.
+
+## 13. API Shape Between Studio and Local Runtime
+
+The local API may be REST, but it must remain simple and explicit.
+
+Minimum endpoints:
+
+- `GET /api/programs`
+- `GET /api/programs/:programId`
+- `GET /api/programs/:programId/params`
+- `GET /api/programs/:programId/params/:paramSetId`
+- `POST /api/programs/:programId/params`
+- `PUT /api/programs/:programId/params/:paramSetId`
+- `DELETE /api/programs/:programId/params/:paramSetId`
+- `POST /api/render`
+- `POST /api/export/svg`
+- `POST /api/export/gcode`
+- `GET /api/system/tools`
+
+Requirements:
+
+- Preview requests must be abortable from the browser.
+- Render requests must support preview options such as `showDebug`.
+- Export endpoints must return structured errors.
+- Tool diagnostics must report whether `vpype` and `vpype-gcode` are available.
+
+## 14. Studio UX Requirements
+
+The UI should feel like a plotting studio, not a generic admin panel.
+
+Required layout:
+
+- Header: program selection, parameter-set browser, save/duplicate controls, and primary export actions.
+- Main workspace: paper-like live preview with zoom and pan beside the generated parameter controls and program-specific editor controls.
+- By default, the preview pane and editor pane split the remaining horizontal space 50/50, with a user-resizable divider and the ability for the editor pane to grow larger when a program-specific editor needs more room.
+- Bottom or side drawer: metrics, export status, and environment diagnostics.
+
+Required interactions:
+
+- Fast switching between parameter sets.
+- Dirty-state indication before save.
+- Save As / duplicate flow.
+- Reset to defaults.
+- Inline validation messages.
+- Export buttons for raw SVG, optimized SVG, and G-code.
+- Optional preview overlays from the program-specific editor.
+- Toggleable debug-geometry overlay that never affects final exports.
+- Multi-color layer preview with clear visual separation between art layers.
+
+Visual direction:
+
+- Clean, print-oriented, paper-and-ink feel.
+- Strong hierarchy and spatial clarity.
+- Avoid dashboard-style generic UI.
+
+## 15. Program Discovery and Build Strategy
+
+Do not execute arbitrary source discovered at runtime from unconstrained paths.
+
+Use a checked-in generator script to build a registry from `programs/*/index.ts`.
+
+Benefits:
+
+- Shared discovery for studio and CLI.
+- Easier validation.
+- Lower risk than arbitrary path-based import execution.
+- Better compatibility with Vite and TypeScript builds.
+
+The generator should:
+
+- Verify each program folder has required files.
+- Emit a typed registry module.
+- Surface duplicate IDs as build errors.
+
+## 16. Agent Tooling Requirements
+
+### 16.1 `AGENTS.md`
+
+Must include:
+
+- Repo architecture summary.
+- Program folder contract.
+- Allowed imports.
+- Forbidden imports.
+- Parameter schema rules.
+- How to run validation and preview.
+- Snapshot and test expectations.
+
+### 16.2 Skill File
+
+Must include:
+
+- The minimal steps to create a compliant new program.
+- Required files to generate.
+- A small checklist for custom editor support.
+- How to save parameter set defaults.
+- How to run validation and snapshot generation.
+
+### 16.3 Program Template
+
+The template should create:
+
+- `index.ts`
+- `editor.tsx`
+- `README.md`
+- `params/default.json`
+- `tests/<program>.test.ts`
+
+## 17. Security Constraints in Detail
+
+### 17.1 Trust Model
+
+Trusted:
+
+- Repo-local program code.
+- Repo-local custom editor code.
+- Repo-local config files.
+
+Not supported in v1:
+
+- Loading arbitrary third-party program bundles.
+- Fetching editor code from remote URLs.
+- Uploading untrusted scripts for execution.
+
+### 17.2 Process Safety
+
+- `vpype` must be invoked with `spawn` or equivalent argument-array APIs.
+- Export profile names must be validated against known config.
+- Temp directories must be framework-owned.
+- Export paths must be normalized and prevented from escaping the workspace unless explicitly allowed.
+
+### 17.3 Filesystem Safety
+
+- Parameter-set writes must use temp-file-plus-rename semantics.
+- Parameter-set deletes must confirm the target path belongs to the selected program’s `params/` directory.
+- Asset access must be read-only through a scoped helper.
+
+### 17.4 Dependency Safety
+
+- Enable `save-exact=true`.
+- Enforce lockfile installs.
+- Keep a reviewed allowlist for packages that need install/build scripts.
+- Avoid large schema frameworks when custom typed validators are enough.
+
+## 18. Implementation Plan
+
+### Phase 1: Workspace Bootstrap
+
+- Create the `pnpm` workspace.
+- Add exact package manager pinning.
+- Add root TypeScript, lint, and formatting config.
+- Add base Tailwind and Vite setup.
+- Add root `AGENTS.md`.
+- Add initial skill file.
+
+Deliverable:
+
+- Repo installs with `pnpm install --frozen-lockfile`.
+
+### Phase 2: Core Engine and SDK
+
+- Implement parameter spec types and validators.
+- Implement document model and SVG serializer, including multi-color art layers and separate debug layers.
+- Implement metrics.
+- Implement deterministic RNG and starter geometry helpers.
+- Implement `defineProgram` and editor typing.
+
+Deliverable:
+
+- A sample program can render raw SVG entirely inside TypeScript.
+
+### Phase 3: Registry, Filesystem Store, and CLI
+
+- Implement program registry generation.
+- Implement parameter-set load/save/delete/duplicate logic.
+- Implement CLI commands.
+- Implement strict validation reports and artifact generation.
+- Implement JSON output mode.
+
+Deliverable:
+
+- CLI can render raw SVG from a sample program and parameter set.
+
+### Phase 4: Studio Shell
+
+- Build the main studio layout.
+- Add program browser and parameter-set browser.
+- Add generated parameter inspector.
+- Connect preview rendering through the local runtime.
+- Add layer-aware preview rendering and a debug overlay toggle.
+
+Deliverable:
+
+- Humans can load a program, edit parameters, and see a live SVG preview.
+
+### Phase 5: Custom Editor Framework
+
+- Implement editor loading.
+- Implement preview coordinate helpers.
+- Implement pointer binding helpers.
+- Ship at least one sample program with a useful custom editor.
+
+Deliverable:
+
+- A custom editor can manipulate declared parameters and persisted `programState` directly on the preview surface.
+
+### Phase 6: `vpype` / `vpype-gcode` Integration
+
+- Detect tool availability.
+- Implement optimized SVG export.
+- Implement G-code export using device profiles.
+- Surface export errors and diagnostics in CLI and studio.
+
+Deliverable:
+
+- End-to-end export from program + params to `.svg` and `.gcode`.
+
+### Phase 7: Agent Authoring Experience
+
+- Implement `create-program` scaffolding.
+- Finalize templates.
+- Finalize `AGENTS.md` and skill instructions.
+- Add validation rules for program compliance.
+
+Deliverable:
+
+- An agent can create a compliant new program from the checked-in template and docs.
+
+### Phase 8: Hardening and Tests
+
+- Add snapshot tests for representative programs.
+- Add API tests for parameter IO.
+- Add CLI tests.
+- Add optional integration tests for `vpype`.
+- Add import-ban lint rules for program/editor code.
+
+Deliverable:
+
+- The framework is stable enough for new programs to be added without manual debugging of the core.
+
+## 19. Success Criteria
+
+The spec is considered successfully implemented when all of the following are true:
+
+- A new program can be scaffolded without interactive prompts.
+- The scaffolded program includes a valid parameter schema, default parameter set, and optional custom editor entry point.
+- The studio lists all checked-in programs from the generated registry.
+- Selecting a program loads its local parameter sets from disk.
+- Creating, saving, duplicating, renaming, and deleting parameter sets works from the studio.
+- All saved parameter files are validated and written atomically.
+- The generated parameter inspector fully supports `int`, `float`, and `bool`.
+- Saved parameter sets can round-trip arbitrary JSON `programState` without lossy coercion.
+- A program-specific custom editor can manipulate the same declared parameters used by the inspector and can persist arbitrary JSON `programState` alongside them.
+- The preview uses the same render runtime as the CLI.
+- Raw SVG export works without any external optimizer.
+- `validate-program --strict` renders checked-in validation cases, emits machine-readable reports/artifacts, and fails on determinism, geometry, or budget violations.
+- Studio preview supports multiple art-layer colors.
+- Studio can toggle debug geometry overlays.
+- Exported SVG and G-code exclude debug geometry by default.
+- Optimized SVG export runs through `vpype`.
+- G-code export runs through `vpype-gcode gwrite`.
+- Missing external tooling produces clear, actionable errors instead of silent fallback behavior.
+- At least three sample programs exist, covering distinct ingredient classes such as noise, Hilbert/curve structure, and image sampling.
+- Program/editor source files are prevented by lint/config from importing disallowed node/process APIs directly.
+- No docs, scripts, or automation rely on `npx`.
+- Dependency versions are exact pins and the workspace installs from lockfile cleanly.
+- CLI commands support machine-readable output for agent workflows.
+- `AGENTS.md` and the program-authoring skill are sufficient for an agent to add a new compliant program.
+
+## 20. First Sample Programs
+
+v1 should ship with at least these reference programs:
+
+- `waves`: noise-driven layered linework with a custom editor for handle placement.
+- `hilbert-density`: Hilbert-based density or offset composition.
+- `image-sampler`: local raster asset sampled into line density, circles, or field-driven marks.
+
+These programs serve as:
+
+- User-facing examples.
+- Regression/snapshot fixtures.
+- Agent authoring references.
+
+## 21. Final Notes
+
+This project should optimize for two things above all else:
+
+- Agent ergonomics when creating new programs.
+- Human ergonomics when tuning and exporting those programs.
+
+Any implementation choice that weakens the strict program contract, reproducibility, or local filesystem-based parameter workflow should be rejected for v1.

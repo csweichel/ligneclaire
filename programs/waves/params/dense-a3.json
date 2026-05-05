@@ -1,0 +1,23 @@
+{
+  "programId": "waves",
+  "programVersion": "1.0.0",
+  "name": "Dense A3",
+  "params": {
+    "seed": 202604,
+    "bands": 108,
+    "amplitude": 9.5,
+    "frequency": 3.1,
+    "warp": 1.1,
+    "mirror": true
+  },
+  "programState": {
+    "focus": {
+      "x": 240,
+      "y": 172
+    },
+    "falloff": 0.32
+  },
+  "createdAt": "2026-05-05T00:00:00.000Z",
+  "updatedAt": "2026-05-05T00:00:00.000Z"
+}
+

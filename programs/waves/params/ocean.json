@@ -1,0 +1,22 @@
+{
+  "programId": "waves",
+  "programVersion": "1.0.0",
+  "name": "Ocean",
+  "params": {
+    "seed": 71765,
+    "bands": 146,
+    "amplitude": 4.4,
+    "frequency": 2.25,
+    "warp": 1.26,
+    "mirror": true
+  },
+  "programState": {
+    "focus": {
+      "x": 266.13869127690396,
+      "y": 156.51352959437088
+    },
+    "falloff": 0.42
+  },
+  "createdAt": "2026-05-05T00:00:00.000Z",
+  "updatedAt": "2026-05-05T08:06:15.994Z"
+}

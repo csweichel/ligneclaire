@@ -1,0 +1,15 @@
+{
+  "name": "@ligneclaire/node-runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@ligneclaire/engine": "workspace:*",
+    "@ligneclaire/sdk": "workspace:*",
+    "pngjs": "7.0.0"
+  }
+}
+

@@ -1,0 +1,15 @@
+{
+  "id": "axidraw-a3",
+  "label": "AxiDraw A3",
+  "page": {
+    "widthMm": 420,
+    "heightMm": 297
+  },
+  "gcode": {
+    "unit": "mm",
+    "feedRateMmPerMin": 2400,
+    "penUpCommand": "M5",
+    "penDownCommand": "M3 S30",
+    "verticalFlip": true
+  }
+}

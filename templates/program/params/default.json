@@ -1,0 +1,19 @@
+{
+  "programId": "__PROGRAM_ID__",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "seed": 1337,
+    "lines": 24,
+    "amplitude": 10
+  },
+  "programState": {
+    "focus": {
+      "x": 148.5,
+      "y": 105
+    }
+  },
+  "createdAt": "2026-05-05T00:00:00.000Z",
+  "updatedAt": "2026-05-05T00:00:00.000Z"
+}
+

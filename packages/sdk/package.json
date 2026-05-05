@@ -1,0 +1,14 @@
+{
+  "name": "@ligneclaire/sdk",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@ligneclaire/engine": "workspace:*",
+    "react": "19.2.5"
+  }
+}
+
