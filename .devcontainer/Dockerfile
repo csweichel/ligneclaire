@@ -32,5 +32,5 @@ RUN corepack enable \
     && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 RUN python3 -m venv /opt/vpype \
-    && /opt/vpype/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && /opt/vpype/bin/pip install --no-cache-dir vpype vpype-gcode
+    && /opt/vpype/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && /opt/vpype/bin/python -m pip install --no-cache-dir vpype vpype-gcode
