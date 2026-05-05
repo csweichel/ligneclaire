@@ -13,5 +13,20 @@
     "penUpCommand": "M5\nG4 P1",
     "penDownCommand": "M3 S400\nG4 P1",
     "verticalFlip": true
+  },
+  "transport": {
+    "kind": "serial",
+    "baudRate": 115200,
+    "dataBits": 8,
+    "stopBits": 1,
+    "parity": "none",
+    "flowControl": "none",
+    "lineEnding": "lf",
+    "responseMode": "ack",
+    "ackPattern": "^(ok|OK)$",
+    "errorPattern": "^(error|ERROR|alarm|ALARM)",
+    "readyPattern": "^(Grbl|start)",
+    "ackTimeoutMs": 3000,
+    "lineDelayMs": 0
   }
 }

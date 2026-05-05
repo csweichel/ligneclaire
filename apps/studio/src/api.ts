@@ -93,3 +93,25 @@ export async function apiDownload<Request>(
 
   return { fileName };
 }
+
+export async function apiFetchTextArtifact<Request>(
+  url: string,
+  body: Request,
+  signal?: AbortSignal
+): Promise<Readonly<{ fileName: string; content: string }>> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(await readFailureMessage(response));
+  }
+
+  return {
+    fileName: readDownloadFileName(response),
+    content: await response.text(),
+  };
+}

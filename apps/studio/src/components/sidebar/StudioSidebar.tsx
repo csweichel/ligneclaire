@@ -1,6 +1,7 @@
 import { ParameterInspector } from "@ligneclaire/ui";
 import type { StudioModel } from "../../types";
 import { DocumentActionBar } from "./DocumentActionBar";
+import { GcodeTransportPanel } from "../transport/GcodeTransportPanel";
 
 type StudioSidebarProps = Readonly<{
   studio: StudioModel;
@@ -225,6 +226,8 @@ export function StudioSidebar({ studio }: StudioSidebarProps) {
             />
           </div>
         </details>
+
+        <GcodeTransportPanel studio={studio} />
       </div>
     </aside>
   );

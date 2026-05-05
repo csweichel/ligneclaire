@@ -122,6 +122,27 @@ export type PlotterGcodeConfig = Readonly<{
   verticalFlip: boolean;
 }>;
 
+export type PlotterSerialTransportConfig = Readonly<{
+  kind: "serial";
+  baudRate: number;
+  dataBits?: 7 | 8;
+  stopBits?: 1 | 2;
+  parity?: "none" | "even" | "odd";
+  flowControl?: "none" | "hardware";
+  lineEnding?: "lf" | "crlf";
+  responseMode?: "ack" | "timed";
+  ackPattern?: string;
+  errorPattern?: string;
+  readyPattern?: string;
+  ackTimeoutMs?: number;
+  lineDelayMs?: number;
+  connectDelayMs?: number;
+  usbVendorId?: number;
+  usbProductId?: number;
+}>;
+
+export type PlotterTransportConfig = PlotterSerialTransportConfig;
+
 export type PlotterDeviceSummary = Readonly<{
   id: string;
   label: string;
@@ -129,6 +150,7 @@ export type PlotterDeviceSummary = Readonly<{
     widthMm: number;
     heightMm: number;
   }>;
+  transport?: PlotterTransportConfig;
 }>;
 
 export type ValidationCaseReport = Readonly<{

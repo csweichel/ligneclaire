@@ -1,0 +1,372 @@
+import type { StudioModel } from "../../types";
+import { GcodeVirtualPreview } from "./GcodeVirtualPreview";
+
+type GcodeTransportPanelProps = Readonly<{
+  studio: StudioModel;
+}>;
+
+function connectionLabel(studio: StudioModel): string {
+  switch (studio.transport.connectionState) {
+    case "unsupported":
+      return "Browser unsupported";
+    case "connecting":
+      return "Connecting";
+    case "connected":
+      return "Connected";
+    case "disconnected":
+      return "Disconnected";
+  }
+}
+
+function jobLabel(studio: StudioModel): string {
+  switch (studio.transport.jobState) {
+    case "idle":
+      return "Idle";
+    case "preparing":
+      return "Preparing";
+    case "ready":
+      return "Ready";
+    case "sending":
+      return "Sending";
+    case "paused":
+      return "Paused";
+    case "complete":
+      return "Complete";
+    case "failed":
+      return "Failed";
+    case "cancelled":
+      return "Cancelled";
+  }
+}
+
+export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
+  const plotter = studio.plotters.find(
+    (candidate) => candidate.id === studio.exportSettings.deviceId
+  );
+  const canPrepare = Boolean(
+    studio.current && studio.selectedProgramId && studio.exportSettings.deviceId && studio.tools?.vpypeGcode.available
+  );
+  const sendDisabled =
+    !canPrepare ||
+    (studio.transport.settings.target === "serial" &&
+      studio.transport.connectionState !== "connected") ||
+    studio.transport.jobState === "preparing" ||
+    studio.transport.jobState === "sending";
+  const progressPercent =
+    studio.transport.progress.totalLines > 0
+      ? (studio.transport.progress.sentLines / studio.transport.progress.totalLines) * 100
+      : 0;
+
+  return (
+    <details className="studio-sidebar__details" open>
+      <summary>Transport</summary>
+      <div className="studio-sidebar__details-body">
+        <div className="studio-sidebar__issue">
+          G-code is generated from the current document and selected plotter profile, then either
+          streamed to a browser USB serial device or simulated in the virtual plotter.
+        </div>
+
+        <div className="gcode-transport__group">
+          <label className="studio-field">
+            <span className="studio-field__label">Target</span>
+            <select
+              className="studio-input studio-input--compact"
+              value={studio.transport.settings.target}
+              onChange={(event) => {
+                studio.transport.setTarget(event.currentTarget.value as "serial" | "virtual");
+              }}
+            >
+              <option value="serial">USB Serial Device</option>
+              <option value="virtual">Virtual Plotter</option>
+            </select>
+          </label>
+
+          {studio.transport.settings.target === "serial" ? (
+            <>
+              {!studio.transport.supported ? (
+                <div className="studio-empty-state">
+                  This browser does not expose the Web Serial API. Use a Chromium-based browser to
+                  connect a USB serial plotter directly.
+                </div>
+              ) : (
+                <>
+                  <div className="studio-document-actions__row">
+                    <button
+                      className="studio-button"
+                      disabled={studio.transport.connectionState === "connected"}
+                      type="button"
+                      onClick={() => {
+                        void studio.transport.connect();
+                      }}
+                    >
+                      Connect
+                    </button>
+                    <button
+                      className="studio-button"
+                      disabled={studio.transport.connectionState !== "connected"}
+                      type="button"
+                      onClick={() => {
+                        void studio.transport.disconnect();
+                      }}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+
+                  <div className="gcode-transport__settings-grid">
+                    <label className="studio-field">
+                      <span className="studio-field__label">Baud</span>
+                      <input
+                        className="studio-input studio-input--compact"
+                        min={1200}
+                        step={1}
+                        type="number"
+                        value={studio.transport.settings.baudRate}
+                        onChange={(event) => {
+                          studio.transport.updateSettings({
+                            baudRate: Math.max(1200, Number(event.currentTarget.value) || 1200),
+                          });
+                        }}
+                      />
+                    </label>
+
+                    <label className="studio-field">
+                      <span className="studio-field__label">Responses</span>
+                      <select
+                        className="studio-input studio-input--compact"
+                        value={studio.transport.settings.responseMode}
+                        onChange={(event) => {
+                          studio.transport.updateSettings({
+                            responseMode: event.currentTarget.value as "ack" | "timed",
+                          });
+                        }}
+                      >
+                        <option value="ack">Wait for ack</option>
+                        <option value="timed">Timed send</option>
+                      </select>
+                    </label>
+
+                    <label className="studio-field">
+                      <span className="studio-field__label">Line ending</span>
+                      <select
+                        className="studio-input studio-input--compact"
+                        value={studio.transport.settings.lineEnding}
+                        onChange={(event) => {
+                          studio.transport.updateSettings({
+                            lineEnding: event.currentTarget.value as "lf" | "crlf",
+                          });
+                        }}
+                      >
+                        <option value="lf">LF</option>
+                        <option value="crlf">CRLF</option>
+                      </select>
+                    </label>
+
+                    <label className="studio-field">
+                      <span className="studio-field__label">
+                        {studio.transport.settings.responseMode === "ack" ? "Ack timeout" : "Line delay"}
+                      </span>
+                      <input
+                        className="studio-input studio-input--compact"
+                        min={0}
+                        step={10}
+                        type="number"
+                        value={
+                          studio.transport.settings.responseMode === "ack"
+                            ? studio.transport.settings.ackTimeoutMs
+                            : studio.transport.settings.lineDelayMs
+                        }
+                        onChange={(event) => {
+                          const nextValue = Math.max(0, Number(event.currentTarget.value) || 0);
+                          studio.transport.updateSettings(
+                            studio.transport.settings.responseMode === "ack"
+                              ? { ackTimeoutMs: nextValue }
+                              : { lineDelayMs: nextValue }
+                          );
+                        }}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </>
+          ) : null}
+        </div>
+
+        <div className="studio-document-actions">
+          <div className="studio-document-actions__row">
+            <button
+              className="studio-button"
+              disabled={!canPrepare || studio.transport.jobState === "preparing"}
+              type="button"
+              onClick={() => {
+                void studio.transport.prepare();
+              }}
+            >
+              {studio.transport.preparedArtifact ? "Refresh G-code" : "Prepare G-code"}
+            </button>
+
+            <button
+              className="studio-button studio-button--primary"
+              disabled={sendDisabled}
+              type="button"
+              onClick={() => {
+                void studio.transport.send();
+              }}
+            >
+              {studio.transport.settings.target === "virtual" ? "Run Virtual Plotter" : "Send G-code"}
+            </button>
+          </div>
+
+          <div className="studio-document-actions__row">
+            <button
+              className="studio-button"
+              disabled={studio.transport.jobState !== "sending"}
+              type="button"
+              onClick={() => {
+                studio.transport.pause();
+              }}
+            >
+              Pause
+            </button>
+
+            <button
+              className="studio-button"
+              disabled={studio.transport.jobState !== "paused"}
+              type="button"
+              onClick={() => {
+                studio.transport.resume();
+              }}
+            >
+              Resume
+            </button>
+
+            <button
+              className="studio-button studio-button--danger"
+              disabled={
+                studio.transport.jobState !== "sending" &&
+                studio.transport.jobState !== "paused"
+              }
+              type="button"
+              onClick={() => {
+                studio.transport.cancel();
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <div className="gcode-transport__progress">
+          <div className="gcode-transport__progress-bar">
+            <div
+              className="gcode-transport__progress-fill"
+              style={{
+                width: `${progressPercent}%`,
+              }}
+            />
+          </div>
+          <div className="gcode-transport__progress-label">
+            {studio.transport.progress.sentLines}/{studio.transport.progress.totalLines} lines
+          </div>
+        </div>
+
+        <div className="studio-sidebar__meta-grid">
+          <span>Connection</span>
+          <span>{connectionLabel(studio)}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Job</span>
+          <span>{jobLabel(studio)}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Plotter</span>
+          <span>{plotter?.label ?? "--"}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Prepared file</span>
+          <span>{studio.transport.preparedArtifact?.fileName ?? "--"}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Port</span>
+          <span>{studio.transport.portLabel ?? "--"}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Acknowledged</span>
+          <span>{studio.transport.progress.acknowledgedLines}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Errors</span>
+          <span>{studio.transport.progress.errorLines}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Last response</span>
+          <span>{studio.transport.lastResponse ?? "--"}</span>
+        </div>
+
+        {studio.transport.preparedStale ? (
+          <div className="studio-sidebar__issue">
+            The prepared G-code is stale. Refresh before sending if you want the latest parameter
+            changes included.
+          </div>
+        ) : null}
+
+        <section className="gcode-transport__preview-block">
+          <div className="gcode-transport__preview-header">
+            <h3>Virtual Preview</h3>
+            <button
+              className="studio-button studio-button--compact"
+              type="button"
+              onClick={() => {
+                studio.transport.clearLogs();
+              }}
+            >
+              Clear log
+            </button>
+          </div>
+
+          <GcodeVirtualPreview
+            activeLineNumber={studio.transport.progress.sentLines}
+            artifact={studio.transport.preparedArtifact}
+            page={plotter?.page ?? null}
+          />
+
+          <div className="studio-sidebar__meta-grid">
+            <span>Drawing segments</span>
+            <span>{studio.transport.preparedArtifact?.preview.drawingSegments ?? "--"}</span>
+          </div>
+          <div className="studio-sidebar__meta-grid">
+            <span>Travel segments</span>
+            <span>{studio.transport.preparedArtifact?.preview.travelSegments ?? "--"}</span>
+          </div>
+        </section>
+
+        <section className="gcode-transport__log">
+          <div className="gcode-transport__preview-header">
+            <h3>Transport Log</h3>
+            <span>{studio.transport.logs.length} entries</span>
+          </div>
+
+          <div className="gcode-transport__log-list">
+            {studio.transport.logs.length > 0 ? (
+              studio.transport.logs.map((entry) => (
+                <div
+                  key={entry.id}
+                  className={`gcode-transport__log-entry gcode-transport__log-entry--${entry.level}`}
+                >
+                  <span>{entry.timeLabel}</span>
+                  <span>{entry.level.toUpperCase()}</span>
+                  <span>{entry.message}</span>
+                </div>
+              ))
+            ) : (
+              <div className="studio-empty-state">
+                Prepare or send G-code to see serial feedback and virtual device activity here.
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </details>
+  );
+}

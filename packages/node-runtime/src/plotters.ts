@@ -39,6 +39,7 @@ export async function listPlotters(): Promise<readonly PlotterDeviceSummary[]> {
         id: config.id,
         label: config.label,
         page: config.page,
+        transport: config.transport,
       };
     })
   );

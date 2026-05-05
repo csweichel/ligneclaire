@@ -37,6 +37,97 @@ export type ExportSettings = Readonly<{
   deviceId: string;
 }>;
 
+export type GcodeTransportTarget = "serial" | "virtual";
+
+export type GcodePreparedArtifact = Readonly<{
+  fileName: string;
+  content: string;
+  lines: readonly string[];
+  preview: Readonly<{
+    lineCount: number;
+    bounds: Readonly<{
+      minX: number;
+      minY: number;
+      maxX: number;
+      maxY: number;
+    }> | null;
+    segments: readonly Readonly<{
+      lineNumber: number;
+      from: Readonly<{
+        x: number;
+        y: number;
+      }>;
+      to: Readonly<{
+        x: number;
+        y: number;
+      }>;
+      drawing: boolean;
+    }>[];
+    drawingSegments: number;
+    travelSegments: number;
+  }>;
+  snapshot: string | null;
+  generatedAt: string;
+}>;
+
+export type GcodeLogEntry = Readonly<{
+  id: string;
+  level: "system" | "tx" | "rx" | "error";
+  message: string;
+  timeLabel: string;
+}>;
+
+export type GcodeTransportSettings = Readonly<{
+  target: GcodeTransportTarget;
+  baudRate: number;
+  dataBits: 7 | 8;
+  stopBits: 1 | 2;
+  parity: "none" | "even" | "odd";
+  flowControl: "none" | "hardware";
+  lineEnding: "lf" | "crlf";
+  responseMode: "ack" | "timed";
+  ackPattern: string;
+  errorPattern: string;
+  readyPattern: string;
+  ackTimeoutMs: number;
+  lineDelayMs: number;
+  connectDelayMs: number;
+}>;
+
+export type GcodeTransportStatus = Readonly<{
+  connectionState: "unsupported" | "disconnected" | "connecting" | "connected";
+  jobState: "idle" | "preparing" | "ready" | "sending" | "paused" | "complete" | "failed" | "cancelled";
+  progress: Readonly<{
+    totalLines: number;
+    sentLines: number;
+    acknowledgedLines: number;
+    errorLines: number;
+  }>;
+}>;
+
+export type GcodeTransportModel = Readonly<{
+  supported: boolean;
+  settings: GcodeTransportSettings;
+  connectionState: GcodeTransportStatus["connectionState"];
+  portLabel: string | null;
+  jobState: GcodeTransportStatus["jobState"];
+  preparedArtifact: GcodePreparedArtifact | null;
+  preparedStale: boolean;
+  progress: GcodeTransportStatus["progress"];
+  logs: readonly GcodeLogEntry[];
+  lastResponse: string | null;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  prepare: () => Promise<GcodePreparedArtifact | null>;
+  send: () => Promise<void>;
+  pause: () => void;
+  resume: () => void;
+  cancel: () => void;
+  clearLogs: () => void;
+  setTarget: (target: GcodeTransportTarget) => void;
+  updateSettings: (patch: Partial<GcodeTransportSettings>) => void;
+}>;
+
 export type AnyEditorProps = ProgramEditorProps<ParameterSchema, unknown>;
 export type EditorComponent = ComponentType<AnyEditorProps>;
 export type LocalProgram = ProgramDefinition<ParameterSchema, unknown>;
@@ -61,6 +152,7 @@ export type StudioModel = Readonly<{
   pendingExport: ExportKind | null;
   editorComponent: EditorComponent | null;
   exportSettings: ExportSettings;
+  transport: GcodeTransportModel;
   localProgram: LocalProgram | undefined;
   selectProgram: (programId: string) => void;
   selectParamSet: (slug: string) => Promise<void>;

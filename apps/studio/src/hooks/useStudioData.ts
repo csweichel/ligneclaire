@@ -21,6 +21,7 @@ import type {
 import { useEffect, useMemo, useState } from "react";
 import { programRegistry } from "../../../../programs/generated/program-registry";
 import { apiDownload, apiGet, apiSend } from "../api";
+import { useGcodeTransport } from "./useGcodeTransport";
 import type {
   CurrentDocumentState,
   ExportSettings,
@@ -174,6 +175,13 @@ export function useStudioData(): StudioModel {
     [selectedProgramId]
   );
   const dirty = current ? snapshotValue(current) !== savedSnapshot : false;
+  const transport = useGcodeTransport({
+    current,
+    deviceId: exportSettings.deviceId,
+    plotters,
+    selectedProgramId,
+    setStatus,
+  });
 
   function applyLoadedParamSet(slug: string, loaded: LoadedParamSet): void {
     const next = toCurrentDocument(slug, loaded);
@@ -732,6 +740,7 @@ export function useStudioData(): StudioModel {
     pendingExport,
     editorComponent,
     exportSettings,
+    transport,
     localProgram,
     selectProgram: setSelectedProgramId,
     selectParamSet,
