@@ -1,10 +1,10 @@
 import {
+  createProgressiveOffsetPaths,
   contentBounds,
   defineProgram,
   generateHilbertCurve,
   floatParam,
   intParam,
-  offsetPolyline,
   type Polyline,
 } from "@ligneclaire/sdk";
 
@@ -86,30 +86,39 @@ export const program = defineProgram({
       y: (bounds.minY + bounds.maxY) * 0.5,
     };
     const path = generateHilbertCurve(ctx.params.order, bounds);
-    const paths: Polyline[] = [];
-
-    for (let index = 1; index < path.points.length; index += 1) {
-      const segment: Polyline = {
-        points: [path.points[index - 1]!, path.points[index]!],
-      };
-      const midpoint = {
-        x: (segment.points[0]!.x + segment.points[1]!.x) * 0.5,
-        y: (segment.points[0]!.y + segment.points[1]!.y) * 0.5,
-      };
-      const normalizedX = clamp01((midpoint.x - bounds.minX) / (bounds.maxX - bounds.minX));
-      const normalizedY = clamp01((midpoint.y - bounds.minY) / (bounds.maxY - bounds.minY));
-      const radius =
-        Math.hypot(normalizedX - 0.5, normalizedY - 0.5) / 0.7071067811865476;
-      const gradient = clamp01(1 - radius);
-      const extra =
-        ctx.params.minExtra +
-        Math.round(gradient * (ctx.params.maxExtra - ctx.params.minExtra));
-
-      paths.push(segment);
-      for (const offset of strokeOffsets(extra, ctx.params.step)) {
-        paths.push(offsetPolyline(segment, offset));
+    const segmentExtras = Array.from(
+      { length: Math.max(0, path.points.length - 1) },
+      (_, index) => {
+        const segment: Polyline = {
+          points: [path.points[index]!, path.points[index + 1]!],
+        };
+        const midpoint = {
+          x: (segment.points[0]!.x + segment.points[1]!.x) * 0.5,
+          y: (segment.points[0]!.y + segment.points[1]!.y) * 0.5,
+        };
+        const normalizedX = clamp01((midpoint.x - bounds.minX) / (bounds.maxX - bounds.minX));
+        const normalizedY = clamp01((midpoint.y - bounds.minY) / (bounds.maxY - bounds.minY));
+        const radius =
+          Math.hypot(normalizedX - 0.5, normalizedY - 0.5) / 0.7071067811865476;
+        const gradient = clamp01(1 - radius);
+        return (
+          ctx.params.minExtra +
+          Math.round(gradient * (ctx.params.maxExtra - ctx.params.minExtra))
+        );
       }
-    }
+    );
+    const maxExtra = segmentExtras.reduce(
+      (maximum, count) => Math.max(maximum, count),
+      0
+    );
+    const paths: Polyline[] = [
+      path,
+      ...createProgressiveOffsetPaths(
+        path,
+        segmentExtras,
+        strokeOffsets(maxExtra, ctx.params.step)
+      ),
+    ];
 
     return {
       canvas,

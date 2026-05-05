@@ -342,6 +342,62 @@ export function offsetPolyline(polyline: Polyline, offsetMm: number): Polyline {
   };
 }
 
+export function createProgressiveOffsetPaths(
+  polyline: Polyline,
+  segmentCounts: readonly number[],
+  offsets: readonly number[]
+): Polyline[] {
+  const segmentTotal = polyline.points.length - 1;
+  if (segmentTotal <= 0 || offsets.length === 0) {
+    return [];
+  }
+
+  const normalizedCounts = Array.from({ length: segmentTotal }, (_, index) => {
+    const value = segmentCounts[index] ?? 0;
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  });
+  const maxCount = Math.min(
+    offsets.length,
+    normalizedCounts.reduce((maximum, count) => Math.max(maximum, count), 0)
+  );
+  const paths: Polyline[] = [];
+
+  for (let offsetIndex = 0; offsetIndex < maxCount; offsetIndex += 1) {
+    const offsetPath = offsetPolyline(polyline, offsets[offsetIndex]!);
+    let currentPoints: Point[] | null = null;
+
+    for (let segmentIndex = 0; segmentIndex < segmentTotal; segmentIndex += 1) {
+      if (normalizedCounts[segmentIndex]! <= offsetIndex) {
+        if (currentPoints && currentPoints.length >= 2) {
+          paths.push({
+            points: currentPoints,
+          });
+        }
+        currentPoints = null;
+        continue;
+      }
+
+      if (currentPoints) {
+        currentPoints.push(offsetPath.points[segmentIndex + 1]!);
+        continue;
+      }
+
+      currentPoints = [
+        offsetPath.points[segmentIndex]!,
+        offsetPath.points[segmentIndex + 1]!,
+      ];
+    }
+
+    if (currentPoints && currentPoints.length >= 2) {
+      paths.push({
+        points: currentPoints,
+      });
+    }
+  }
+
+  return paths;
+}
+
 type ClippedSegment = Readonly<{
   start: Point;
   end: Point;

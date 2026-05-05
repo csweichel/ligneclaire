@@ -7,6 +7,7 @@ import type {
   ProgramEditorProps,
 } from "@ligneclaire/sdk";
 import type {
+  GcodeRotationDeg,
   ParamSetListResponse,
   PlotterDeviceSummary,
   ProgramDetails,
@@ -33,8 +34,11 @@ export type StudioStatus = Readonly<{
 
 export type ExportKind = "raw-svg" | "optimized-svg" | "gcode";
 
+export type ExportRotationSetting = "auto" | GcodeRotationDeg;
+
 export type ExportSettings = Readonly<{
   deviceId: string;
+  rotationDeg: ExportRotationSetting;
 }>;
 
 export type GcodeTransportTarget = "serial" | "virtual";
@@ -162,6 +166,7 @@ export type StudioModel = Readonly<{
   setShowDebug: (value: boolean) => void;
   setShowEditor: (value: boolean) => void;
   setExportDeviceId: (deviceId: string) => void;
+  setExportRotationDeg: (rotationDeg: ExportRotationSetting) => void;
   saveCurrent: () => Promise<void>;
   duplicateCurrent: () => Promise<void>;
   createFromDefaults: () => Promise<void>;

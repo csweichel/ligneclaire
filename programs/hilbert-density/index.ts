@@ -1,10 +1,10 @@
 import {
+  createProgressiveOffsetPaths,
   contentBounds,
   createFractalNoise2D,
   defineProgram,
   generateHilbertCurve,
   intParam,
-  offsetPolyline,
   type Point,
   type Polyline,
 } from "@ligneclaire/sdk";
@@ -87,23 +87,29 @@ export const program = defineProgram({
       maxY: baseBounds.maxY - 1,
     };
     const hilbert = generateHilbertCurve(ctx.params.order, bounds);
-    const paths: Polyline[] = [];
-
-    for (let index = 1; index < hilbert.points.length; index += 1) {
-      const segment: Polyline = {
-        points: [hilbert.points[index - 1]!, hilbert.points[index]!],
-      };
-      const midpoint = {
-        x: (segment.points[0]!.x + segment.points[1]!.x) * 0.5,
-        y: (segment.points[0]!.y + segment.points[1]!.y) * 0.5,
-      };
-      const extra = Math.round(Math.pow(densityAt(midpoint, baseBounds), 1.6) * 10);
-
-      paths.push(segment);
-      for (const offset of layerOffsets(extra)) {
-        paths.push(offsetPolyline(segment, offset));
+    const segmentExtras = Array.from(
+      { length: Math.max(0, hilbert.points.length - 1) },
+      (_, index) => {
+        const from = hilbert.points[index]!;
+        const to = hilbert.points[index + 1]!;
+        const segment: Polyline = {
+          points: [from, to],
+        };
+        const midpoint = {
+          x: (segment.points[0]!.x + segment.points[1]!.x) * 0.5,
+          y: (segment.points[0]!.y + segment.points[1]!.y) * 0.5,
+        };
+        return Math.round(Math.pow(densityAt(midpoint, baseBounds), 1.6) * 10);
       }
-    }
+    );
+    const maxExtra = segmentExtras.reduce(
+      (maximum, count) => Math.max(maximum, count),
+      0
+    );
+    const paths: Polyline[] = [
+      hilbert,
+      ...createProgressiveOffsetPaths(hilbert, segmentExtras, layerOffsets(maxExtra)),
+    ];
 
     return {
       canvas,

@@ -1,9 +1,19 @@
+import { useEffect, useRef } from "react";
 import type { StudioModel } from "../../types";
+import {
+  formatExportRotationSummary,
+  resolveGcodeRotationDeg,
+} from "../../lib/gcodeOrientation";
 import { GcodeVirtualPreview } from "./GcodeVirtualPreview";
 
 type GcodeTransportPanelProps = Readonly<{
   studio: StudioModel;
 }>;
+
+type PreparedSnapshotSignature = Readonly<{
+  deviceId?: string;
+  rotationDeg?: number;
+}> | null;
 
 function connectionLabel(studio: StudioModel): string {
   switch (studio.transport.connectionState) {
@@ -39,10 +49,48 @@ function jobLabel(studio: StudioModel): string {
   }
 }
 
+function parsePreparedSnapshotSignature(snapshot: string | null): PreparedSnapshotSignature {
+  if (!snapshot) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(snapshot) as {
+      deviceId?: unknown;
+      rotationDeg?: unknown;
+    };
+
+    return {
+      deviceId: typeof parsed.deviceId === "string" ? parsed.deviceId : undefined,
+      rotationDeg: typeof parsed.rotationDeg === "number" ? parsed.rotationDeg : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
+  const autoPrepareRequestedRef = useRef(false);
   const plotter = studio.plotters.find(
     (candidate) => candidate.id === studio.exportSettings.deviceId
   );
+  const resolvedRotationDeg = resolveGcodeRotationDeg(
+    studio.exportSettings.rotationDeg,
+    studio.programDetails?.canvas,
+    plotter
+  );
+  const orientationLabel = formatExportRotationSummary(
+    studio.exportSettings.rotationDeg,
+    studio.programDetails?.canvas,
+    plotter
+  );
+  const preparedSignature = parsePreparedSnapshotSignature(
+    studio.transport.preparedArtifact?.snapshot ?? null
+  );
+  const previewNeedsRefresh =
+    studio.transport.preparedArtifact !== null &&
+    (preparedSignature?.deviceId !== studio.exportSettings.deviceId ||
+      preparedSignature?.rotationDeg !== resolvedRotationDeg);
   const canPrepare = Boolean(
     studio.current && studio.selectedProgramId && studio.exportSettings.deviceId && studio.tools?.vpypeGcode.available
   );
@@ -57,10 +105,87 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
       ? (studio.transport.progress.sentLines / studio.transport.progress.totalLines) * 100
       : 0;
 
+  useEffect(() => {
+    if (
+      studio.transport.jobState === "preparing" ||
+      studio.transport.jobState === "sending" ||
+      studio.transport.jobState === "paused"
+    ) {
+      return;
+    }
+
+    if (!autoPrepareRequestedRef.current) {
+      if (!canPrepare) {
+        return;
+      }
+
+      autoPrepareRequestedRef.current = true;
+      void studio.transport.prepare();
+      return;
+    }
+
+    if (previewNeedsRefresh) {
+      void studio.transport.prepare();
+    }
+  }, [
+    canPrepare,
+    previewNeedsRefresh,
+    studio.transport.jobState,
+    studio.transport.prepare,
+  ]);
+
   return (
-    <details className="studio-sidebar__details" open>
-      <summary>Transport</summary>
-      <div className="studio-sidebar__details-body">
+    <div className="gcode-transport-panel">
+      <div className="gcode-transport-panel__main">
+        <section className="gcode-transport__preview-block">
+          <div className="gcode-transport__preview-header">
+            <h3>Virtual Preview</h3>
+          </div>
+
+          <GcodeVirtualPreview
+            activeLineNumber={studio.transport.progress.sentLines}
+            artifact={studio.transport.preparedArtifact}
+            page={plotter?.page ?? null}
+          />
+
+          <div className="studio-sidebar__meta-grid">
+            <span>Drawing segments</span>
+            <span>{studio.transport.preparedArtifact?.preview.drawingSegments ?? "--"}</span>
+          </div>
+          <div className="studio-sidebar__meta-grid">
+            <span>Travel segments</span>
+            <span>{studio.transport.preparedArtifact?.preview.travelSegments ?? "--"}</span>
+          </div>
+        </section>
+
+        <section className="gcode-transport__log">
+          <div className="gcode-transport__preview-header">
+            <h3>Transport Log</h3>
+            <span>{studio.transport.logs.length} entries</span>
+          </div>
+
+          <div className="gcode-transport__log-list">
+            {studio.transport.logs.length > 0 ? (
+              studio.transport.logs.map((entry) => (
+                <div
+                  key={entry.id}
+                  className={`gcode-transport__log-entry gcode-transport__log-entry--${entry.level}`}
+                >
+                  <span>{entry.timeLabel}</span>
+                  <span>{entry.level.toUpperCase()}</span>
+                  <span>{entry.message}</span>
+                </div>
+              ))
+            ) : (
+              <div className="studio-empty-state">
+                Prepare or send G-code to see serial feedback and virtual device activity here.
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <aside className="gcode-transport-panel__sidebar">
         <div className="studio-sidebar__issue">
           G-code is generated from the current document and selected plotter profile, then either
           streamed to a browser USB serial device or simulated in the virtual plotter.
@@ -271,6 +396,18 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
           </div>
         </div>
 
+        <div className="studio-document-actions__row">
+          <button
+            className="studio-button"
+            type="button"
+            onClick={() => {
+              studio.transport.clearLogs();
+            }}
+          >
+            Clear log
+          </button>
+        </div>
+
         <div className="studio-sidebar__meta-grid">
           <span>Connection</span>
           <span>{connectionLabel(studio)}</span>
@@ -282,6 +419,10 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
         <div className="studio-sidebar__meta-grid">
           <span>Plotter</span>
           <span>{plotter?.label ?? "--"}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Orientation</span>
+          <span>{orientationLabel}</span>
         </div>
         <div className="studio-sidebar__meta-grid">
           <span>Prepared file</span>
@@ -306,67 +447,11 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
 
         {studio.transport.preparedStale ? (
           <div className="studio-sidebar__issue">
-            The prepared G-code is stale. Refresh before sending if you want the latest parameter
-            changes included.
+            The prepared G-code is stale. Refresh before sending if you want the latest parameter,
+            plotter, or orientation changes included.
           </div>
         ) : null}
-
-        <section className="gcode-transport__preview-block">
-          <div className="gcode-transport__preview-header">
-            <h3>Virtual Preview</h3>
-            <button
-              className="studio-button studio-button--compact"
-              type="button"
-              onClick={() => {
-                studio.transport.clearLogs();
-              }}
-            >
-              Clear log
-            </button>
-          </div>
-
-          <GcodeVirtualPreview
-            activeLineNumber={studio.transport.progress.sentLines}
-            artifact={studio.transport.preparedArtifact}
-            page={plotter?.page ?? null}
-          />
-
-          <div className="studio-sidebar__meta-grid">
-            <span>Drawing segments</span>
-            <span>{studio.transport.preparedArtifact?.preview.drawingSegments ?? "--"}</span>
-          </div>
-          <div className="studio-sidebar__meta-grid">
-            <span>Travel segments</span>
-            <span>{studio.transport.preparedArtifact?.preview.travelSegments ?? "--"}</span>
-          </div>
-        </section>
-
-        <section className="gcode-transport__log">
-          <div className="gcode-transport__preview-header">
-            <h3>Transport Log</h3>
-            <span>{studio.transport.logs.length} entries</span>
-          </div>
-
-          <div className="gcode-transport__log-list">
-            {studio.transport.logs.length > 0 ? (
-              studio.transport.logs.map((entry) => (
-                <div
-                  key={entry.id}
-                  className={`gcode-transport__log-entry gcode-transport__log-entry--${entry.level}`}
-                >
-                  <span>{entry.timeLabel}</span>
-                  <span>{entry.level.toUpperCase()}</span>
-                  <span>{entry.message}</span>
-                </div>
-              ))
-            ) : (
-              <div className="studio-empty-state">
-                Prepare or send G-code to see serial feedback and virtual device activity here.
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
-    </details>
+      </aside>
+    </div>
   );
 }

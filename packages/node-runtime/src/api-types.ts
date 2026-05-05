@@ -75,6 +75,7 @@ export type DownloadSvgRequest = RenderRequest &
 export type DownloadGcodeRequest = RenderRequest &
   Readonly<{
     deviceId: string;
+    rotationDeg?: GcodeRotationDeg;
     downloadName?: string;
   }>;
 
@@ -87,6 +88,7 @@ export type ExportSvgRequest = RenderRequest &
 export type ExportGcodeRequest = RenderRequest &
   Readonly<{
     deviceId: string;
+    rotationDeg?: GcodeRotationDeg;
     outPath: string;
   }>;
 
@@ -111,6 +113,8 @@ export type ToolDiagnostics = Readonly<{
   vpype: ToolStatus;
   vpypeGcode: ToolStatus;
 }>;
+
+export type GcodeRotationDeg = 0 | 90 | 180 | 270;
 
 export type PlotterGcodeConfig = Readonly<{
   unit: "mm" | "in";

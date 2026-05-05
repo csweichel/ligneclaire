@@ -21,6 +21,7 @@ import type {
 import { useEffect, useMemo, useState } from "react";
 import { programRegistry } from "../../../../programs/generated/program-registry";
 import { apiDownload, apiGet, apiSend } from "../api";
+import { resolveGcodeRotationDeg } from "../lib/gcodeOrientation";
 import { useGcodeTransport } from "./useGcodeTransport";
 import type {
   CurrentDocumentState,
@@ -45,6 +46,7 @@ const emptyParamSetList: ParamSetListResponse = {
 
 const initialExportSettings: ExportSettings = {
   deviceId: "",
+  rotationDeg: "auto",
 };
 
 function snapshotValue(value: unknown): string {
@@ -174,11 +176,25 @@ export function useStudioData(): StudioModel {
     () => (selectedProgramId ? localPrograms.get(selectedProgramId) : undefined),
     [selectedProgramId]
   );
+  const selectedPlotter = useMemo(
+    () => plotters.find((plotter) => plotter.id === exportSettings.deviceId) ?? null,
+    [exportSettings.deviceId, plotters]
+  );
+  const resolvedExportRotationDeg = useMemo(
+    () =>
+      resolveGcodeRotationDeg(
+        exportSettings.rotationDeg,
+        programDetails?.canvas,
+        selectedPlotter
+      ),
+    [exportSettings.rotationDeg, programDetails?.canvas, selectedPlotter]
+  );
   const dirty = current ? snapshotValue(current) !== savedSnapshot : false;
   const transport = useGcodeTransport({
     current,
     deviceId: exportSettings.deviceId,
     plotters,
+    rotationDeg: resolvedExportRotationDeg,
     selectedProgramId,
     setStatus,
   });
@@ -479,6 +495,13 @@ export function useStudioData(): StudioModel {
     }));
   }
 
+  function setExportRotationDeg(rotationDeg: ExportSettings["rotationDeg"]): void {
+    setExportSettings((existing) => ({
+      ...existing,
+      rotationDeg,
+    }));
+  }
+
   async function saveCurrent(): Promise<void> {
     if (!selectedProgramId || !current) {
       return;
@@ -714,6 +737,7 @@ export function useStudioData(): StudioModel {
         params: current.params,
         programState: current.programState,
         deviceId: exportSettings.deviceId,
+        rotationDeg: resolvedExportRotationDeg,
         downloadName: createDownloadName(selectedProgramId, current.slug, ".gcode"),
       },
       "/api/export/gcode"
@@ -750,6 +774,7 @@ export function useStudioData(): StudioModel {
     setShowDebug,
     setShowEditor,
     setExportDeviceId,
+    setExportRotationDeg,
     saveCurrent,
     duplicateCurrent,
     createFromDefaults,

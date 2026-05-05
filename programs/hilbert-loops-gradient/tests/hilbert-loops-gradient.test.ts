@@ -9,7 +9,9 @@ describe("hilbert-loops-gradient program", () => {
     const document = expectDeterministicProgramRender(program, defaultSet, {
       caseName: "default",
     });
+    const firstPath = document.layers[0]?.paths[0];
 
     expect(calculateDocumentMetrics(document).artLayerCount).toBe(1);
+    expect(firstPath?.points).toHaveLength(4 ** defaultSet.params.order);
   });
 });

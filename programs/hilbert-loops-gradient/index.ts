@@ -1,9 +1,9 @@
 import {
+  createProgressiveOffsetPaths,
   contentBounds,
   defineProgram,
   generateHilbertCurve,
   intParam,
-  offsetPolyline,
   type Point,
   type Polyline,
 } from "@ligneclaire/sdk";
@@ -121,30 +121,47 @@ export const program = defineProgram({
     for (let loopIndex = 0; loopIndex < ctx.params.loops; loopIndex += 1) {
       const scale = loopScale(loopIndex, ctx.params.loops);
       const rotation = loopRotation(loopIndex);
-
-      for (let index = 1; index < base.points.length; index += 1) {
-        const segment: Polyline = {
-          points: [
-            rotateAndScale(base.points[index - 1]!, center, side * scale, rotation),
-            rotateAndScale(base.points[index]!, center, side * scale, rotation),
-          ],
-        };
-        const midpoint = {
-          x: (segment.points[0]!.x + segment.points[1]!.x) * 0.5,
-          y: (segment.points[0]!.y + segment.points[1]!.y) * 0.5,
-        };
-        const radius = Math.hypot(midpoint.x - center.x, midpoint.y - center.y);
-        const inside = 1 - clamp01(radius / (side * 0.52));
-        const boost = 1 + loopIndex * 0.14;
-        const extra =
-          ctx.params.base +
-          Math.round(Math.pow(inside, 2.2) * (ctx.params.thickness - ctx.params.base) * boost);
-
-        paths.push(segment);
-        for (const offset of strokeOffsets(extra, 0.8)) {
-          paths.push(offsetPolyline(segment, offset));
+      const loopPath: Polyline = {
+        points: base.points.map((point) =>
+          rotateAndScale(point, center, side * scale, rotation)
+        ),
+      };
+      const segmentExtras = Array.from(
+        { length: Math.max(0, loopPath.points.length - 1) },
+        (_, index) => {
+          const segment: Polyline = {
+            points: [loopPath.points[index]!, loopPath.points[index + 1]!],
+          };
+          const midpoint = {
+            x: (segment.points[0]!.x + segment.points[1]!.x) * 0.5,
+            y: (segment.points[0]!.y + segment.points[1]!.y) * 0.5,
+          };
+          const radius = Math.hypot(midpoint.x - center.x, midpoint.y - center.y);
+          const inside = 1 - clamp01(radius / (side * 0.52));
+          const boost = 1 + loopIndex * 0.14;
+          return (
+            ctx.params.base +
+            Math.round(
+              Math.pow(inside, 2.2) *
+                (ctx.params.thickness - ctx.params.base) *
+                boost
+            )
+          );
         }
-      }
+      );
+      const maxExtra = segmentExtras.reduce(
+        (maximum, count) => Math.max(maximum, count),
+        0
+      );
+
+      paths.push(loopPath);
+      paths.push(
+        ...createProgressiveOffsetPaths(
+          loopPath,
+          segmentExtras,
+          strokeOffsets(maxExtra, 0.8)
+        )
+      );
     }
 
     return {

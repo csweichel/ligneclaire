@@ -1,6 +1,7 @@
 import type { PlotterDeviceSummary } from "@ligneclaire/node-runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetchTextArtifact } from "../api";
+import type { ResolvedGcodeRotationDeg } from "../lib/gcodeOrientation";
 import { parseGcodePreview } from "../lib/gcode";
 import type {
   CurrentDocumentState,
@@ -17,6 +18,7 @@ type UseGcodeTransportArgs = Readonly<{
   current: CurrentDocumentState | null;
   deviceId: string;
   plotters: readonly PlotterDeviceSummary[];
+  rotationDeg: ResolvedGcodeRotationDeg;
   selectedProgramId: string;
   setStatus: (status: StudioStatus) => void;
 }>;
@@ -132,6 +134,7 @@ export function useGcodeTransport({
   current,
   deviceId,
   plotters,
+  rotationDeg,
   selectedProgramId,
   setStatus,
 }: UseGcodeTransportArgs): GcodeTransportModel {
@@ -171,9 +174,10 @@ export function useGcodeTransport({
             params: current.params,
             programState: current.programState,
             deviceId,
+            rotationDeg,
           })
         : null,
-    [current, deviceId, selectedProgramId]
+    [current, deviceId, rotationDeg, selectedProgramId]
   );
 
   useEffect(() => {
@@ -426,6 +430,7 @@ export function useGcodeTransport({
         params: current.params,
         programState: current.programState,
         deviceId,
+        rotationDeg,
         downloadName: `${selectedProgramId}-${current.slug}.gcode`,
       });
       const artifact: GcodePreparedArtifact = {

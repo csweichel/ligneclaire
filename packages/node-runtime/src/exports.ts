@@ -9,6 +9,7 @@ import type {
   ExportGcodeRequest,
   ExportResponse,
   ExportSvgRequest,
+  GcodeRotationDeg,
 } from "./api-types";
 import { ensureDirectory, resolveExportPath, workspaceRoot, workspaceRelative } from "./paths";
 import { loadPlotterConfig, type PlotterConfig } from "./plotters";
@@ -17,6 +18,19 @@ import { renderProgram } from "./render";
 import { getToolDiagnostics } from "./tools";
 
 const optimizationPipeline = ["linemerge", "linesimplify", "reloop", "linesort"] as const;
+
+export function buildPageRotationCommands(rotationDeg: GcodeRotationDeg | undefined): string[] {
+  switch (rotationDeg ?? 0) {
+    case 0:
+      return [];
+    case 90:
+      return ["pagerotate", "--clockwise"];
+    case 180:
+      return ["pagerotate", "--clockwise", "pagerotate", "--clockwise"];
+    case 270:
+      return ["pagerotate"];
+  }
+}
 
 function createMoveCommand(
   command: "G0" | "G1",
@@ -174,12 +188,14 @@ export async function exportGcode(request: ExportGcodeRequest): Promise<ExportRe
     const device = await loadPlotterConfig(request.deviceId);
     await writeFile(inputSvgPath, renderResult.svg, "utf8");
     await writeFile(configPath, createGwriteProfile(device), "utf8");
+    const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
 
     const args = [
       "--config",
       configPath,
       "read",
       inputSvgPath,
+      ...pageRotationCommands,
       ...optimizationPipeline,
       "gwrite",
       "--profile",
@@ -270,12 +286,14 @@ export async function exportGcodeDownload(
     const device = await loadPlotterConfig(request.deviceId);
     await writeFile(inputSvgPath, renderResult.svg, "utf8");
     await writeFile(configPath, createGwriteProfile(device), "utf8");
+    const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
 
     const args = [
       "--config",
       configPath,
       "read",
       inputSvgPath,
+      ...pageRotationCommands,
       ...optimizationPipeline,
       "gwrite",
       "--profile",

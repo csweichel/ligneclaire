@@ -1,45 +1,68 @@
-import type { ExportKind, StudioModel } from "../../types";
+import { exportRotationOptions } from "../../lib/gcodeOrientation";
+import type { ExportKind, ExportRotationSetting, StudioModel } from "../../types";
 import { StatusBadge } from "../common/StatusBadge";
 
 const studioLogoUrl = new URL("../../../../../Logo.png", import.meta.url).href;
 
-const exportKindLabels: Record<ExportKind, string> = {
+type ExportAction = ExportKind | "send-gcode";
+
+const exportKindLabels: Record<ExportAction, string> = {
   "raw-svg": "Raw SVG",
   "optimized-svg": "Optimized SVG",
   gcode: "G-code",
+  "send-gcode": "Send G-code",
 };
 
 const exportOptions: readonly Readonly<{
-  value: ExportKind;
+  value: ExportAction;
   label: string;
 }>[] = [
   { value: "raw-svg", label: "Raw SVG" },
   { value: "optimized-svg", label: "Optimized SVG" },
   { value: "gcode", label: "G-code" },
+  { value: "send-gcode", label: "Send G-code..." },
 ];
 
 type StudioHeaderProps = Readonly<{
+  onOpenTransportModal: () => void;
   studio: StudioModel;
 }>;
 
-function isExportUnavailable(studio: StudioModel, kind: ExportKind): boolean {
+function isExportUnavailable(studio: StudioModel, kind: ExportAction): boolean {
   switch (kind) {
     case "raw-svg":
       return false;
     case "optimized-svg":
       return !studio.tools?.vpype.available;
     case "gcode":
+    case "send-gcode":
       return !studio.tools?.vpypeGcode.available || !studio.exportSettings.deviceId;
   }
 }
 
-export function StudioHeader({ studio }: StudioHeaderProps) {
+function parseExportRotationSetting(value: string): ExportRotationSetting {
+  switch (value) {
+    case "0":
+      return 0;
+    case "90":
+      return 90;
+    case "180":
+      return 180;
+    case "270":
+      return 270;
+    case "auto":
+    default:
+      return "auto";
+  }
+}
+
+export function StudioHeader({ onOpenTransportModal, studio }: StudioHeaderProps) {
   const exportSelectDisabled =
     !studio.current ||
     studio.pendingExport !== null ||
     exportOptions.every((option) => isExportUnavailable(studio, option.value));
 
-  async function runExport(kind: ExportKind): Promise<void> {
+  async function runExport(kind: ExportAction): Promise<void> {
     switch (kind) {
       case "raw-svg":
         await studio.exportRawSvg();
@@ -49,6 +72,9 @@ export function StudioHeader({ studio }: StudioHeaderProps) {
         return;
       case "gcode":
         await studio.exportGcode();
+        return;
+      case "send-gcode":
+        onOpenTransportModal();
         return;
     }
   }
@@ -86,13 +112,32 @@ export function StudioHeader({ studio }: StudioHeaderProps) {
         </label>
 
         <label className="studio-inline-field">
+          <span className="studio-inline-field__label">Orientation</span>
+          <select
+            className="studio-input studio-input--compact"
+            value={String(studio.exportSettings.rotationDeg)}
+            onChange={(event) => {
+              studio.setExportRotationDeg(
+                parseExportRotationSetting(event.currentTarget.value)
+              );
+            }}
+          >
+            {exportRotationOptions.map((option) => (
+              <option key={String(option.value)} value={String(option.value)}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="studio-inline-field">
           <span className="studio-inline-field__label">Export</span>
           <select
             className="studio-input studio-input--compact"
             disabled={exportSelectDisabled}
             value=""
             onChange={(event) => {
-              const kind = event.currentTarget.value as ExportKind | "";
+              const kind = event.currentTarget.value as ExportAction | "";
               if (!kind) {
                 return;
               }
