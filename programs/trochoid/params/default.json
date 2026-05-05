@@ -1,0 +1,22 @@
+{
+  "programId": "trochoid",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "useEpitrochoid": false,
+    "fixedRadius": 84,
+    "rollingRadius": 30,
+    "pointOffsetRatio": 0.82,
+    "figureRadius": 68,
+    "rotationDeg": 0,
+    "samplesPerTurn": 320
+  },
+  "programState": {
+    "center": {
+      "x": 105,
+      "y": 148.5
+    }
+  },
+  "createdAt": "2026-05-05T12:30:00.000Z",
+  "updatedAt": "2026-05-05T12:30:00.000Z"
+}

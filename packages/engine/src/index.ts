@@ -11,4 +11,5 @@ export * from "./reference-image";
 export * from "./rng";
 export * from "./svg";
 export * from "./tilepath";
+export * from "./trochoid";
 export * from "./validation";
