@@ -21,7 +21,9 @@ export function StudioShell({ studio }: StudioShellProps) {
             editorComponent={studio.editorComponent}
             isRendering={studio.isRendering}
             programDetails={studio.programDetails}
+            setShowEditor={studio.setShowEditor}
             setShowDebug={studio.setShowDebug}
+            showEditor={studio.showEditor}
             showDebug={studio.showDebug}
             svg={studio.svg}
             updateParam={studio.updateParam}

@@ -1,9 +1,14 @@
 export * from "./document";
+export * from "./clip";
+export * from "./contour";
+export * from "./field";
 export * from "./geometry";
+export * from "./image";
 export * from "./metrics";
 export * from "./noise";
 export * from "./params";
+export * from "./reference-image";
 export * from "./rng";
 export * from "./svg";
+export * from "./tilepath";
 export * from "./validation";
-

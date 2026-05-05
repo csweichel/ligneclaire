@@ -150,6 +150,7 @@ export function useStudioData(): StudioModel {
   const [tools, setTools] = useState<ToolDiagnostics | null>(null);
   const [plotters, setPlotters] = useState<readonly PlotterDeviceSummary[]>([]);
   const [showDebug, setShowDebug] = useState(true);
+  const [showEditor, setShowEditor] = useState(true);
   const [status, setStatus] = useState<StudioStatus>({
     tone: "neutral",
     message: "Loading studio...",
@@ -717,6 +718,7 @@ export function useStudioData(): StudioModel {
     plotters,
     status,
     showDebug,
+    showEditor,
     isRendering,
     pendingExport,
     editorComponent,
@@ -728,6 +730,7 @@ export function useStudioData(): StudioModel {
     updateParam,
     updateProgramState,
     setShowDebug,
+    setShowEditor,
     setExportDeviceId,
     saveCurrent,
     duplicateCurrent,

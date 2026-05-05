@@ -46,3 +46,32 @@ export function createPerlinNoise2D(seed: number | string): (x: number, y: numbe
   };
 }
 
+export function createFractalNoise2D(
+  seed: number | string,
+  options: Readonly<{
+    octaves?: number;
+    persistence?: number;
+    lacunarity?: number;
+  }> = {}
+): (x: number, y: number) => number {
+  const base = createPerlinNoise2D(seed);
+  const octaves = Math.max(1, Math.floor(options.octaves ?? 4));
+  const persistence = options.persistence ?? 0.5;
+  const lacunarity = options.lacunarity ?? 2;
+
+  return (x, y) => {
+    let amplitude = 1;
+    let frequency = 1;
+    let total = 0;
+    let weight = 0;
+
+    for (let octave = 0; octave < octaves; octave += 1) {
+      total += base(x * frequency + octave * 17.31, y * frequency + octave * 29.17) * amplitude;
+      weight += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    return weight === 0 ? 0 : total / weight;
+  };
+}

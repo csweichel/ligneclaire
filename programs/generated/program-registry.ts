@@ -4,6 +4,19 @@
 
 import type { ProgramDefinition } from "@ligneclaire/sdk";
 
+import { program as clipFieldProgram } from "../clip-field/index";
+import { program as continuousContourProgram } from "../continuous-contour/index";
+import { program as curveProgram } from "../curve/index";
+import { program as fieldProgram } from "../field/index";
+import { program as helloWorldProgram } from "../hello-world/index";
+import { program as hilbertDensityProgram } from "../hilbert-density/index";
+import { program as hilbertLoopsGradientProgram } from "../hilbert-loops-gradient/index";
+import { program as hilbertThickGradientProgram } from "../hilbert-thick-gradient/index";
+import { program as imageCirclesProgram } from "../image-circles/index";
+import { program as imageJiggleProgram } from "../image-jiggle/index";
+import { program as logoProgram } from "../logo/index";
+import { program as referencePosterProgram } from "../reference-poster/index";
+import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as wavesProgram } from "../waves/index";
 
-export const programRegistry = [wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];
+export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, fieldProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, logoProgram, referencePosterProgram, tilepathGridProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];

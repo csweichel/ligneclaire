@@ -1,0 +1,13 @@
+{
+  "programId": "hilbert-thick-gradient",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "order": 4,
+    "minExtra": 4,
+    "maxExtra": 40,
+    "step": 0.72
+  },
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T12:00:00.000Z"
+}

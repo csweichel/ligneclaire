@@ -1,0 +1,14 @@
+{
+  "programId": "continuous-contour",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "lines": 14,
+    "spacing": 7.5,
+    "samples": 36,
+    "caps": 18,
+    "tension": 0.18
+  },
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T12:00:00.000Z"
+}

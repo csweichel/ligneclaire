@@ -1,0 +1,13 @@
+{
+  "programId": "image-jiggle",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "lineCount": 80,
+    "stepsPerLine": 600,
+    "maxAmplitude": 1.375,
+    "maxFrequency": 0.48
+  },
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T12:00:00.000Z"
+}

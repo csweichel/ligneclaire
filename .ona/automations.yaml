@@ -8,5 +8,4 @@ services:
             ready: |
                 ./scripts/check-studio-service.sh
         triggeredBy:
-            - manual
-
+            - postDevcontainerStart

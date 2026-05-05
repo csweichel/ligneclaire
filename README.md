@@ -37,7 +37,7 @@ ona automations update .ona/automations.yaml -s
 ona automations service start studio
 ```
 
-The `studio` service starts the local runtime plus the Vite studio and opens port `5173` with `creator_only` admission so only the environment owner can access it.
+The `studio` service starts the local runtime plus the Vite studio and opens port `5173` with `creator_only` admission so only the environment owner can access it. It is configured to auto-start with the `postDevcontainerStart` automation trigger once the environment has loaded `.ona/automations.yaml`.
 
 ## Notes
 

@@ -1,0 +1,13 @@
+{
+  "programId": "hilbert-loops-gradient",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "loops": 3,
+    "order": 6,
+    "thickness": 26,
+    "base": 6
+  },
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T12:00:00.000Z"
+}

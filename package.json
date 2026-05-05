@@ -9,7 +9,8 @@
     "generate:registry": "tsx scripts/generate-program-registry.ts",
     "lc": "tsx packages/cli/src/index.ts",
     "lint": "eslint .",
-    "runtime": "tsx packages/node-runtime/src/server.ts",
+    "runtime": "tsx watch packages/node-runtime/src/server.ts",
+    "runtime:once": "tsx packages/node-runtime/src/server.ts",
     "studio": "pnpm --filter @ligneclaire/studio dev",
     "test": "pnpm generate:registry && vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"

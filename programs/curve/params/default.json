@@ -1,0 +1,13 @@
+{
+  "programId": "curve",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "cycles": 2,
+    "samples": 100,
+    "amplitude": 1,
+    "showDiscrete": true
+  },
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T12:00:00.000Z"
+}

@@ -1,0 +1,15 @@
+{
+  "programId": "image-circles",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "columns": 72,
+    "rows": 86,
+    "maxRadius": 4.8,
+    "minHatchSpacing": 1,
+    "maxHatchSpacing": 3.3
+  },
+  "programState": {},
+  "createdAt": "2026-05-05T12:00:00.000Z",
+  "updatedAt": "2026-05-05T09:45:31.485Z"
+}

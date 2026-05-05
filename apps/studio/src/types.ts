@@ -56,6 +56,7 @@ export type StudioModel = Readonly<{
   plotters: readonly PlotterDeviceSummary[];
   status: StudioStatus;
   showDebug: boolean;
+  showEditor: boolean;
   isRendering: boolean;
   pendingExport: ExportKind | null;
   editorComponent: EditorComponent | null;
@@ -67,6 +68,7 @@ export type StudioModel = Readonly<{
   updateParam: (key: string, value: number | boolean) => void;
   updateProgramState: (updater: (current: unknown) => unknown) => void;
   setShowDebug: (value: boolean) => void;
+  setShowEditor: (value: boolean) => void;
   setExportDeviceId: (deviceId: string) => void;
   saveCurrent: () => Promise<void>;
   duplicateCurrent: () => Promise<void>;

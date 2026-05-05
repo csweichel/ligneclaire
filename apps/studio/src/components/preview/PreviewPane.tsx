@@ -14,7 +14,9 @@ type PreviewPaneProps = Readonly<{
   svg: string;
   editorComponent: EditorComponent | null;
   isRendering: boolean;
+  setShowEditor: (value: boolean) => void;
   setShowDebug: (value: boolean) => void;
+  showEditor: boolean;
   showDebug: boolean;
   updateParam: (key: string, value: number | boolean) => void;
   updateProgramState: (updater: (current: unknown) => unknown) => void;
@@ -36,7 +38,9 @@ export function PreviewPane({
   svg,
   editorComponent,
   isRendering,
+  setShowEditor,
   setShowDebug,
+  showEditor,
   showDebug,
   updateParam,
   updateProgramState,
@@ -85,6 +89,10 @@ export function PreviewPane({
   );
 
   const hasInteractiveEditor = Boolean(editorComponent && current && programDetails);
+  const showEditorOverlay = hasInteractiveEditor && showEditor;
+  const editorCanvas = showEditorOverlay && programDetails ? programDetails.canvas : null;
+  const editorInstance = showEditorOverlay ? editorComponent : null;
+  const currentDocument = showEditorOverlay ? current : null;
 
   return (
     <section className="preview-pane">
@@ -98,9 +106,26 @@ export function PreviewPane({
 
         <div className="preview-pane__status">
           {hasInteractiveEditor ? (
-            <span className="preview-pane__badge">Editor overlay active</span>
+            <span className="preview-pane__badge">
+              {showEditorOverlay ? "Editor overlay active" : "Editor overlay hidden"}
+            </span>
           ) : null}
           {isRendering ? <span className="preview-pane__badge">Rendering</span> : null}
+          {hasInteractiveEditor ? (
+            <button
+              aria-pressed={showEditorOverlay}
+              className={cx(
+                "preview-pane__toggle",
+                showEditorOverlay && "preview-pane__toggle--active"
+              )}
+              type="button"
+              onClick={() => {
+                setShowEditor(!showEditorOverlay);
+              }}
+            >
+              Editor
+            </button>
+          ) : null}
           <button
             aria-pressed={showDebug}
             className={cx(
@@ -179,12 +204,12 @@ export function PreviewPane({
             </div>
           )}
 
-          {editorComponent && current && programDetails ? (
+          {showEditorOverlay && editorCanvas && editorInstance && currentDocument ? (
             <div data-editor-root="true" className="preview-paper__editor">
               <EditorHost
-                canvas={programDetails.canvas}
-                component={editorComponent}
-                current={current}
+                canvas={editorCanvas}
+                component={editorInstance}
+                current={currentDocument}
                 preview={previewLayout.bridge}
                 updateParam={updateParam}
                 updateProgramState={updateProgramState}
