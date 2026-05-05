@@ -8,7 +8,8 @@
     "accentPaths": 220,
     "maskScale": 1,
     "segmentLength": 2.5,
-    "steps": 10
+    "steps": 10,
+    "continuousCurves": true
   },
   "createdAt": "2026-05-05T12:00:00.000Z",
   "updatedAt": "2026-05-05T12:00:00.000Z"

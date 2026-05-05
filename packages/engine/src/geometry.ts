@@ -44,6 +44,104 @@ export function polylineLength(polyline: Polyline): number {
   return total;
 }
 
+export type CatmullRomPolylineOptions = Readonly<{
+  samplesPerSpan?: number;
+  tension?: number;
+}>;
+
+function dedupeConsecutivePoints(points: readonly Point[]): Point[] {
+  const result: Point[] = [];
+
+  for (const point of points) {
+    if (result.length > 0 && distanceBetweenPoints(result.at(-1)!, point) < 1e-6) {
+      continue;
+    }
+
+    result.push({ x: point.x, y: point.y });
+  }
+
+  return result;
+}
+
+function lerpPoint(start: Point, end: Point, amount: number): Point {
+  return {
+    x: lerp(start.x, end.x, amount),
+    y: lerp(start.y, end.y, amount),
+  };
+}
+
+function sampleLinearSpan(start: Point, end: Point, samplesPerSpan: number): Point[] {
+  return Array.from({ length: samplesPerSpan + 1 }, (_, index) =>
+    lerpPoint(start, end, index / samplesPerSpan)
+  );
+}
+
+function catmullRomPoint(
+  previous: Point,
+  start: Point,
+  end: Point,
+  next: Point,
+  amount: number,
+  tension: number
+): Point {
+  const amountSquared = amount * amount;
+  const amountCubed = amountSquared * amount;
+  const scale = 0.5 * (1 - tension);
+
+  const tangentA = {
+    x: (end.x - previous.x) * scale,
+    y: (end.y - previous.y) * scale,
+  };
+  const tangentB = {
+    x: (next.x - start.x) * scale,
+    y: (next.y - start.y) * scale,
+  };
+
+  const h00 = 2 * amountCubed - 3 * amountSquared + 1;
+  const h10 = amountCubed - 2 * amountSquared + amount;
+  const h01 = -2 * amountCubed + 3 * amountSquared;
+  const h11 = amountCubed - amountSquared;
+
+  return {
+    x: h00 * start.x + h10 * tangentA.x + h01 * end.x + h11 * tangentB.x,
+    y: h00 * start.y + h10 * tangentA.y + h01 * end.y + h11 * tangentB.y,
+  };
+}
+
+export function sampleCatmullRomPolyline(
+  points: readonly Point[],
+  options: CatmullRomPolylineOptions = {}
+): Polyline {
+  const deduped = dedupeConsecutivePoints(points);
+  if (deduped.length < 2) {
+    return { points: deduped };
+  }
+
+  const samplesPerSpan = Math.max(2, Math.floor(options.samplesPerSpan ?? 12));
+  const tension = clamp(options.tension ?? 0, 0, 1);
+
+  if (deduped.length === 2) {
+    return {
+      points: sampleLinearSpan(deduped[0]!, deduped[1]!, samplesPerSpan),
+    };
+  }
+
+  const result: Point[] = [deduped[0]!];
+
+  for (let index = 0; index < deduped.length - 1; index += 1) {
+    const previous = deduped[Math.max(index - 1, 0)]!;
+    const start = deduped[index]!;
+    const end = deduped[index + 1]!;
+    const next = deduped[Math.min(index + 2, deduped.length - 1)]!;
+
+    for (let step = 1; step <= samplesPerSpan; step += 1) {
+      result.push(catmullRomPoint(previous, start, end, next, step / samplesPerSpan, tension));
+    }
+  }
+
+  return { points: result };
+}
+
 export function sampleQuadraticBezier(
   start: Point,
   control: Point,
@@ -364,4 +462,3 @@ export function hatchBounds(
   }
   return lines;
 }
-

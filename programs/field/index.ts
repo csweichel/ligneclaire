@@ -1,4 +1,5 @@
 import {
+  boolParam,
   contentBounds,
   createPerlinVectorField,
   createRng,
@@ -6,6 +7,7 @@ import {
   drawVectorField,
   floatParam,
   intParam,
+  traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
   type NormalizedParams,
@@ -56,6 +58,11 @@ export const fieldParamSchema = {
     label: "Steps",
     group: "Stroke",
   }),
+  continuousCurves: boolParam({
+    default: true,
+    label: "Continuous Curves",
+    group: "Stroke",
+  }),
 } as const;
 
 type FieldParams = NormalizedParams<typeof fieldParamSchema>;
@@ -73,17 +80,24 @@ function collectFieldPaths(
   field: ReturnType<typeof createPerlinVectorField>,
   bounds: Bounds,
   segmentLength: number,
-  steps: number
+  steps: number,
+  continuousCurves: boolean
 ): readonly Polyline[] {
   const rng = createRng(rngSeed);
   const paths: Polyline[] = [];
 
   for (let index = 0; index < count; index += 1) {
-    const path = traceNearestVectorField(field, randomPoint(bounds, rng), {
-      segmentLength,
-      steps,
-      bounds,
-    });
+    const path = continuousCurves
+      ? traceContinuousVectorField(field, randomPoint(bounds, rng), {
+          segmentLength,
+          steps,
+          bounds,
+        })
+      : traceNearestVectorField(field, randomPoint(bounds, rng), {
+          segmentLength,
+          steps,
+          bounds,
+        });
     if (path.points.length < 2) {
       continue;
     }
@@ -118,7 +132,8 @@ function buildDocument(
       field,
       bounds,
       ctx.params.segmentLength,
-      ctx.params.steps
+      ctx.params.steps,
+      ctx.params.continuousCurves
     ),
     accentPaths: collectFieldPaths(
       ctx.params.accentPaths,
@@ -126,7 +141,8 @@ function buildDocument(
       field,
       bounds,
       ctx.params.segmentLength,
-      ctx.params.steps
+      ctx.params.steps,
+      ctx.params.continuousCurves
     ),
   };
 }

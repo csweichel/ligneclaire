@@ -9,6 +9,7 @@
 - `scale`: logo mark scale
 - `segmentLength`: travel distance per field step
 - `steps`: number of steps per traced path
+- `continuousCurves`: smooth traces with interpolated field sampling
 
 ## Validation Cases
 

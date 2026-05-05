@@ -1,4 +1,5 @@
 import {
+  boolParam,
   contentBounds,
   createPerlinVectorField,
   createRng,
@@ -6,6 +7,7 @@ import {
   floatParam,
   intParam,
   clipPolylineToPolygon,
+  traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
   type Point,
@@ -55,6 +57,11 @@ export const logoParamSchema = {
     max: 32,
     default: 10,
     label: "Steps",
+    group: "Stroke",
+  }),
+  continuousCurves: boolParam({
+    default: true,
+    label: "Continuous Curves",
     group: "Stroke",
   }),
 } as const;
@@ -120,11 +127,17 @@ export const program = defineProgram({
     const inkPaths: Polyline[] = [];
 
     for (let index = 0; index < ctx.params.paths; index += 1) {
-      const traced = traceNearestVectorField(field, randomPoint(bounds, rng), {
-        segmentLength: ctx.params.segmentLength,
-        steps: ctx.params.steps,
-        bounds,
-      });
+      const traced = ctx.params.continuousCurves
+        ? traceContinuousVectorField(field, randomPoint(bounds, rng), {
+            segmentLength: ctx.params.segmentLength,
+            steps: ctx.params.steps,
+            bounds,
+          })
+        : traceNearestVectorField(field, randomPoint(bounds, rng), {
+            segmentLength: ctx.params.segmentLength,
+            steps: ctx.params.steps,
+            bounds,
+          });
 
       if (traced.points.length < 2) {
         continue;

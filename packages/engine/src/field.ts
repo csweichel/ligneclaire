@@ -1,5 +1,5 @@
 import type { Bounds, Point, Polyline } from "./document";
-import { clamp, lerp, pointInBounds } from "./geometry";
+import { clamp, lerp, pointInBounds, sampleCatmullRomPolyline } from "./geometry";
 import { createFractalNoise2D } from "./noise";
 
 export type Vector = Readonly<{
@@ -15,6 +15,20 @@ export type VectorField = Readonly<{
   spacingY: number;
   vectors: readonly (readonly Vector[])[];
 }>;
+
+export type VectorFieldTraceOptions = Readonly<{
+  segmentLength: number;
+  steps: number;
+  bounds?: Bounds;
+}>;
+
+export type ContinuousVectorFieldTraceOptions = VectorFieldTraceOptions &
+  Readonly<{
+    samplesPerSpan?: number;
+    tension?: number;
+  }>;
+
+type VectorFieldSamplingMode = "nearest" | "interpolated";
 
 export function createVectorField(
   bounds: Bounds,
@@ -93,6 +107,24 @@ export function createPerlinVectorField(
 }
 
 export function sampleNearestVector(field: VectorField, point: Point): Vector | null {
+  const position = locateVectorFieldPoint(field, point);
+  if (!position) {
+    return null;
+  }
+
+  const column = clamp(Math.round(position.column), 0, field.columns - 1);
+  const row = clamp(Math.round(position.row), 0, field.rows - 1);
+
+  return field.vectors[column]?.[row] ?? null;
+}
+
+function locateVectorFieldPoint(
+  field: VectorField,
+  point: Point
+): Readonly<{
+  column: number;
+  row: number;
+}> | null {
   if (!pointInBounds(point, field.bounds)) {
     return null;
   }
@@ -105,10 +137,71 @@ export function sampleNearestVector(field: VectorField, point: Point): Vector | 
     field.rows <= 1
       ? 0
       : (point.y - field.bounds.minY) / Math.max(1e-6, field.bounds.maxY - field.bounds.minY);
-  const column = clamp(Math.round(xRatio * (field.columns - 1)), 0, field.columns - 1);
-  const row = clamp(Math.round(yRatio * (field.rows - 1)), 0, field.rows - 1);
 
-  return field.vectors[column]?.[row] ?? null;
+  return {
+    column: clamp(xRatio * (field.columns - 1), 0, field.columns - 1),
+    row: clamp(yRatio * (field.rows - 1), 0, field.rows - 1),
+  };
+}
+
+function vectorToPoint(vector: Vector): Point {
+  return {
+    x: Math.cos(vector.angle) * vector.length,
+    y: Math.sin(vector.angle) * vector.length,
+  };
+}
+
+function pointToVector(delta: Point): Vector | null {
+  const length = Math.hypot(delta.x, delta.y);
+  if (length < 1e-6) {
+    return null;
+  }
+
+  return {
+    angle: Math.atan2(delta.y, delta.x),
+    length,
+  };
+}
+
+export function sampleInterpolatedVector(field: VectorField, point: Point): Vector | null {
+  const position = locateVectorFieldPoint(field, point);
+  if (!position) {
+    return null;
+  }
+
+  const leftColumn = Math.floor(position.column);
+  const rightColumn = Math.min(field.columns - 1, leftColumn + 1);
+  const bottomRow = Math.floor(position.row);
+  const topRow = Math.min(field.rows - 1, bottomRow + 1);
+  const columnAmount = position.column - leftColumn;
+  const rowAmount = position.row - bottomRow;
+  const bottomLeft = field.vectors[leftColumn]?.[bottomRow];
+  const bottomRight = field.vectors[rightColumn]?.[bottomRow];
+  const topLeft = field.vectors[leftColumn]?.[topRow];
+  const topRight = field.vectors[rightColumn]?.[topRow];
+
+  if (!bottomLeft || !bottomRight || !topLeft || !topRight) {
+    return null;
+  }
+
+  const bottomLeftDelta = vectorToPoint(bottomLeft);
+  const bottomRightDelta = vectorToPoint(bottomRight);
+  const topLeftDelta = vectorToPoint(topLeft);
+  const topRightDelta = vectorToPoint(topRight);
+  const interpolated = {
+    x: lerp(
+      lerp(bottomLeftDelta.x, bottomRightDelta.x, columnAmount),
+      lerp(topLeftDelta.x, topRightDelta.x, columnAmount),
+      rowAmount
+    ),
+    y: lerp(
+      lerp(bottomLeftDelta.y, bottomRightDelta.y, columnAmount),
+      lerp(topLeftDelta.y, topRightDelta.y, columnAmount),
+      rowAmount
+    ),
+  };
+
+  return pointToVector(interpolated) ?? sampleNearestVector(field, point);
 }
 
 export function drawVectorField(field: VectorField): readonly Polyline[] {
@@ -138,20 +231,20 @@ export function drawVectorField(field: VectorField): readonly Polyline[] {
   return paths;
 }
 
-export function traceNearestVectorField(
+function traceFieldPath(
   field: VectorField,
   start: Point,
-  options: Readonly<{
-    segmentLength: number;
-    steps: number;
-    bounds?: Bounds;
-  }>
+  options: VectorFieldTraceOptions,
+  samplingMode: VectorFieldSamplingMode
 ): Polyline {
   const points: Point[] = [start];
   let current = start;
 
   for (let step = 0; step < options.steps; step += 1) {
-    const vector = sampleNearestVector(field, current);
+    const vector =
+      samplingMode === "interpolated"
+        ? sampleInterpolatedVector(field, current)
+        : sampleNearestVector(field, current);
     if (!vector) {
       break;
     }
@@ -169,4 +262,28 @@ export function traceNearestVectorField(
   }
 
   return { points };
+}
+
+export function traceNearestVectorField(
+  field: VectorField,
+  start: Point,
+  options: VectorFieldTraceOptions
+): Polyline {
+  return traceFieldPath(field, start, options, "nearest");
+}
+
+export function traceContinuousVectorField(
+  field: VectorField,
+  start: Point,
+  options: ContinuousVectorFieldTraceOptions
+): Polyline {
+  const traced = traceFieldPath(field, start, options, "interpolated");
+  if (traced.points.length < 2) {
+    return traced;
+  }
+
+  return sampleCatmullRomPolyline(traced.points, {
+    samplesPerSpan: options.samplesPerSpan ?? 6,
+    tension: options.tension ?? 0.35,
+  });
 }

@@ -1,4 +1,5 @@
 import {
+  boolParam,
   contentBounds,
   createPerlinVectorField,
   createRng,
@@ -7,6 +8,7 @@ import {
   excludePolylineFromPolygon,
   floatParam,
   intParam,
+  traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
   type Point,
@@ -65,6 +67,11 @@ export const clipFieldParamSchema = {
     label: "Steps",
     group: "Stroke",
   }),
+  continuousCurves: boolParam({
+    default: true,
+    label: "Continuous Curves",
+    group: "Stroke",
+  }),
 } as const;
 
 function randomPoint(bounds: Bounds, rng: ReturnType<typeof createRng>) {
@@ -96,17 +103,24 @@ function collectFieldPaths(
   bounds: Bounds,
   mask: readonly Point[],
   segmentLength: number,
-  steps: number
+  steps: number,
+  continuousCurves: boolean
 ): readonly Polyline[] {
   const rng = createRng(rngSeed);
   const paths: Polyline[] = [];
 
   for (let index = 0; index < count; index += 1) {
-    const traced = traceNearestVectorField(field, randomPoint(bounds, rng), {
-      segmentLength,
-      steps,
-      bounds,
-    });
+    const traced = continuousCurves
+      ? traceContinuousVectorField(field, randomPoint(bounds, rng), {
+          segmentLength,
+          steps,
+          bounds,
+        })
+      : traceNearestVectorField(field, randomPoint(bounds, rng), {
+          segmentLength,
+          steps,
+          bounds,
+        });
 
     if (traced.points.length < 2) {
       continue;
@@ -165,7 +179,8 @@ export const program = defineProgram({
             bounds,
             mask,
             ctx.params.segmentLength,
-            ctx.params.steps
+            ctx.params.steps,
+            ctx.params.continuousCurves
           ),
         },
         {
@@ -179,7 +194,8 @@ export const program = defineProgram({
             bounds,
             mask,
             ctx.params.segmentLength,
-            ctx.params.steps
+            ctx.params.steps,
+            ctx.params.continuousCurves
           ),
         },
       ],
