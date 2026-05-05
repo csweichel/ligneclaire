@@ -37,9 +37,9 @@ type ToggleFieldProps = Readonly<{
 function figureButtonStyle(selected: boolean): CSSProperties | undefined {
   return selected
     ? {
-        background: "#0f172a",
-        borderColor: "#0f172a",
-        color: "#f8fafc",
+        background: "var(--studio-blue)",
+        borderColor: "var(--studio-blue)",
+        color: "var(--studio-panel)",
       }
     : undefined;
 }
@@ -51,15 +51,15 @@ function handleStyle(selected: boolean): CSSProperties {
     placeItems: "center",
     width: selected ? 30 : 24,
     height: selected ? 30 : 24,
-    border: selected ? "2px solid #0f172a" : "1px solid rgba(15, 23, 42, 0.42)",
+    border: selected ? "2px solid var(--studio-blue)" : "1px solid rgba(31, 41, 55, 0.24)",
     borderRadius: 999,
-    background: selected ? "#f8fafc" : "rgba(255, 250, 244, 0.95)",
-    color: "#0f172a",
+    background: selected ? "var(--studio-panel)" : "rgba(255, 255, 255, 0.95)",
+    color: "var(--studio-ink)",
     fontSize: 12,
     fontWeight: 700,
     lineHeight: 1,
     transform: "translate(-50%, -50%)",
-    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.16)",
+    boxShadow: "0 8px 18px rgba(31, 41, 55, 0.12)",
     pointerEvents: "auto",
   };
 }

@@ -9,6 +9,7 @@ import {
   intParam,
   lazyEditor,
   normalizeTileRotation,
+  plotPalette,
   type NormalizedParams,
   type TileGrid,
   type TileKind,
@@ -357,7 +358,7 @@ export const program = defineProgram({
         {
           id: "tilepath-grid",
           label: "Tilepath Grid",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths: layout.result.paths,
         },
       ],
@@ -366,7 +367,7 @@ export const program = defineProgram({
             {
               id: "tile-grid",
               label: "Tile Grid",
-              stroke: "#1d4ed8",
+              stroke: plotPalette.mask,
               paths: debugTileGrid(layout.grid, layout.result),
             },
           ]

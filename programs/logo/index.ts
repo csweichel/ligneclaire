@@ -7,6 +7,7 @@ import {
   floatParam,
   intParam,
   clipPolylineToPolygon,
+  plotPalette,
   traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
@@ -156,13 +157,13 @@ export const program = defineProgram({
         {
           id: "logo-ink",
           label: "Logo Ink",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths: inkPaths,
         },
         {
           id: "frame",
           label: "Frame",
-          stroke: "#475569",
+          stroke: plotPalette.accent,
           paths: [frame(bounds)],
         },
       ],

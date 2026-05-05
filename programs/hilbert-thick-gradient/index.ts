@@ -5,6 +5,7 @@ import {
   generateHilbertCurve,
   floatParam,
   intParam,
+  plotPalette,
   type Polyline,
 } from "@ligneclaire/sdk";
 
@@ -126,7 +127,7 @@ export const program = defineProgram({
         {
           id: "hilbert-thick-gradient",
           label: "Hilbert Thick Gradient",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],

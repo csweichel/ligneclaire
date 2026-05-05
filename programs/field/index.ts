@@ -7,6 +7,7 @@ import {
   drawVectorField,
   floatParam,
   intParam,
+  plotPalette,
   traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
@@ -166,13 +167,13 @@ export const program = defineProgram({
         {
           id: "primary-field",
           label: "Primary Field",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths: primaryPaths,
         },
         {
           id: "accent-field",
           label: "Accent Field",
-          stroke: "#1d4ed8",
+          stroke: plotPalette.accent,
           paths: accentPaths,
         },
       ],
@@ -181,7 +182,7 @@ export const program = defineProgram({
             {
               id: "vector-grid",
               label: "Vector Grid",
-              stroke: "#dc2626",
+              stroke: plotPalette.mask,
               paths: drawVectorField(field),
             },
           ]

@@ -63,11 +63,20 @@ export function GcodeVirtualPreview({
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.clearRect(0, 0, width, height);
 
-    context.fillStyle = "#f6f3eb";
+    const styles = getComputedStyle(document.documentElement);
+    const colors = {
+      paper: styles.getPropertyValue("--studio-paper").trim() || "#FFFDF8",
+      textSecondary: styles.getPropertyValue("--studio-ink-soft").trim() || "#6B7280",
+      line: styles.getPropertyValue("--studio-line-soft").trim() || "#D9DEE4",
+      plotPrimary: styles.getPropertyValue("--studio-plot-primary").trim() || "#526A7A",
+      mask: styles.getPropertyValue("--studio-mask").trim() || "#7DA7A0",
+    };
+
+    context.fillStyle = colors.paper;
     context.fillRect(0, 0, width, height);
 
     if (!artifact || artifact.preview.segments.length === 0) {
-      context.fillStyle = "#6b7280";
+      context.fillStyle = colors.textSecondary;
       context.font = '13px "Avenir Next", "Helvetica Neue", sans-serif';
       context.textAlign = "center";
       context.textBaseline = "middle";
@@ -92,7 +101,7 @@ export function GcodeVirtualPreview({
       };
     }
 
-    context.strokeStyle = "#d6d3cb";
+    context.strokeStyle = colors.line;
     context.lineWidth = 1;
     context.strokeRect(offsetX, offsetY, viewWidth * scale, viewHeight * scale);
 
@@ -102,20 +111,20 @@ export function GcodeVirtualPreview({
     for (const segment of artifact.preview.segments) {
       const from = project(segment.from);
       const to = project(segment.to);
-      const active = segment.lineNumber <= activeLineNumber;
+      const completed = segment.lineNumber <= activeLineNumber;
 
       context.beginPath();
       context.moveTo(from.x, from.y);
       context.lineTo(to.x, to.y);
 
       if (segment.drawing) {
-        context.strokeStyle = active ? "#2956c8" : "#232323";
-        context.lineWidth = active ? 1.8 : 1.2;
-        context.globalAlpha = active ? 0.95 : 0.48;
+        context.strokeStyle = colors.plotPrimary;
+        context.lineWidth = completed ? 1.8 : 1.2;
+        context.globalAlpha = completed ? 0.96 : 0.24;
       } else {
-        context.strokeStyle = active ? "#8aa4e8" : "#cbd5e1";
+        context.strokeStyle = colors.mask;
         context.lineWidth = 1;
-        context.globalAlpha = active ? 0.85 : 0.5;
+        context.globalAlpha = completed ? 0.38 : 0.14;
       }
 
       context.stroke();

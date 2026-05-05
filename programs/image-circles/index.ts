@@ -5,6 +5,7 @@ import {
   floatParam,
   goPenSampleGrid,
   intParam,
+  plotPalette,
   sampleFunctionPath,
   sampleGrayscaleImageGrid,
   type Polyline,
@@ -147,7 +148,7 @@ export const program = defineProgram({
         {
           id: "image-circles",
           label: "Image Circles",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],
@@ -156,7 +157,7 @@ export const program = defineProgram({
             {
               id: "image-samples",
               label: "Image Samples",
-              stroke: "#0f766e",
+              stroke: plotPalette.mask,
               paths: drawGrayscaleImageGrid(goPenSampleGrid, bounds),
             },
           ]

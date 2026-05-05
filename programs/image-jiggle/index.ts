@@ -5,6 +5,7 @@ import {
   floatParam,
   goPenSampleGrid,
   intParam,
+  plotPalette,
   sampleGrayscaleImageGrid,
   type Polyline,
 } from "@ligneclaire/sdk";
@@ -97,7 +98,7 @@ export const program = defineProgram({
         {
           id: "image-jiggle",
           label: "Image Jiggle",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],
@@ -106,7 +107,7 @@ export const program = defineProgram({
             {
               id: "image-samples",
               label: "Image Samples",
-              stroke: "#0f766e",
+              stroke: plotPalette.mask,
               paths: drawGrayscaleImageGrid(goPenSampleGrid, bounds),
             },
           ]

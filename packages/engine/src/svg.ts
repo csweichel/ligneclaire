@@ -1,4 +1,5 @@
 import type { PlotDocument, PlotLayer, Polyline } from "./document";
+import { plotPalette } from "./palette";
 
 export type SvgSerializeOptions = Readonly<{
   includeDebugLayers?: boolean;
@@ -37,7 +38,7 @@ function polylineToPath(polyline: Polyline, canvasHeight: number): string {
 }
 
 function renderLayer(layer: PlotLayer, canvasHeight: number): string {
-  const stroke = escapeXml(layer.stroke ?? "#141414");
+  const stroke = escapeXml(layer.stroke ?? plotPalette.primary);
   const layerPaths = layer.paths
     .map(
       (path) =>
@@ -76,4 +77,3 @@ export function serializePlotDocumentToSvg(
     `</svg>`,
   ].join("");
 }
-

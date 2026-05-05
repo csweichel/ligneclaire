@@ -5,6 +5,7 @@ import {
   defineProgram,
   floatParam,
   intParam,
+  plotPalette,
   type Polyline,
 } from "@ligneclaire/sdk";
 
@@ -116,13 +117,13 @@ export const program = defineProgram({
         {
           id: "left-fan",
           label: "Left Fan",
-          stroke: "#111827",
+          stroke: plotPalette.primary,
           paths: leftPaths,
         },
         {
           id: "right-fan",
           label: "Right Fan",
-          stroke: "#475569",
+          stroke: plotPalette.accent,
           paths: rightPaths,
         },
       ],

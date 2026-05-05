@@ -5,6 +5,7 @@ import {
   floatParam,
   generateContinuousContour,
   intParam,
+  plotPalette,
   type Bounds,
   type Point,
   type Polyline,
@@ -125,7 +126,7 @@ export const program = defineProgram({
         {
           id: "reference-poster",
           label: "Reference Poster",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],

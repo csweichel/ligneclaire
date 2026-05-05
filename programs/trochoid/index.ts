@@ -3,6 +3,7 @@ import {
   contentBounds,
   defineProgram,
   lazyEditor,
+  plotPalette,
   sampleEpitrochoid,
   sampleFunctionPath,
   sampleHypotrochoid,
@@ -593,7 +594,7 @@ export const program = defineProgram({
         {
           id: "trochoid-figure",
           label: "Trochoid Figure",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],
@@ -602,7 +603,7 @@ export const program = defineProgram({
             {
               id: "trochoid-guide",
               label: "Trochoid Guide",
-              stroke: "#dc2626",
+              stroke: plotPalette.mask,
               paths: [
                 ...ctx.programState.figures.map((figure) =>
                   makeGuideCircle(figure.center, effectiveFigureRadius(figure.config))

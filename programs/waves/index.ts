@@ -7,6 +7,7 @@ import {
   intParam,
   lazyEditor,
   lerp,
+  plotPalette,
   sampleFunctionPath,
   type NormalizedParams,
   type Point,
@@ -235,13 +236,13 @@ export const program = defineProgram({
         {
           id: "warm-field",
           label: "Warm Field",
-          stroke: "#1d4ed8",
+          stroke: plotPalette.accent,
           paths: warmPaths,
         },
         {
           id: "cool-field",
           label: "Cool Field",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths: coolPaths,
         },
       ],
@@ -249,7 +250,7 @@ export const program = defineProgram({
         {
           id: "focus-guide",
           label: "Focus Guide",
-          stroke: "#dc2626",
+          stroke: plotPalette.mask,
           paths: debugPaths,
         },
       ],

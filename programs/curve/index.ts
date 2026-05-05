@@ -5,6 +5,7 @@ import {
   floatParam,
   intParam,
   lerp,
+  plotPalette,
   sampleFunctionPath,
   type Bounds,
   type Point,
@@ -123,13 +124,13 @@ export const program = defineProgram({
         {
           id: "continuous",
           label: "Continuous Curve",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths: [continuous],
         },
         {
           id: "discrete",
           label: "Discrete Curve",
-          stroke: "#1d4ed8",
+          stroke: plotPalette.accent,
           paths: ctx.params.showDiscrete ? [discrete] : [],
         },
       ],

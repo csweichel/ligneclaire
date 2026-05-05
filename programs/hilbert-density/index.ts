@@ -5,6 +5,7 @@ import {
   defineProgram,
   generateHilbertCurve,
   intParam,
+  plotPalette,
   type Point,
   type Polyline,
 } from "@ligneclaire/sdk";
@@ -117,7 +118,7 @@ export const program = defineProgram({
         {
           id: "hilbert-density",
           label: "Hilbert Density",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],

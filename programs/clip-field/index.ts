@@ -8,6 +8,7 @@ import {
   excludePolylineFromPolygon,
   floatParam,
   intParam,
+  plotPalette,
   traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
@@ -171,7 +172,7 @@ export const program = defineProgram({
         {
           id: "primary-field",
           label: "Primary Field",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths: collectFieldPaths(
             ctx.params.primaryPaths,
             ctx.params.seed * 17 + 1,
@@ -186,7 +187,7 @@ export const program = defineProgram({
         {
           id: "accent-field",
           label: "Accent Field",
-          stroke: "#1d4ed8",
+          stroke: plotPalette.accent,
           paths: collectFieldPaths(
             ctx.params.accentPaths,
             ctx.params.seed * 29 + 7,
@@ -204,13 +205,13 @@ export const program = defineProgram({
             {
               id: "vector-grid",
               label: "Vector Grid",
-              stroke: "#dc2626",
+              stroke: plotPalette.mask,
               paths: drawVectorField(field),
             },
             {
               id: "clip-mask",
               label: "Clip Mask",
-              stroke: "#0f766e",
+              stroke: plotPalette.mask,
               paths: [outline(mask)],
             },
           ]

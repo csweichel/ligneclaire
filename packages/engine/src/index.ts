@@ -6,6 +6,7 @@ export * from "./geometry";
 export * from "./image";
 export * from "./metrics";
 export * from "./noise";
+export * from "./palette";
 export * from "./params";
 export * from "./reference-image";
 export * from "./rng";

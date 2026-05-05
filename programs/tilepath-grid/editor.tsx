@@ -21,9 +21,9 @@ function cellStyle(locked: boolean, width: number): CSSProperties {
     display: "grid",
     placeItems: "center",
     borderRadius: 6,
-    border: locked ? "1px solid rgba(15, 23, 42, 0.7)" : "1px dashed rgba(15, 23, 42, 0.28)",
-    background: locked ? "rgba(241, 245, 249, 0.88)" : "rgba(248, 250, 252, 0.32)",
-    color: locked ? "#0f172a" : "rgba(15, 23, 42, 0.68)",
+    border: locked ? "1px solid rgba(31, 41, 55, 0.52)" : "1px dashed rgba(31, 41, 55, 0.2)",
+    background: locked ? "rgba(255, 255, 255, 0.92)" : "rgba(255, 253, 248, 0.42)",
+    color: locked ? "var(--studio-ink)" : "rgba(31, 41, 55, 0.72)",
     fontSize: `${Math.max(9, Math.min(12, width * 0.18))}px`,
     fontWeight: 700,
     letterSpacing: "0.04em",
@@ -36,9 +36,9 @@ function cellStyle(locked: boolean, width: number): CSSProperties {
 function toolButtonStyle(active: boolean): CSSProperties | undefined {
   return active
     ? {
-        background: "#0f172a",
-        color: "#f8fafc",
-        borderColor: "#0f172a",
+        background: "var(--studio-blue)",
+        color: "var(--studio-panel)",
+        borderColor: "var(--studio-blue)",
       }
     : undefined;
 }
@@ -101,7 +101,7 @@ export default function TilepathGridEditor({
         >
           <span
             style={{
-              color: "rgba(15, 23, 42, 0.68)",
+              color: "var(--studio-ink-soft)",
               fontSize: 12,
               letterSpacing: "0.05em",
               textTransform: "uppercase",

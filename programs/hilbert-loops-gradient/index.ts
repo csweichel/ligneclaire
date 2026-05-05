@@ -4,6 +4,7 @@ import {
   defineProgram,
   generateHilbertCurve,
   intParam,
+  plotPalette,
   type Point,
   type Polyline,
 } from "@ligneclaire/sdk";
@@ -170,7 +171,7 @@ export const program = defineProgram({
         {
           id: "hilbert-loops-gradient",
           label: "Hilbert Loops Gradient",
-          stroke: "#0f172a",
+          stroke: plotPalette.primary,
           paths,
         },
       ],
