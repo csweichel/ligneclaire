@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./Logo.png" alt="LigneClaire logo" width="360" />
+</p>
+
 # LigneClaire
 
 Local-first creative coding framework for pen plotters.

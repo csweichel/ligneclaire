@@ -2,18 +2,15 @@ import {
   clamp,
   contentBounds,
   defineProgram,
-  floatParam,
-  intParam,
   lazyEditor,
   sampleEpitrochoid,
   sampleFunctionPath,
   sampleHypotrochoid,
-  type NormalizedParams,
+  type PersistedParamSet,
   type Point,
   type Polyline,
   type ProgramRenderContext,
 } from "@ligneclaire/sdk";
-import { boolParam } from "@ligneclaire/sdk";
 
 export const canvas = {
   widthMm: 210,
@@ -21,114 +18,431 @@ export const canvas = {
   marginMm: 10,
 } as const;
 
-export const trochoidParamSchema = {
-  useEpitrochoid: boolParam({
-    default: false,
-    label: "Use Epitrochoid",
-    group: "Figure",
-  }),
-  fixedRadius: intParam({
-    min: 16,
-    max: 144,
-    default: 84,
-    label: "Fixed Radius",
-    group: "Gear",
-  }),
-  rollingRadius: intParam({
-    min: 3,
-    max: 72,
-    default: 30,
-    label: "Rolling Radius",
-    group: "Gear",
-  }),
-  pointOffsetRatio: floatParam({
-    min: 0,
-    max: 2,
-    default: 0.82,
-    step: 0.01,
-    label: "Pen Offset",
-    group: "Gear",
-  }),
-  figureRadius: floatParam({
-    min: 12,
-    max: 110,
-    default: 68,
-    step: 0.5,
-    label: "Figure Radius",
-    group: "Placement",
-    unit: "mm",
-  }),
-  rotationDeg: floatParam({
-    min: 0,
-    max: 360,
-    default: 0,
-    step: 1,
-    label: "Rotation",
-    group: "Placement",
-    unit: "deg",
-  }),
-  samplesPerTurn: intParam({
-    min: 64,
-    max: 720,
-    default: 320,
-    label: "Samples Per Turn",
-    group: "Quality",
-  }),
-} as const;
+const PROGRAM_VERSION = "1.1.0";
+const MIN_FIXED_RADIUS = 16;
+const MAX_FIXED_RADIUS = 144;
+const MIN_ROLLING_RADIUS = 3;
+const MAX_ROLLING_RADIUS = 72;
+const MIN_POINT_OFFSET_RATIO = 0;
+const MAX_POINT_OFFSET_RATIO = 2;
+const MIN_FIGURE_RADIUS = 12;
+const MIN_ROTATION_DEG = 0;
+const MAX_ROTATION_DEG = 360;
+const MIN_SAMPLES_PER_TURN = 64;
+const MAX_SAMPLES_PER_TURN = 720;
+const NEW_FIGURE_OFFSET_MM = 18;
+
+export const MAX_TROCHOID_FIGURES = 24;
+export const trochoidParamSchema = {} as const;
 
 export type TrochoidSchema = typeof trochoidParamSchema;
-type TrochoidParams = NormalizedParams<TrochoidSchema>;
+export type TrochoidFigureConfig = Readonly<{
+  useEpitrochoid: boolean;
+  fixedRadius: number;
+  rollingRadius: number;
+  pointOffsetRatio: number;
+  figureRadius: number;
+  rotationDeg: number;
+  samplesPerTurn: number;
+}>;
+
+export type TrochoidFigure = Readonly<{
+  id: string;
+  center: Point;
+  config: TrochoidFigureConfig;
+}>;
 
 export type TrochoidProgramState = Readonly<{
-  center: Point;
+  figures: readonly TrochoidFigure[];
+  selectedFigureId: string | null;
+  nextFigureNumber: number;
 }>;
 
 type TrochoidRenderContext = ProgramRenderContext<TrochoidSchema, TrochoidProgramState>;
 
-const defaultProgramState = (): TrochoidProgramState => ({
-  center: {
-    x: canvas.widthMm * 0.5,
-    y: canvas.heightMm * 0.5,
-  },
+export const defaultTrochoidFigureConfig: TrochoidFigureConfig = Object.freeze({
+  useEpitrochoid: false,
+  fixedRadius: 84,
+  rollingRadius: 30,
+  pointOffsetRatio: 0.82,
+  figureRadius: 68,
+  rotationDeg: 0,
+  samplesPerTurn: 320,
 });
 
-function normalizeProgramState(input: unknown): TrochoidProgramState {
-  const fallback = defaultProgramState();
-  const bounds = contentBounds(canvas);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
-  if (!input || typeof input !== "object") {
-    return fallback;
-  }
+function readNumber(
+  candidate: Record<string, unknown>,
+  key: string,
+  fallback: number
+): number {
+  const value = candidate[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
 
-  const candidate = input as Record<string, unknown>;
-  const centerCandidate =
-    candidate.center && typeof candidate.center === "object"
-      ? (candidate.center as Record<string, unknown>)
-      : null;
-
-  const centerX =
-    typeof centerCandidate?.x === "number" && Number.isFinite(centerCandidate.x)
-      ? clamp(centerCandidate.x, bounds.minX, bounds.maxX)
-      : fallback.center.x;
-  const centerY =
-    typeof centerCandidate?.y === "number" && Number.isFinite(centerCandidate.y)
-      ? clamp(centerCandidate.y, bounds.minY, bounds.maxY)
-      : fallback.center.y;
-
+function sheetCenter(): Point {
   return {
-    center: {
-      x: centerX,
-      y: centerY,
-    },
+    x: canvas.widthMm * 0.5,
+    y: canvas.heightMm * 0.5,
   };
 }
 
-function resolveRollingRadius(params: TrochoidParams): number {
-  if (params.useEpitrochoid) {
-    return params.rollingRadius;
+function figureId(number: number): string {
+  return `figure-${number}`;
+}
+
+function maxSupportedFigureRadius(): number {
+  const bounds = contentBounds(canvas);
+  return Math.min(
+    (bounds.maxX - bounds.minX) * 0.5,
+    (bounds.maxY - bounds.minY) * 0.5
+  );
+}
+
+export function normalizeTrochoidFigureConfig(
+  input: unknown,
+  fallback: TrochoidFigureConfig = defaultTrochoidFigureConfig
+): TrochoidFigureConfig {
+  const candidate = isRecord(input) ? input : {};
+  const useEpitrochoid =
+    typeof candidate.useEpitrochoid === "boolean"
+      ? candidate.useEpitrochoid
+      : fallback.useEpitrochoid;
+  const fixedRadius = Math.round(
+    clamp(readNumber(candidate, "fixedRadius", fallback.fixedRadius), MIN_FIXED_RADIUS, MAX_FIXED_RADIUS)
+  );
+  const maxRollingRadius = useEpitrochoid
+    ? MAX_ROLLING_RADIUS
+    : Math.max(MIN_ROLLING_RADIUS, Math.min(MAX_ROLLING_RADIUS, fixedRadius - 1));
+  const rollingRadius = Math.round(
+    clamp(
+      readNumber(candidate, "rollingRadius", fallback.rollingRadius),
+      MIN_ROLLING_RADIUS,
+      maxRollingRadius
+    )
+  );
+  const pointOffsetRatio = clamp(
+    readNumber(candidate, "pointOffsetRatio", fallback.pointOffsetRatio),
+    MIN_POINT_OFFSET_RATIO,
+    MAX_POINT_OFFSET_RATIO
+  );
+  const figureRadius = clamp(
+    readNumber(candidate, "figureRadius", fallback.figureRadius),
+    MIN_FIGURE_RADIUS,
+    maxSupportedFigureRadius()
+  );
+  const rotationDeg = clamp(
+    readNumber(candidate, "rotationDeg", fallback.rotationDeg),
+    MIN_ROTATION_DEG,
+    MAX_ROTATION_DEG
+  );
+  const samplesPerTurn = Math.round(
+    clamp(
+      readNumber(candidate, "samplesPerTurn", fallback.samplesPerTurn),
+      MIN_SAMPLES_PER_TURN,
+      MAX_SAMPLES_PER_TURN
+    )
+  );
+
+  return {
+    useEpitrochoid,
+    fixedRadius,
+    rollingRadius,
+    pointOffsetRatio,
+    figureRadius,
+    rotationDeg,
+    samplesPerTurn,
+  };
+}
+
+export function effectiveFigureRadius(config: TrochoidFigureConfig): number {
+  return Math.min(config.figureRadius, maxSupportedFigureRadius());
+}
+
+export function clampTrochoidCenter(
+  config: TrochoidFigureConfig,
+  center: Point
+): Point {
+  const bounds = contentBounds(canvas);
+  const radius = effectiveFigureRadius(config);
+  const minX = bounds.minX + radius;
+  const maxX = Math.max(minX, bounds.maxX - radius);
+  const minY = bounds.minY + radius;
+  const maxY = Math.max(minY, bounds.maxY - radius);
+
+  return {
+    x: clamp(center.x, minX, maxX),
+    y: clamp(center.y, minY, maxY),
+  };
+}
+
+function createTrochoidFigure(
+  id: string,
+  center: Point,
+  configInput: unknown
+): TrochoidFigure {
+  const config = normalizeTrochoidFigureConfig(configInput);
+
+  return {
+    id,
+    center: clampTrochoidCenter(config, center),
+    config,
+  };
+}
+
+const defaultProgramState = (): TrochoidProgramState => ({
+  figures: [
+    createTrochoidFigure(figureId(1), sheetCenter(), defaultTrochoidFigureConfig),
+  ],
+  selectedFigureId: figureId(1),
+  nextFigureNumber: 2,
+});
+
+function normalizeFigureId(
+  value: unknown,
+  fallbackNumber: number,
+  usedIds: Set<string>
+): string {
+  const fallbackId = figureId(fallbackNumber);
+  const requested =
+    typeof value === "string" && /^[A-Za-z0-9_-]+$/.test(value) ? value : fallbackId;
+  let unique = requested;
+  let suffix = 2;
+
+  while (usedIds.has(unique)) {
+    unique = `${requested}-${suffix}`;
+    suffix += 1;
   }
 
-  return clamp(params.rollingRadius, 1, Math.max(1, params.fixedRadius - 1));
+  usedIds.add(unique);
+  return unique;
+}
+
+function deriveNextFigureNumber(figures: readonly TrochoidFigure[]): number {
+  let highest = 0;
+
+  for (const figure of figures) {
+    const match = /^figure-(\d+)$/.exec(figure.id);
+    if (!match) {
+      continue;
+    }
+
+    highest = Math.max(highest, Number(match[1]));
+  }
+
+  return Math.max(highest + 1, figures.length + 1, 2);
+}
+
+export function selectedTrochoidFigure(
+  programState: TrochoidProgramState
+): TrochoidFigure | null {
+  if (programState.selectedFigureId) {
+    const selected = programState.figures.find(
+      (figure) => figure.id === programState.selectedFigureId
+    );
+    if (selected) {
+      return selected;
+    }
+  }
+
+  return programState.figures[0] ?? null;
+}
+
+export function selectTrochoidFigure(
+  programState: TrochoidProgramState,
+  figureIdToSelect: string
+): TrochoidProgramState {
+  if (!programState.figures.some((figure) => figure.id === figureIdToSelect)) {
+    return programState;
+  }
+
+  return {
+    ...programState,
+    selectedFigureId: figureIdToSelect,
+  };
+}
+
+export function moveTrochoidFigure(
+  programState: TrochoidProgramState,
+  figureIdToMove: string,
+  center: Point
+): TrochoidProgramState {
+  return {
+    ...programState,
+    figures: programState.figures.map((figure) =>
+      figure.id === figureIdToMove
+        ? {
+            ...figure,
+            center: clampTrochoidCenter(figure.config, center),
+          }
+        : figure
+    ),
+    selectedFigureId: figureIdToMove,
+  };
+}
+
+export function patchTrochoidFigureConfig(
+  programState: TrochoidProgramState,
+  figureIdToPatch: string,
+  patch: Partial<TrochoidFigureConfig>
+): TrochoidProgramState {
+  return {
+    ...programState,
+    figures: programState.figures.map((figure) => {
+      if (figure.id !== figureIdToPatch) {
+        return figure;
+      }
+
+      const config = normalizeTrochoidFigureConfig(
+        {
+          ...figure.config,
+          ...patch,
+        },
+        figure.config
+      );
+
+      return {
+        ...figure,
+        config,
+        center: clampTrochoidCenter(config, figure.center),
+      };
+    }),
+    selectedFigureId: figureIdToPatch,
+  };
+}
+
+export function addTrochoidFigure(
+  programState: TrochoidProgramState
+): TrochoidProgramState {
+  if (programState.figures.length >= MAX_TROCHOID_FIGURES) {
+    return programState;
+  }
+
+  const selected = selectedTrochoidFigure(programState);
+  const nextId = figureId(programState.nextFigureNumber);
+  const baseCenter = selected?.center ?? sheetCenter();
+  const nextConfig = selected?.config ?? defaultTrochoidFigureConfig;
+  const nextFigure = createTrochoidFigure(
+    nextId,
+    {
+      x: baseCenter.x + NEW_FIGURE_OFFSET_MM,
+      y: baseCenter.y - NEW_FIGURE_OFFSET_MM,
+    },
+    nextConfig
+  );
+
+  return {
+    figures: [...programState.figures, nextFigure],
+    selectedFigureId: nextFigure.id,
+    nextFigureNumber: programState.nextFigureNumber + 1,
+  };
+}
+
+export function removeTrochoidFigure(
+  programState: TrochoidProgramState,
+  figureIdToRemove: string
+): TrochoidProgramState {
+  const figures = programState.figures.filter(
+    (figure) => figure.id !== figureIdToRemove
+  );
+  const selectedFigureId =
+    programState.selectedFigureId === figureIdToRemove
+      ? figures.at(-1)?.id ?? null
+      : figures.some((figure) => figure.id === programState.selectedFigureId)
+        ? programState.selectedFigureId
+        : figures[0]?.id ?? null;
+
+  return {
+    ...programState,
+    figures,
+    selectedFigureId,
+  };
+}
+
+function normalizedFiguresFromState(
+  input: unknown,
+  fallbackConfig: TrochoidFigureConfig = defaultTrochoidFigureConfig
+): readonly TrochoidFigure[] {
+  const fallback = defaultProgramState();
+  if (!isRecord(input)) {
+    return fallback.figures;
+  }
+
+  const usedIds = new Set<string>();
+  const figureCandidates = Array.isArray(input.figures)
+    ? input.figures
+    : isRecord(input.center)
+      ? [
+          {
+            id: figureId(1),
+            center: input.center,
+            config: input.config,
+          },
+        ]
+      : fallback.figures;
+  const figures = figureCandidates
+    .slice(0, MAX_TROCHOID_FIGURES)
+    .flatMap((value, index) => {
+      if (!isRecord(value)) {
+        return [];
+      }
+
+      const centerCandidate = isRecord(value.center) ? value.center : value;
+      if (
+        typeof centerCandidate.x !== "number" ||
+        !Number.isFinite(centerCandidate.x) ||
+        typeof centerCandidate.y !== "number" ||
+        !Number.isFinite(centerCandidate.y)
+      ) {
+        return [];
+      }
+
+      return [
+        createTrochoidFigure(
+          normalizeFigureId(value.id, index + 1, usedIds),
+          {
+            x: centerCandidate.x,
+            y: centerCandidate.y,
+          },
+          isRecord(value.config) ? value.config : fallbackConfig
+        ),
+      ];
+    });
+
+  return figures.length > 0 ? figures : fallback.figures;
+}
+
+function normalizeProgramState(input: unknown): TrochoidProgramState {
+  const fallback = defaultProgramState();
+  const candidate = isRecord(input) ? input : {};
+  const figures = normalizedFiguresFromState(candidate);
+  const selectedFigureId =
+    typeof candidate.selectedFigureId === "string" &&
+    figures.some((figure) => figure.id === candidate.selectedFigureId)
+      ? candidate.selectedFigureId
+      : figures[0]?.id ?? null;
+  const nextFigureNumber =
+    typeof candidate.nextFigureNumber === "number" &&
+    Number.isFinite(candidate.nextFigureNumber)
+      ? Math.max(Math.floor(candidate.nextFigureNumber), deriveNextFigureNumber(figures))
+      : deriveNextFigureNumber(figures);
+
+  return {
+    figures,
+    selectedFigureId,
+    nextFigureNumber,
+  };
+}
+
+function resolveRollingRadius(config: TrochoidFigureConfig): number {
+  if (config.useEpitrochoid) {
+    return config.rollingRadius;
+  }
+
+  return clamp(config.rollingRadius, 1, Math.max(1, config.fixedRadius - 1));
 }
 
 function maxDistanceFromOrigin(polyline: Polyline): number {
@@ -141,21 +455,11 @@ function maxDistanceFromOrigin(polyline: Polyline): number {
   return Math.max(1e-6, maxDistance);
 }
 
-function availableFigureRadius(center: Point): number {
-  const bounds = contentBounds(canvas);
-
-  return Math.max(
-    4,
-    Math.min(
-      center.x - bounds.minX,
-      bounds.maxX - center.x,
-      center.y - bounds.minY,
-      bounds.maxY - center.y
-    )
-  );
-}
-
-function placePolyline(polyline: Polyline, center: Point, radius: number): Polyline {
+function placePolyline(
+  polyline: Polyline,
+  center: Point,
+  radius: number
+): Polyline {
   const scale = radius / maxDistanceFromOrigin(polyline);
 
   return {
@@ -198,55 +502,90 @@ function makeCrosshair(center: Point, size: number): readonly Polyline[] {
   ];
 }
 
-function buildTrochoidPath(params: TrochoidParams, programState: TrochoidProgramState): Polyline {
-  const rollingRadius = resolveRollingRadius(params);
-  const rawPath = params.useEpitrochoid
-    ? sampleEpitrochoid({
-        fixedRadius: params.fixedRadius,
-        rollingRadius,
-        pointOffset: rollingRadius * params.pointOffsetRatio,
-        rotation: (params.rotationDeg / 180) * Math.PI,
-        samplesPerTurn: params.samplesPerTurn,
-      })
-    : sampleHypotrochoid({
-        fixedRadius: params.fixedRadius,
-        rollingRadius,
-        pointOffset: rollingRadius * params.pointOffsetRatio,
-        rotation: (params.rotationDeg / 180) * Math.PI,
-        samplesPerTurn: params.samplesPerTurn,
-      });
+function buildTrochoidTemplate(config: TrochoidFigureConfig): Polyline {
+  const rollingRadius = resolveRollingRadius(config);
 
-  const targetRadius = Math.min(params.figureRadius, availableFigureRadius(programState.center));
-  return placePolyline(rawPath, programState.center, targetRadius);
+  if (config.useEpitrochoid) {
+    return sampleEpitrochoid({
+      fixedRadius: config.fixedRadius,
+      rollingRadius,
+      pointOffset: rollingRadius * config.pointOffsetRatio,
+      rotation: (config.rotationDeg / 180) * Math.PI,
+      samplesPerTurn: config.samplesPerTurn,
+    });
+  }
+
+  return sampleHypotrochoid({
+    fixedRadius: config.fixedRadius,
+    rollingRadius,
+    pointOffset: rollingRadius * config.pointOffsetRatio,
+    rotation: (config.rotationDeg / 180) * Math.PI,
+    samplesPerTurn: config.samplesPerTurn,
+  });
+}
+
+function migrateParamSet(legacy: PersistedParamSet): PersistedParamSet {
+  const legacyConfig = normalizeTrochoidFigureConfig(legacy.params);
+  const candidateState = isRecord(legacy.programState) ? legacy.programState : {};
+  const figures = normalizedFiguresFromState(candidateState, legacyConfig);
+  const selectedFigureId =
+    typeof candidateState.selectedFigureId === "string" &&
+    figures.some((figure) => figure.id === candidateState.selectedFigureId)
+      ? candidateState.selectedFigureId
+      : figures[0]?.id ?? null;
+  const nextFigureNumber =
+    typeof candidateState.nextFigureNumber === "number" &&
+    Number.isFinite(candidateState.nextFigureNumber)
+      ? Math.max(
+          Math.floor(candidateState.nextFigureNumber),
+          deriveNextFigureNumber(figures)
+        )
+      : deriveNextFigureNumber(figures);
+
+  return {
+    ...legacy,
+    programVersion: PROGRAM_VERSION,
+    params: {},
+    programState: {
+      figures,
+      selectedFigureId,
+      nextFigureNumber,
+    },
+  };
 }
 
 export const program = defineProgram({
   id: "trochoid",
   title: "Trochoid Figure",
-  description: "Place a hypotrochoid or epitrochoid figure on the sheet and tune its gear geometry.",
-  version: "1.0.0",
+  description:
+    "Place and independently tune multiple hypotrochoid or epitrochoid figures on the sheet.",
+  version: PROGRAM_VERSION,
   canvas,
   params: trochoidParamSchema,
   defaultProgramState,
   normalizeProgramState,
+  migrateParamSet,
   validation: {
     cases: ["default"],
     budgets: {
-      maxRenderMs: 200,
+      maxRenderMs: 250,
       maxArtLayers: 1,
-      maxPaths: 1,
+      maxPaths: MAX_TROCHOID_FIGURES,
       maxSegments: 60000,
       maxDrawDistanceMm: 300000,
-      maxPenUpDistanceMm: 10,
+      maxPenUpDistanceMm: 20000,
     },
   },
   editor: lazyEditor(() => import("./editor")),
   render(ctx: TrochoidRenderContext) {
-    const path = buildTrochoidPath(ctx.params, ctx.programState);
-    const guideRadius = Math.min(
-      ctx.params.figureRadius,
-      availableFigureRadius(ctx.programState.center)
+    const paths = ctx.programState.figures.map((figure) =>
+      placePolyline(
+        buildTrochoidTemplate(figure.config),
+        figure.center,
+        effectiveFigureRadius(figure.config)
+      )
     );
+    const selected = selectedTrochoidFigure(ctx.programState);
 
     return {
       canvas,
@@ -255,7 +594,7 @@ export const program = defineProgram({
           id: "trochoid-figure",
           label: "Trochoid Figure",
           stroke: "#0f172a",
-          paths: [path],
+          paths,
         },
       ],
       debugLayers: ctx.showDebug
@@ -265,17 +604,19 @@ export const program = defineProgram({
               label: "Trochoid Guide",
               stroke: "#dc2626",
               paths: [
-                ...makeCrosshair(ctx.programState.center, 8),
-                makeGuideCircle(ctx.programState.center, guideRadius),
+                ...ctx.programState.figures.map((figure) =>
+                  makeGuideCircle(figure.center, effectiveFigureRadius(figure.config))
+                ),
+                ...(selected ? makeCrosshair(selected.center, 8) : []),
               ],
             },
           ]
         : undefined,
       metadata: {
         programId: "trochoid",
-        version: "1.0.0",
+        version: PROGRAM_VERSION,
         mode: ctx.mode,
-        figureType: ctx.params.useEpitrochoid ? "epitrochoid" : "hypotrochoid",
+        figureCount: String(ctx.programState.figures.length),
       },
     };
   },

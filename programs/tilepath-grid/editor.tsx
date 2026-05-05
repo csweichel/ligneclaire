@@ -1,4 +1,5 @@
 import type { ProgramEditorProps } from "@ligneclaire/sdk";
+import { ProgramEditorCanvas, ProgramEditorPanel } from "@ligneclaire/ui";
 import { useMemo, useState, type CSSProperties, type JSX } from "react";
 import {
   applyToolToState,
@@ -55,16 +56,8 @@ export default function TilepathGridEditor({
   );
 
   return (
-    <div className="lc-editor-root">
-      <section
-        className="lc-editor-overlay"
-        style={{
-          left: "auto",
-          right: 16,
-          maxWidth: 280,
-          zIndex: 3,
-        }}
-      >
+    <>
+      <ProgramEditorPanel>
         <div className="lc-editor-overlay__header">
           <p className="lc-editor-overlay__eyebrow">Program Editor</p>
           <h3 className="lc-editor-overlay__title">Tile overrides</h3>
@@ -129,54 +122,56 @@ export default function TilepathGridEditor({
             Clear all
           </button>
         </div>
-      </section>
+      </ProgramEditorPanel>
 
-      {Array.from({ length: layout.rows }, (_, row) =>
-        Array.from({ length: layout.cols }, (_, col) => {
-          const id = cellId(row, col);
-          const override = programState.cells[id];
-          const index = row * layout.cols + col;
-          const resolvedTool = toolForKindRotation(
-            layout.grid.tiles[index]!,
-            layout.result.rotations[index] ?? 0
-          );
-          const displayTool = toolForOverride(override) ?? resolvedTool;
-          const origin = {
-            x: layout.result.origin.x + col * layout.result.cellSize,
-            y: layout.result.origin.y + (layout.rows - 1 - row) * layout.result.cellSize,
-          };
-          const topLeft = preview.canvasToScreen({
-            x: origin.x,
-            y: origin.y + layout.result.cellSize,
-          });
-          const bottomRight = preview.canvasToScreen({
-            x: origin.x + layout.result.cellSize,
-            y: origin.y,
-          });
-          const width = Math.max(8, bottomRight.x - topLeft.x - 4);
-          const height = Math.max(8, bottomRight.y - topLeft.y - 4);
+      <ProgramEditorCanvas>
+        {Array.from({ length: layout.rows }, (_, row) =>
+          Array.from({ length: layout.cols }, (_, col) => {
+            const id = cellId(row, col);
+            const override = programState.cells[id];
+            const index = row * layout.cols + col;
+            const resolvedTool = toolForKindRotation(
+              layout.grid.tiles[index]!,
+              layout.result.rotations[index] ?? 0
+            );
+            const displayTool = toolForOverride(override) ?? resolvedTool;
+            const origin = {
+              x: layout.result.origin.x + col * layout.result.cellSize,
+              y: layout.result.origin.y + (layout.rows - 1 - row) * layout.result.cellSize,
+            };
+            const topLeft = preview.canvasToScreen({
+              x: origin.x,
+              y: origin.y + layout.result.cellSize,
+            });
+            const bottomRight = preview.canvasToScreen({
+              x: origin.x + layout.result.cellSize,
+              y: origin.y,
+            });
+            const width = Math.max(8, bottomRight.x - topLeft.x - 4);
+            const height = Math.max(8, bottomRight.y - topLeft.y - 4);
 
-          return (
-            <button
-              key={id}
-              aria-label={`Tile ${row + 1}, ${col + 1}`}
-              type="button"
-              style={{
-                ...cellStyle(Boolean(override), width),
-                left: topLeft.x + 2,
-                top: topLeft.y + 2,
-                width,
-                height,
-              }}
-              onClick={() => {
-                updateProgramState((current) => applyToolToState(current, id, selectedToolId));
-              }}
-            >
-              {displayTool.short}
-            </button>
-          );
-        })
-      )}
-    </div>
+            return (
+              <button
+                key={id}
+                aria-label={`Tile ${row + 1}, ${col + 1}`}
+                type="button"
+                style={{
+                  ...cellStyle(Boolean(override), width),
+                  left: topLeft.x + 2,
+                  top: topLeft.y + 2,
+                  width,
+                  height,
+                }}
+                onClick={() => {
+                  updateProgramState((current) => applyToolToState(current, id, selectedToolId));
+                }}
+              >
+                {displayTool.short}
+              </button>
+            );
+          })
+        )}
+      </ProgramEditorCanvas>
+    </>
   );
 }

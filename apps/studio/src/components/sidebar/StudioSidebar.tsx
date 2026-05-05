@@ -7,6 +7,10 @@ type StudioSidebarProps = Readonly<{
 }>;
 
 export function StudioSidebar({ studio }: StudioSidebarProps) {
+  const generatedParameterCount = studio.programDetails
+    ? Object.keys(studio.programDetails.params).length
+    : 0;
+  const hasGeneratedParameters = generatedParameterCount > 0;
   const savedParamSetSelected = Boolean(
     studio.current &&
       studio.paramSetList.items.some((item) => item.slug === studio.current?.slug)
@@ -126,7 +130,7 @@ export function StudioSidebar({ studio }: StudioSidebarProps) {
 
         {studio.localProgram?.editor ? (
           <div className="studio-sidebar__notice">
-            Interactive editor controls are available on the preview canvas.
+            Interactive editor controls are available beside the preview page.
           </div>
         ) : null}
       </div>
@@ -134,11 +138,19 @@ export function StudioSidebar({ studio }: StudioSidebarProps) {
       <div className="studio-sidebar__body">
         <div className="studio-sidebar__section">
           {studio.programDetails && studio.current ? (
-            <ParameterInspector
-              schema={studio.programDetails.params}
-              values={studio.current.params}
-              onChange={studio.updateParam}
-            />
+            hasGeneratedParameters ? (
+              <ParameterInspector
+                schema={studio.programDetails.params}
+                values={studio.current.params}
+                onChange={studio.updateParam}
+              />
+            ) : (
+              <div className="studio-empty-state">
+                {studio.localProgram?.editor
+                  ? "This program is configured from the interactive editor beside the preview page."
+                  : "This program does not expose generated parameters."}
+              </div>
+            )
           ) : (
             <div className="studio-empty-state">
               Load a program to inspect and adjust its generated controls.

@@ -1,6 +1,8 @@
 import type { ExportKind, StudioModel } from "../../types";
 import { StatusBadge } from "../common/StatusBadge";
 
+const studioLogoUrl = new URL("../../../../../Logo.png", import.meta.url).href;
+
 const exportKindLabels: Record<ExportKind, string> = {
   "raw-svg": "Raw SVG",
   "optimized-svg": "Optimized SVG",
@@ -54,10 +56,10 @@ export function StudioHeader({ studio }: StudioHeaderProps) {
   return (
     <header className="studio-topbar">
       <div className="studio-topbar__brand">
-        <h1 className="studio-topbar__title">Ligne Claire</h1>
-        <p className="studio-topbar__subtitle">
-          {studio.programDetails?.title ?? "Plotting studio"}
-        </p>
+        <h1 className="studio-topbar__title">
+          <span className="studio-visually-hidden">LigneClaire</span>
+          <img className="studio-topbar__logo" src={studioLogoUrl} alt="" />
+        </h1>
       </div>
 
       <div className="studio-topbar__controls">

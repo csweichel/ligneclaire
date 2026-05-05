@@ -1,3 +1,4 @@
+import { ProgramEditorCanvas, ProgramEditorPanel } from "@ligneclaire/ui";
 import { clamp, contentBounds } from "@ligneclaire/sdk";
 import type { ProgramEditorProps } from "@ligneclaire/sdk";
 import { useEffectEvent, useRef, useState, type JSX } from "react";
@@ -42,8 +43,8 @@ export default function WavesEditor({
   const screenPoint = preview.canvasToScreen(programState.focus);
 
   return (
-    <div ref={rootRef} className="lc-editor-root">
-      <section className="lc-editor-overlay">
+    <>
+      <ProgramEditorPanel>
         <div className="lc-editor-overlay__header">
           <p className="lc-editor-overlay__eyebrow">Program Editor</p>
           <h3 className="lc-editor-overlay__title">Focus field</h3>
@@ -91,36 +92,38 @@ export default function WavesEditor({
         >
           Recenter focus
         </button>
-      </section>
+      </ProgramEditorPanel>
 
-      <button
-        aria-label="Drag wave focus"
-        className="lc-editor-handle"
-        style={{
-          left: `${screenPoint.x}px`,
-          top: `${screenPoint.y}px`,
-          cursor: dragging ? "grabbing" : "grab",
-        }}
-        type="button"
-        onLostPointerCapture={() => {
-          setDragging(false);
-        }}
-        onPointerDown={(event) => {
-          setDragging(true);
-          event.currentTarget.setPointerCapture(event.pointerId);
-          moveFocus(event.clientX, event.clientY);
-        }}
-        onPointerMove={(event) => {
-          if (!dragging) {
-            return;
-          }
+      <ProgramEditorCanvas ref={rootRef}>
+        <button
+          aria-label="Drag wave focus"
+          className="lc-editor-handle"
+          style={{
+            left: `${screenPoint.x}px`,
+            top: `${screenPoint.y}px`,
+            cursor: dragging ? "grabbing" : "grab",
+          }}
+          type="button"
+          onLostPointerCapture={() => {
+            setDragging(false);
+          }}
+          onPointerDown={(event) => {
+            setDragging(true);
+            event.currentTarget.setPointerCapture(event.pointerId);
+            moveFocus(event.clientX, event.clientY);
+          }}
+          onPointerMove={(event) => {
+            if (!dragging) {
+              return;
+            }
 
-          moveFocus(event.clientX, event.clientY);
-        }}
-        onPointerUp={() => {
-          setDragging(false);
-        }}
-      />
-    </div>
+            moveFocus(event.clientX, event.clientY);
+          }}
+          onPointerUp={() => {
+            setDragging(false);
+          }}
+        />
+      </ProgramEditorCanvas>
+    </>
   );
 }

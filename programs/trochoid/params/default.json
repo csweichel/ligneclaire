@@ -1,22 +1,62 @@
 {
   "programId": "trochoid",
-  "programVersion": "1.0.0",
+  "programVersion": "1.1.0",
   "name": "Default",
-  "params": {
-    "useEpitrochoid": false,
-    "fixedRadius": 84,
-    "rollingRadius": 30,
-    "pointOffsetRatio": 0.82,
-    "figureRadius": 68,
-    "rotationDeg": 0,
-    "samplesPerTurn": 320
-  },
+  "params": {},
   "programState": {
-    "center": {
-      "x": 105,
-      "y": 148.5
-    }
+    "figures": [
+      {
+        "id": "figure-1",
+        "center": {
+          "x": 132,
+          "y": 219
+        },
+        "config": {
+          "useEpitrochoid": true,
+          "fixedRadius": 84,
+          "rollingRadius": 30,
+          "pointOffsetRatio": 0.82,
+          "figureRadius": 68,
+          "rotationDeg": 0,
+          "samplesPerTurn": 320
+        }
+      },
+      {
+        "id": "figure-2",
+        "center": {
+          "x": 132,
+          "y": 103.48954619466045
+        },
+        "config": {
+          "useEpitrochoid": true,
+          "fixedRadius": 117,
+          "rollingRadius": 30,
+          "pointOffsetRatio": 0.82,
+          "figureRadius": 68,
+          "rotationDeg": 0,
+          "samplesPerTurn": 320
+        }
+      },
+      {
+        "id": "figure-3",
+        "center": {
+          "x": 88.20848305774683,
+          "y": 156.97535161842734
+        },
+        "config": {
+          "useEpitrochoid": true,
+          "fixedRadius": 117,
+          "rollingRadius": 30,
+          "pointOffsetRatio": 0.82,
+          "figureRadius": 68,
+          "rotationDeg": 181,
+          "samplesPerTurn": 320
+        }
+      }
+    ],
+    "selectedFigureId": "figure-3",
+    "nextFigureNumber": 4
   },
   "createdAt": "2026-05-05T12:30:00.000Z",
-  "updatedAt": "2026-05-05T12:30:00.000Z"
+  "updatedAt": "2026-05-05T14:33:37.226Z"
 }
