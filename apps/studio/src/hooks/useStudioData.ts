@@ -119,6 +119,15 @@ function choosePreferredPlotterId(
     if (exactMatch) {
       return exactMatch.id;
     }
+
+    const rotatedMatch = plotters.find(
+      (plotter) =>
+        plotter.page.widthMm === canvas.heightMm &&
+        plotter.page.heightMm === canvas.widthMm
+    );
+    if (rotatedMatch) {
+      return rotatedMatch.id;
+    }
   }
 
   if (currentDeviceId && plotters.some((plotter) => plotter.id === currentDeviceId)) {

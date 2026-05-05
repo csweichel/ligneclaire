@@ -18,6 +18,21 @@ import { getToolDiagnostics } from "./tools";
 
 const optimizationPipeline = ["linemerge", "linesimplify", "reloop", "linesort"] as const;
 
+function createMoveCommand(
+  command: "G0" | "G1",
+  x: string,
+  y: string,
+  feedRateMmPerMin?: number
+): string {
+  const parts = [command, `X${x}`, `Y${y}`];
+
+  if (command === "G1" && typeof feedRateMmPerMin === "number") {
+    parts.push(`F${feedRateMmPerMin}`);
+  }
+
+  return parts.join(" ");
+}
+
 async function ensureVpypeAvailable(requireGcode: boolean): Promise<void> {
   const diagnostics = await getToolDiagnostics();
   if (!diagnostics.vpype.available) {
@@ -41,8 +56,23 @@ async function makeTempWorkingDir(prefix: string): Promise<string> {
   return await mkdtemp(path.join(tmpdir(), `ligneclaire-${prefix}-`));
 }
 
-function createGwriteProfile(config: PlotterConfig): string {
+export function createGwriteProfile(config: PlotterConfig): string {
   const unitCommand = config.gcode.unit === "mm" ? "G21" : "G20";
+  const travelCommand = config.gcode.travelCommand ?? "G0";
+  const travelFeedRateMmPerMin =
+    config.gcode.travelFeedRateMmPerMin ?? config.gcode.feedRateMmPerMin;
+  const travelMove = `${createMoveCommand(
+    travelCommand,
+    "{x:.4f}",
+    "{y:.4f}",
+    travelFeedRateMmPerMin
+  )}\n`;
+  const returnHomeMove = `${createMoveCommand(
+    travelCommand,
+    "0.0000",
+    "0.0000",
+    travelFeedRateMmPerMin
+  )}\n`;
   const escapeToml = (value: string): string => value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 
   return [
@@ -53,10 +83,10 @@ function createGwriteProfile(config: PlotterConfig): string {
     `unit = "${config.gcode.unit}"`,
     `document_start = """${escapeToml(`${unitCommand}\nG17\nG90\n${config.gcode.penUpCommand}\n`) }"""`,
     'line_start = ""',
-    `segment_first = """${escapeToml(`G0 X{x:.4f} Y{y:.4f}\n${config.gcode.penDownCommand}\nG1 F${config.gcode.feedRateMmPerMin}\n`) }"""`,
+    `segment_first = """${escapeToml(`${travelMove}${config.gcode.penDownCommand}\nG1 F${config.gcode.feedRateMmPerMin}\n`) }"""`,
     `segment = """${escapeToml(`G1 X{x:.4f} Y{y:.4f} F${config.gcode.feedRateMmPerMin}\n`) }"""`,
     `line_end = """${escapeToml(`${config.gcode.penUpCommand}\n`) }"""`,
-    `document_end = """${escapeToml(`${config.gcode.penUpCommand}\nG0 X0.0000 Y0.0000\nM2\n`) }"""`,
+    `document_end = """${escapeToml(`${config.gcode.penUpCommand}\n${returnHomeMove}M2\n`) }"""`,
     `vertical_flip = ${config.gcode.verticalFlip ? "true" : "false"}`,
     "",
   ].join("\n");

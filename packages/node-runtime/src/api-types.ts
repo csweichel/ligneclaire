@@ -115,6 +115,8 @@ export type ToolDiagnostics = Readonly<{
 export type PlotterGcodeConfig = Readonly<{
   unit: "mm" | "in";
   feedRateMmPerMin: number;
+  travelCommand?: "G0" | "G1";
+  travelFeedRateMmPerMin?: number;
   penUpCommand: string;
   penDownCommand: string;
   verticalFlip: boolean;
