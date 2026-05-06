@@ -4,6 +4,7 @@ import type { ProgramEditorProps } from "@ligneclaire/sdk";
 import { clamp } from "@ligneclaire/sdk";
 import { useEffectEvent, useRef, useState } from "react";
 import {
+  MAX_FIGURE_RADIUS,
   MAX_TROCHOID_FIGURES,
   addTrochoidFigure,
   moveTrochoidFigure,
@@ -342,7 +343,7 @@ export default function TrochoidEditor({
 
             <NumericField
               label="Figure Radius"
-              max={95}
+              max={MAX_FIGURE_RADIUS}
               min={12}
               step={0.5}
               unit="mm"

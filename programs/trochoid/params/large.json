@@ -1,0 +1,46 @@
+{
+  "programId": "trochoid",
+  "programVersion": "1.1.0",
+  "name": "Large",
+  "params": {},
+  "programState": {
+    "figures": [
+      {
+        "id": "figure-3",
+        "center": {
+          "x": 54.5030143735437,
+          "y": 170.69829243985288
+        },
+        "config": {
+          "useEpitrochoid": false,
+          "fixedRadius": 130,
+          "rollingRadius": 48,
+          "pointOffsetRatio": 1.23,
+          "figureRadius": 141.5,
+          "rotationDeg": 179,
+          "samplesPerTurn": 320
+        }
+      },
+      {
+        "id": "figure-4",
+        "center": {
+          "x": 54.688529940203814,
+          "y": 170.73268577524493
+        },
+        "config": {
+          "useEpitrochoid": false,
+          "fixedRadius": 108,
+          "rollingRadius": 50,
+          "pointOffsetRatio": 1.23,
+          "figureRadius": 141.5,
+          "rotationDeg": 213,
+          "samplesPerTurn": 300
+        }
+      }
+    ],
+    "selectedFigureId": "figure-4",
+    "nextFigureNumber": 5
+  },
+  "createdAt": "2026-05-05T12:30:00.000Z",
+  "updatedAt": "2026-05-06T07:54:50.293Z"
+}

@@ -1,7 +1,7 @@
 {
   "programId": "trochoid",
   "programVersion": "1.1.0",
-  "name": "Default",
+  "name": "Untitled",
   "params": {},
   "programState": {
     "figures": [
@@ -25,6 +25,6 @@
     "selectedFigureId": "figure-1",
     "nextFigureNumber": 2
   },
-  "createdAt": "2026-05-06T07:54:51.525Z",
-  "updatedAt": "2026-05-06T07:55:00.544Z"
+  "createdAt": "2026-05-06T07:36:33.566Z",
+  "updatedAt": "2026-05-06T07:36:33.566Z"
 }

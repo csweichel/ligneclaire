@@ -1,5 +1,6 @@
 import {
   clamp,
+  clipPolylineToBounds,
   contentBounds,
   defineProgram,
   lazyEditor,
@@ -27,6 +28,7 @@ const MAX_ROLLING_RADIUS = 72;
 const MIN_POINT_OFFSET_RATIO = 0;
 const MAX_POINT_OFFSET_RATIO = 2;
 const MIN_FIGURE_RADIUS = 12;
+export const MAX_FIGURE_RADIUS = 300;
 const MIN_ROTATION_DEG = 0;
 const MAX_ROTATION_DEG = 360;
 const MIN_SAMPLES_PER_TURN = 64;
@@ -95,7 +97,7 @@ function figureId(number: number): string {
   return `figure-${number}`;
 }
 
-function maxSupportedFigureRadius(): number {
+function maxContainedFigureRadius(): number {
   const bounds = contentBounds(canvas);
   return Math.min(
     (bounds.maxX - bounds.minX) * 0.5,
@@ -133,7 +135,7 @@ export function normalizeTrochoidFigureConfig(
   const figureRadius = clamp(
     readNumber(candidate, "figureRadius", fallback.figureRadius),
     MIN_FIGURE_RADIUS,
-    maxSupportedFigureRadius()
+    MAX_FIGURE_RADIUS
   );
   const rotationDeg = clamp(
     readNumber(candidate, "rotationDeg", fallback.rotationDeg),
@@ -160,7 +162,7 @@ export function normalizeTrochoidFigureConfig(
 }
 
 export function effectiveFigureRadius(config: TrochoidFigureConfig): number {
-  return Math.min(config.figureRadius, maxSupportedFigureRadius());
+  return clamp(config.figureRadius, MIN_FIGURE_RADIUS, MAX_FIGURE_RADIUS);
 }
 
 export function clampTrochoidCenter(
@@ -169,6 +171,15 @@ export function clampTrochoidCenter(
 ): Point {
   const bounds = contentBounds(canvas);
   const radius = effectiveFigureRadius(config);
+  const containedRadius = maxContainedFigureRadius();
+
+  if (radius > containedRadius) {
+    return {
+      x: clamp(center.x, bounds.minX, bounds.maxX),
+      y: clamp(center.y, bounds.minY, bounds.maxY),
+    };
+  }
+
   const minX = bounds.minX + radius;
   const maxX = Math.max(minX, bounds.maxX - radius);
   const minY = bounds.minY + radius;
@@ -579,11 +590,15 @@ export const program = defineProgram({
   },
   editor: lazyEditor(() => import("./editor")),
   render(ctx: TrochoidRenderContext) {
-    const paths = ctx.programState.figures.map((figure) =>
-      placePolyline(
-        buildTrochoidTemplate(figure.config),
-        figure.center,
-        effectiveFigureRadius(figure.config)
+    const bounds = contentBounds(canvas);
+    const paths = ctx.programState.figures.flatMap((figure) =>
+      clipPolylineToBounds(
+        placePolyline(
+          buildTrochoidTemplate(figure.config),
+          figure.center,
+          effectiveFigureRadius(figure.config)
+        ),
+        bounds
       )
     );
     const selected = selectedTrochoidFigure(ctx.programState);
@@ -605,10 +620,17 @@ export const program = defineProgram({
               label: "Trochoid Guide",
               stroke: plotPalette.mask,
               paths: [
-                ...ctx.programState.figures.map((figure) =>
-                  makeGuideCircle(figure.center, effectiveFigureRadius(figure.config))
+                ...ctx.programState.figures.flatMap((figure) =>
+                  clipPolylineToBounds(
+                    makeGuideCircle(figure.center, effectiveFigureRadius(figure.config)),
+                    bounds
+                  )
                 ),
-                ...(selected ? makeCrosshair(selected.center, 8) : []),
+                ...(selected
+                  ? makeCrosshair(selected.center, 8).flatMap((path) =>
+                      clipPolylineToBounds(path, bounds)
+                    )
+                  : []),
               ],
             },
           ]

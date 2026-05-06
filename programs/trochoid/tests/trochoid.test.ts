@@ -1,4 +1,4 @@
-import { calculateDocumentMetrics } from "@ligneclaire/sdk";
+import { calculateDocumentMetrics, contentBounds } from "@ligneclaire/sdk";
 import { describe, expect, it } from "vitest";
 import { expectDeterministicProgramRender, renderProgramCase } from "../../test-helpers";
 import { program } from "../index";
@@ -135,6 +135,48 @@ describe("trochoid program", () => {
 
     expect(movedSpan.width).toBeCloseTo(centeredSpan.width, 6);
     expect(movedSpan.height).toBeCloseTo(centeredSpan.height, 6);
+  });
+
+  it("supports oversized figure radii without shrinking them back to the fit radius", () => {
+    const bounds = contentBounds(program.canvas);
+    const centeredState = {
+      figures: [
+        {
+          id: "figure-1",
+          center: { x: 105, y: 148.5 },
+          config: {
+            useEpitrochoid: false,
+            fixedRadius: 84,
+            rollingRadius: 30,
+            pointOffsetRatio: 0.82,
+            figureRadius: 300,
+            rotationDeg: 0,
+            samplesPerTurn: 320,
+          },
+        },
+      ],
+      selectedFigureId: "figure-1",
+      nextFigureNumber: 2,
+    };
+    const oversized = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: centeredState,
+      },
+      {
+        caseName: "default",
+      }
+    );
+    const oversizedSpan = pathSpan(oversized.layers[0]!.paths.flatMap((path) => path.points));
+    const metrics = calculateDocumentMetrics(oversized);
+
+    expect(oversizedSpan.width).toBeGreaterThan(150);
+    expect(oversizedSpan.height).toBeGreaterThan(150);
+    expect(metrics.boundingBoxMm?.minX).toBeGreaterThanOrEqual(bounds.minX);
+    expect(metrics.boundingBoxMm?.maxX).toBeLessThanOrEqual(bounds.maxX);
+    expect(metrics.boundingBoxMm?.minY).toBeGreaterThanOrEqual(bounds.minY);
+    expect(metrics.boundingBoxMm?.maxY).toBeLessThanOrEqual(bounds.maxY);
   });
 
   it("migrates legacy shared params into per-figure config", () => {
