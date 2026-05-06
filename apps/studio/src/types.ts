@@ -7,6 +7,7 @@ import type {
   ProgramEditorProps,
 } from "@ligneclaire/sdk";
 import type {
+  GcodeOversizeHandling,
   GcodeRotationDeg,
   ParamSetListResponse,
   PlotterDeviceSummary,
@@ -39,6 +40,7 @@ export type ExportRotationSetting = "auto" | GcodeRotationDeg;
 export type ExportSettings = Readonly<{
   deviceId: string;
   rotationDeg: ExportRotationSetting;
+  oversizeHandling: GcodeOversizeHandling;
 }>;
 
 export type GcodeTransportTarget = "serial" | "virtual";
@@ -167,6 +169,7 @@ export type StudioModel = Readonly<{
   setShowEditor: (value: boolean) => void;
   setExportDeviceId: (deviceId: string) => void;
   setExportRotationDeg: (rotationDeg: ExportRotationSetting) => void;
+  setExportOversizeHandling: (oversizeHandling: GcodeOversizeHandling) => void;
   saveCurrent: () => Promise<void>;
   duplicateCurrent: () => Promise<void>;
   createFromDefaults: () => Promise<void>;

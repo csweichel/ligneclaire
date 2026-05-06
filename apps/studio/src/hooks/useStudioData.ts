@@ -1,6 +1,7 @@
 import {
   normalizeParams,
   resolveProgramState,
+  type NormalizationIssue,
   type ParameterSchema,
   type ProgramDefinition,
 } from "@ligneclaire/sdk";
@@ -18,10 +19,16 @@ import type {
   SaveParamSetRequest,
   ToolDiagnostics,
 } from "@ligneclaire/node-runtime";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { programRegistry } from "../../../../programs/generated/program-registry";
 import { apiDownload, apiGet, apiSend } from "../api";
 import { resolveGcodeRotationDeg } from "../lib/gcodeOrientation";
+import {
+  draftStorageKey,
+  loadStudioSessionState,
+  saveStudioSessionState,
+  type StudioSessionState,
+} from "../lib/studioPersistence";
 import { useGcodeTransport } from "./useGcodeTransport";
 import type {
   CurrentDocumentState,
@@ -47,6 +54,7 @@ const emptyParamSetList: ParamSetListResponse = {
 const initialExportSettings: ExportSettings = {
   deviceId: "",
   rotationDeg: "auto",
+  oversizeHandling: "ignore",
 };
 
 function snapshotValue(value: unknown): string {
@@ -149,8 +157,11 @@ function createDownloadName(
 }
 
 export function useStudioData(): StudioModel {
+  const persistenceRef = useRef(loadStudioSessionState());
   const [programs, setPrograms] = useState<readonly ProgramListItem[]>([]);
-  const [selectedProgramId, setSelectedProgramId] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState(
+    () => persistenceRef.current.selectedProgramId
+  );
   const [programDetails, setProgramDetails] = useState<ProgramDetails | null>(null);
   const [paramSetList, setParamSetList] = useState<ParamSetListResponse>(emptyParamSetList);
   const [current, setCurrent] = useState<CurrentDocumentState | null>(null);
@@ -170,7 +181,9 @@ export function useStudioData(): StudioModel {
   const [editorComponent, setEditorComponent] = useState<StudioModel["editorComponent"]>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [pendingExport, setPendingExport] = useState<ExportKind | null>(null);
-  const [exportSettings, setExportSettings] = useState<ExportSettings>(initialExportSettings);
+  const [exportSettings, setExportSettings] = useState<ExportSettings>(
+    () => persistenceRef.current.exportSettings ?? initialExportSettings
+  );
 
   const localProgram = useMemo(
     () => (selectedProgramId ? localPrograms.get(selectedProgramId) : undefined),
@@ -193,17 +206,54 @@ export function useStudioData(): StudioModel {
   const transport = useGcodeTransport({
     current,
     deviceId: exportSettings.deviceId,
+    oversizeHandling: exportSettings.oversizeHandling,
     plotters,
     rotationDeg: resolvedExportRotationDeg,
     selectedProgramId,
     setStatus,
   });
 
-  function applyLoadedParamSet(slug: string, loaded: LoadedParamSet): void {
+  function persistSession(
+    updater: (currentSession: StudioSessionState) => StudioSessionState
+  ): void {
+    persistenceRef.current = saveStudioSessionState(updater(persistenceRef.current));
+  }
+
+  function restoreDocumentState(
+    programId: string,
+    nextDocument: CurrentDocumentState,
+    nextNormalizationIssues: readonly NormalizationIssue[]
+  ): boolean {
+    const draft = persistenceRef.current.drafts[draftStorageKey(programId, nextDocument.slug)];
+    setCurrent(draft?.current ?? nextDocument);
+    setSavedSnapshot(draft?.savedSnapshot ?? snapshotValue(nextDocument));
+    setNormalizationIssues(nextNormalizationIssues);
+    return Boolean(draft);
+  }
+
+  function clearStoredDraft(programId: string, slug: string): void {
+    const key = draftStorageKey(programId, slug);
+    if (!(key in persistenceRef.current.drafts)) {
+      return;
+    }
+
+    persistSession((currentSession) => {
+      const nextDrafts = { ...currentSession.drafts };
+      delete nextDrafts[key];
+      return {
+        ...currentSession,
+        drafts: nextDrafts,
+      };
+    });
+  }
+
+  function applyLoadedParamSet(
+    programId: string,
+    slug: string,
+    loaded: LoadedParamSet
+  ): boolean {
     const next = toCurrentDocument(slug, loaded);
-    setCurrent(next);
-    setSavedSnapshot(snapshotValue(next));
-    setNormalizationIssues(loaded.normalizationIssues);
+    return restoreDocumentState(programId, next, loaded.normalizationIssues);
   }
 
   async function refreshParamSets(selectSlug?: string): Promise<void> {
@@ -218,7 +268,7 @@ export function useStudioData(): StudioModel {
       const loaded = await apiGet<LoadedParamSet>(
         `/api/programs/${selectedProgramId}/params/${selectSlug}`
       );
-      applyLoadedParamSet(selectSlug, loaded);
+      applyLoadedParamSet(selectedProgramId, selectSlug, loaded);
     }
   }
 
@@ -229,10 +279,12 @@ export function useStudioData(): StudioModel {
 
     try {
       const loaded = await apiGet<LoadedParamSet>(`/api/programs/${selectedProgramId}/params/${slug}`);
-      applyLoadedParamSet(slug, loaded);
+      const restoredDraft = applyLoadedParamSet(selectedProgramId, slug, loaded);
       setStatus({
         tone: "neutral",
-        message: `Loaded parameter set "${loaded.name}".`,
+        message: restoredDraft
+          ? `Restored unsaved changes for "${loaded.name}".`
+          : `Loaded parameter set "${loaded.name}".`,
       });
     } catch (error) {
       setStatus({
@@ -262,7 +314,11 @@ export function useStudioData(): StudioModel {
         });
 
         if (programList.length > 0) {
-          setSelectedProgramId((existing) => existing || programList[0]!.id);
+          setSelectedProgramId((existing) =>
+            programList.some((program) => program.id === existing)
+              ? existing
+              : programList[0]!.id
+          );
         }
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -315,7 +371,10 @@ export function useStudioData(): StudioModel {
         setProgramDetails(details);
         setParamSetList(paramsResponse);
 
+        const storedSlug =
+          persistenceRef.current.selectedParamSetByProgram[selectedProgramId];
         const preferredSlug =
+          paramsResponse.items.find((item) => item.slug === storedSlug)?.slug ??
           paramsResponse.items.find((item) => item.slug === "default")?.slug ??
           paramsResponse.items[0]?.slug;
 
@@ -328,17 +387,27 @@ export function useStudioData(): StudioModel {
             return;
           }
 
-          applyLoadedParamSet(preferredSlug, loaded);
+          const restoredDraft = applyLoadedParamSet(
+            selectedProgramId,
+            preferredSlug,
+            loaded
+          );
+          setStatus({
+            tone: "neutral",
+            message: restoredDraft
+              ? `Restored unsaved changes for "${loaded.name}".`
+              : `Editing ${details.title}.`,
+          });
         } else {
           const fallback = createDefaultDocument(details, nextLocalProgram);
-          setCurrent(fallback);
-          setSavedSnapshot(snapshotValue(fallback));
+          const restoredDraft = restoreDocumentState(selectedProgramId, fallback, []);
+          setStatus({
+            tone: "neutral",
+            message: restoredDraft
+              ? `Restored unsaved changes for "${fallback.name}".`
+              : `Editing ${details.title}.`,
+          });
         }
-
-        setStatus({
-          tone: "neutral",
-          message: `Editing ${details.title}.`,
-        });
       } catch (error) {
         if (!controller.signal.aborted) {
           setStatus({
@@ -452,6 +521,77 @@ export function useStudioData(): StudioModel {
     programDetails?.canvas.marginMm,
   ]);
 
+  useEffect(() => {
+    if (!selectedProgramId) {
+      return;
+    }
+
+    persistSession((currentSession) =>
+      currentSession.selectedProgramId === selectedProgramId
+        ? currentSession
+        : {
+            ...currentSession,
+            selectedProgramId,
+          }
+    );
+  }, [selectedProgramId]);
+
+  useEffect(() => {
+    persistSession((currentSession) => ({
+      ...currentSession,
+      exportSettings,
+    }));
+  }, [
+    exportSettings.deviceId,
+    exportSettings.rotationDeg,
+    exportSettings.oversizeHandling,
+  ]);
+
+  useEffect(() => {
+    if (!selectedProgramId || !current) {
+      return;
+    }
+
+    persistSession((currentSession) => ({
+      ...currentSession,
+      selectedParamSetByProgram: {
+        ...currentSession.selectedParamSetByProgram,
+        [selectedProgramId]: current.slug,
+      },
+    }));
+  }, [current?.slug, selectedProgramId]);
+
+  useEffect(() => {
+    if (!selectedProgramId || !current) {
+      return;
+    }
+
+    const key = draftStorageKey(selectedProgramId, current.slug);
+    if (snapshotValue(current) === savedSnapshot) {
+      if (key in persistenceRef.current.drafts) {
+        clearStoredDraft(selectedProgramId, current.slug);
+      }
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      persistSession((currentSession) => ({
+        ...currentSession,
+        drafts: {
+          ...currentSession.drafts,
+          [key]: {
+            current,
+            savedSnapshot,
+          },
+        },
+      }));
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [current, savedSnapshot, selectedProgramId]);
+
   function setCurrentName(name: string): void {
     setCurrent((existing) =>
       existing
@@ -502,6 +642,15 @@ export function useStudioData(): StudioModel {
     }));
   }
 
+  function setExportOversizeHandling(
+    oversizeHandling: ExportSettings["oversizeHandling"]
+  ): void {
+    setExportSettings((existing) => ({
+      ...existing,
+      oversizeHandling,
+    }));
+  }
+
   async function saveCurrent(): Promise<void> {
     if (!selectedProgramId || !current) {
       return;
@@ -532,6 +681,8 @@ export function useStudioData(): StudioModel {
         }
       );
 
+      clearStoredDraft(selectedProgramId, current.slug);
+      clearStoredDraft(selectedProgramId, targetSlug);
       await refreshParamSets(saved.slug);
       setStatus({
         tone: "success",
@@ -637,6 +788,7 @@ export function useStudioData(): StudioModel {
 
     try {
       await apiSend(`/api/programs/${selectedProgramId}/params/${current.slug}`, "DELETE");
+      clearStoredDraft(selectedProgramId, current.slug);
       const response = await apiGet<ParamSetListResponse>(`/api/programs/${selectedProgramId}/params`);
       setParamSetList(response);
 
@@ -645,11 +797,10 @@ export function useStudioData(): StudioModel {
         const loaded = await apiGet<LoadedParamSet>(
           `/api/programs/${selectedProgramId}/params/${nextSlug}`
         );
-        applyLoadedParamSet(nextSlug, loaded);
+        applyLoadedParamSet(selectedProgramId, nextSlug, loaded);
       } else if (programDetails) {
         const fallback = createDefaultDocument(programDetails, localProgram);
-        setCurrent(fallback);
-        setSavedSnapshot(snapshotValue(fallback));
+        restoreDocumentState(selectedProgramId, fallback, []);
       } else {
         setCurrent(null);
         setSavedSnapshot("");
@@ -738,6 +889,7 @@ export function useStudioData(): StudioModel {
         programState: current.programState,
         deviceId: exportSettings.deviceId,
         rotationDeg: resolvedExportRotationDeg,
+        oversizeHandling: exportSettings.oversizeHandling,
         downloadName: createDownloadName(selectedProgramId, current.slug, ".gcode"),
       },
       "/api/export/gcode"
@@ -775,6 +927,7 @@ export function useStudioData(): StudioModel {
     setShowEditor,
     setExportDeviceId,
     setExportRotationDeg,
+    setExportOversizeHandling,
     saveCurrent,
     duplicateCurrent,
     createFromDefaults,

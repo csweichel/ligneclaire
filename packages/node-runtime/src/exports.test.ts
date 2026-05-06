@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { PlotterConfig } from "./plotters";
-import { buildPageRotationCommands, createGwriteProfile } from "./exports";
+import {
+  buildOversizeHandlingCommands,
+  buildPageRotationCommands,
+  createGwriteProfile,
+} from "./exports";
 
 describe("createGwriteProfile", () => {
   it("keeps legacy plotters on G0 travel moves by default", () => {
@@ -68,5 +72,61 @@ describe("buildPageRotationCommands", () => {
       "--clockwise",
     ]);
     expect(buildPageRotationCommands(270)).toEqual(["pagerotate"]);
+  });
+});
+
+describe("buildOversizeHandlingCommands", () => {
+  const canvas = {
+    widthMm: 420,
+    heightMm: 297,
+  } as const;
+  const plotterPage = {
+    widthMm: 297,
+    heightMm: 210,
+  } as const;
+
+  it("does nothing when oversize handling is ignored", () => {
+    expect(buildOversizeHandlingCommands("ignore", canvas, plotterPage, 0)).toEqual([]);
+  });
+
+  it("skips scaling when the rotated canvas already fits", () => {
+    expect(
+      buildOversizeHandlingCommands(
+        "scale",
+        {
+          widthMm: 210,
+          heightMm: 297,
+        },
+        {
+          widthMm: 297,
+          heightMm: 210,
+        },
+        90
+      )
+    ).toEqual([]);
+  });
+
+  it("builds a top-left aligned fit-to-page layout pipeline for scale mode", () => {
+    expect(buildOversizeHandlingCommands("scale", canvas, plotterPage, 0)).toEqual([
+      "layout",
+      "--no-bbox",
+      "--fit-to-margins",
+      "0mm",
+      "--align",
+      "left",
+      "--valign",
+      "top",
+      "297mmx210mm",
+    ]);
+  });
+
+  it("builds a page crop for clip mode", () => {
+    expect(buildOversizeHandlingCommands("clip", canvas, plotterPage, 0)).toEqual([
+      "crop",
+      "0mm",
+      "0mm",
+      "297mm",
+      "210mm",
+    ]);
   });
 });

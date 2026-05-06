@@ -1,17 +1,24 @@
 import { useEffect, useRef } from "react";
 import type { StudioModel } from "../../types";
 import {
+  findSelectedPlotter,
+  formatOversizeHandlingLabel,
+} from "../../lib/exportSettings";
+import {
   formatExportRotationSummary,
   resolveGcodeRotationDeg,
 } from "../../lib/gcodeOrientation";
+import { ExportSettingsButton } from "../export/ExportSettingsButton";
 import { GcodeVirtualPreview } from "./GcodeVirtualPreview";
 
 type GcodeTransportPanelProps = Readonly<{
+  onOpenExportSettingsModal: () => void;
   studio: StudioModel;
 }>;
 
 type PreparedSnapshotSignature = Readonly<{
   deviceId?: string;
+  oversizeHandling?: string;
   rotationDeg?: number;
 }> | null;
 
@@ -57,11 +64,14 @@ function parsePreparedSnapshotSignature(snapshot: string | null): PreparedSnapsh
   try {
     const parsed = JSON.parse(snapshot) as {
       deviceId?: unknown;
+      oversizeHandling?: unknown;
       rotationDeg?: unknown;
     };
 
     return {
       deviceId: typeof parsed.deviceId === "string" ? parsed.deviceId : undefined,
+      oversizeHandling:
+        typeof parsed.oversizeHandling === "string" ? parsed.oversizeHandling : undefined,
       rotationDeg: typeof parsed.rotationDeg === "number" ? parsed.rotationDeg : undefined,
     };
   } catch {
@@ -69,10 +79,14 @@ function parsePreparedSnapshotSignature(snapshot: string | null): PreparedSnapsh
   }
 }
 
-export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
+export function GcodeTransportPanel({
+  onOpenExportSettingsModal,
+  studio,
+}: GcodeTransportPanelProps) {
   const autoPrepareRequestedRef = useRef(false);
-  const plotter = studio.plotters.find(
-    (candidate) => candidate.id === studio.exportSettings.deviceId
+  const plotter = findSelectedPlotter(
+    studio.plotters,
+    studio.exportSettings.deviceId
   );
   const resolvedRotationDeg = resolveGcodeRotationDeg(
     studio.exportSettings.rotationDeg,
@@ -90,7 +104,8 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
   const previewNeedsRefresh =
     studio.transport.preparedArtifact !== null &&
     (preparedSignature?.deviceId !== studio.exportSettings.deviceId ||
-      preparedSignature?.rotationDeg !== resolvedRotationDeg);
+      preparedSignature?.rotationDeg !== resolvedRotationDeg ||
+      preparedSignature?.oversizeHandling !== studio.exportSettings.oversizeHandling);
   const canPrepare = Boolean(
     studio.current && studio.selectedProgramId && studio.exportSettings.deviceId && studio.tools?.vpypeGcode.available
   );
@@ -99,6 +114,7 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
     (studio.transport.settings.target === "serial" &&
       studio.transport.connectionState !== "connected") ||
     studio.transport.jobState === "preparing" ||
+    studio.transport.jobState === "paused";
     studio.transport.jobState === "sending";
   const progressPercent =
     studio.transport.progress.totalLines > 0
@@ -190,6 +206,14 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
         <div className="studio-sidebar__issue">
           G-code is generated from the current document and selected plotter profile, then either
           streamed to a browser USB serial device or simulated in the virtual plotter.
+        </div>
+
+        <div className="gcode-transport__group">
+          <ExportSettingsButton
+            fullWidth
+            studio={studio}
+            onClick={onOpenExportSettingsModal}
+          />
         </div>
 
         <div className="gcode-transport__group">
@@ -426,6 +450,10 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
           <span>{orientationLabel}</span>
         </div>
         <div className="studio-sidebar__meta-grid">
+          <span>Oversize</span>
+          <span>{formatOversizeHandlingLabel(studio.exportSettings.oversizeHandling)}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
           <span>Prepared file</span>
           <span>{studio.transport.preparedArtifact?.fileName ?? "--"}</span>
         </div>
@@ -449,7 +477,7 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
         {studio.transport.preparedStale ? (
           <div className="studio-sidebar__issue">
             The prepared G-code is stale. Refresh before sending if you want the latest parameter,
-            plotter, or orientation changes included.
+            plotter, orientation, or oversize settings included.
           </div>
         ) : null}
       </aside>

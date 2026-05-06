@@ -9,15 +9,22 @@ import type {
   ExportGcodeRequest,
   ExportResponse,
   ExportSvgRequest,
+  GcodeOversizeHandling,
   GcodeRotationDeg,
 } from "./api-types";
 import { ensureDirectory, resolveExportPath, workspaceRoot, workspaceRelative } from "./paths";
 import { loadPlotterConfig, type PlotterConfig } from "./plotters";
 import { runProcess } from "./process";
+import { getProgramDetails } from "./registry";
 import { renderProgram } from "./render";
 import { getToolDiagnostics } from "./tools";
 
 const optimizationPipeline = ["linemerge", "linesimplify", "reloop", "linesort"] as const;
+
+type PageSize = Readonly<{
+  widthMm: number;
+  heightMm: number;
+}>;
 
 export function buildPageRotationCommands(rotationDeg: GcodeRotationDeg | undefined): string[] {
   switch (rotationDeg ?? 0) {
@@ -30,6 +37,74 @@ export function buildPageRotationCommands(rotationDeg: GcodeRotationDeg | undefi
     case 270:
       return ["pagerotate"];
   }
+}
+
+function formatLengthMm(value: number): string {
+  return `${value}mm`;
+}
+
+function formatPageSize(size: PageSize): string {
+  return `${formatLengthMm(size.widthMm)}x${formatLengthMm(size.heightMm)}`;
+}
+
+function rotatePageSize(
+  page: PageSize,
+  rotationDeg: GcodeRotationDeg | undefined
+): PageSize {
+  switch (rotationDeg ?? 0) {
+    case 90:
+    case 270:
+      return {
+        widthMm: page.heightMm,
+        heightMm: page.widthMm,
+      };
+    case 0:
+    case 180:
+      return page;
+  }
+}
+
+export function buildOversizeHandlingCommands(
+  oversizeHandling: GcodeOversizeHandling | undefined,
+  canvas: PageSize,
+  plotterPage: PageSize,
+  rotationDeg: GcodeRotationDeg | undefined
+): string[] {
+  const mode = oversizeHandling ?? "ignore";
+  if (mode === "ignore") {
+    return [];
+  }
+
+  const rotatedCanvas = rotatePageSize(canvas, rotationDeg);
+  const exceedsPlotterPage =
+    rotatedCanvas.widthMm > plotterPage.widthMm ||
+    rotatedCanvas.heightMm > plotterPage.heightMm;
+
+  if (!exceedsPlotterPage) {
+    return [];
+  }
+
+  if (mode === "clip") {
+    return [
+      "crop",
+      "0mm",
+      "0mm",
+      formatLengthMm(plotterPage.widthMm),
+      formatLengthMm(plotterPage.heightMm),
+    ];
+  }
+
+  return [
+    "layout",
+    "--no-bbox",
+    "--fit-to-margins",
+    "0mm",
+    "--align",
+    "left",
+    "--valign",
+    "top",
+    formatPageSize(plotterPage),
+  ];
 }
 
 function createMoveCommand(
@@ -137,6 +212,39 @@ function normalizeDownloadName(
   return safeName.toLowerCase().endsWith(extension) ? safeName : `${safeName}${extension}`;
 }
 
+function createGcodeExportArgs(
+  request: Pick<
+    ExportGcodeRequest | DownloadGcodeRequest,
+    "deviceId" | "oversizeHandling" | "programId" | "rotationDeg"
+  >,
+  configPath: string,
+  inputSvgPath: string,
+  outputPath: string,
+  device: PlotterConfig
+): string[] {
+  const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
+  const pageOversizeCommands = buildOversizeHandlingCommands(
+    request.oversizeHandling,
+    getProgramDetails(request.programId).canvas,
+    device.page,
+    request.rotationDeg
+  );
+
+  return [
+    "--config",
+    configPath,
+    "read",
+    inputSvgPath,
+    ...pageRotationCommands,
+    ...pageOversizeCommands,
+    ...optimizationPipeline,
+    "gwrite",
+    "--profile",
+    device.id,
+    outputPath,
+  ];
+}
+
 export async function exportSvg(request: ExportSvgRequest): Promise<ExportResponse> {
   const targetPath = resolveExportPath(request.outPath);
   await ensureDirectory(path.dirname(targetPath));
@@ -188,20 +296,13 @@ export async function exportGcode(request: ExportGcodeRequest): Promise<ExportRe
     const device = await loadPlotterConfig(request.deviceId);
     await writeFile(inputSvgPath, renderResult.svg, "utf8");
     await writeFile(configPath, createGwriteProfile(device), "utf8");
-    const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
-
-    const args = [
-      "--config",
+    const args = createGcodeExportArgs(
+      request,
       configPath,
-      "read",
       inputSvgPath,
-      ...pageRotationCommands,
-      ...optimizationPipeline,
-      "gwrite",
-      "--profile",
-      device.id,
       targetPath,
-    ];
+      device
+    );
     const result = await runProcess("vpype", args, { cwd: workspaceRoot });
     if (result.code !== 0) {
       throw new RuntimeError(
@@ -286,20 +387,13 @@ export async function exportGcodeDownload(
     const device = await loadPlotterConfig(request.deviceId);
     await writeFile(inputSvgPath, renderResult.svg, "utf8");
     await writeFile(configPath, createGwriteProfile(device), "utf8");
-    const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
-
-    const args = [
-      "--config",
+    const args = createGcodeExportArgs(
+      request,
       configPath,
-      "read",
       inputSvgPath,
-      ...pageRotationCommands,
-      ...optimizationPipeline,
-      "gwrite",
-      "--profile",
-      device.id,
       outputGcodePath,
-    ];
+      device
+    );
     const result = await runProcess("vpype", args, { cwd: workspaceRoot });
     if (result.code !== 0) {
       throw new RuntimeError(

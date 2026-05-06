@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { StudioModel } from "../../types";
+import { ExportSettingsModal } from "../export/ExportSettingsModal";
 import { StudioHeader } from "../header/StudioHeader";
 import { PreviewPane } from "../preview/PreviewPane";
 import { StudioSidebar } from "../sidebar/StudioSidebar";
@@ -11,12 +12,16 @@ type StudioShellProps = Readonly<{
 }>;
 
 export function StudioShell({ studio }: StudioShellProps) {
+  const [exportSettingsModalOpen, setExportSettingsModalOpen] = useState(false);
   const [transportModalOpen, setTransportModalOpen] = useState(false);
 
   return (
     <div className="studio-shell">
       <StudioHeader
         studio={studio}
+        onOpenExportSettingsModal={() => {
+          setExportSettingsModalOpen(true);
+        }}
         onOpenTransportModal={() => {
           setTransportModalOpen(true);
         }}
@@ -46,6 +51,18 @@ export function StudioShell({ studio }: StudioShellProps) {
           studio={studio}
           onClose={() => {
             setTransportModalOpen(false);
+          }}
+          onOpenExportSettingsModal={() => {
+            setExportSettingsModalOpen(true);
+          }}
+        />
+      ) : null}
+
+      {exportSettingsModalOpen ? (
+        <ExportSettingsModal
+          studio={studio}
+          onClose={() => {
+            setExportSettingsModalOpen(false);
           }}
         />
       ) : null}

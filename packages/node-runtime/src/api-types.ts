@@ -75,6 +75,7 @@ export type DownloadSvgRequest = RenderRequest &
 export type DownloadGcodeRequest = RenderRequest &
   Readonly<{
     deviceId: string;
+    oversizeHandling?: GcodeOversizeHandling;
     rotationDeg?: GcodeRotationDeg;
     downloadName?: string;
   }>;
@@ -88,6 +89,7 @@ export type ExportSvgRequest = RenderRequest &
 export type ExportGcodeRequest = RenderRequest &
   Readonly<{
     deviceId: string;
+    oversizeHandling?: GcodeOversizeHandling;
     rotationDeg?: GcodeRotationDeg;
     outPath: string;
   }>;
@@ -115,6 +117,8 @@ export type ToolDiagnostics = Readonly<{
 }>;
 
 export type GcodeRotationDeg = 0 | 90 | 180 | 270;
+
+export type GcodeOversizeHandling = "ignore" | "scale" | "clip";
 
 export type PlotterGcodeConfig = Readonly<{
   unit: "mm" | "in";
