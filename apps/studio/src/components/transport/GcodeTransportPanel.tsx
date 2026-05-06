@@ -145,6 +145,7 @@ export function GcodeTransportPanel({ studio }: GcodeTransportPanelProps) {
           <GcodeVirtualPreview
             activeLineNumber={studio.transport.progress.sentLines}
             artifact={studio.transport.preparedArtifact}
+            isPreparing={studio.transport.jobState === "preparing"}
             page={plotter?.page ?? null}
           />
 

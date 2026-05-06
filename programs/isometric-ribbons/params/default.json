@@ -5,13 +5,13 @@
   "params": {
     "seed": 2718,
     "cellSize": 8.4,
-    "lanes": 4,
+    "lanes": 2,
     "laneGap": 0.62,
-    "fieldScale": 1.05,
+    "fieldScale": 1.76,
     "disorder": 0.28,
-    "dualHanded": true
+    "dualHanded": false
   },
   "programState": {},
   "createdAt": "2026-05-05T12:00:00.000Z",
-  "updatedAt": "2026-05-05T12:00:00.000Z"
+  "updatedAt": "2026-05-05T20:24:53.161Z"
 }

@@ -4,6 +4,7 @@ import type { GcodePreparedArtifact } from "../../types";
 type GcodeVirtualPreviewProps = Readonly<{
   activeLineNumber: number;
   artifact: GcodePreparedArtifact | null;
+  isPreparing: boolean;
   page: Readonly<{
     widthMm: number;
     heightMm: number;
@@ -13,6 +14,7 @@ type GcodeVirtualPreviewProps = Readonly<{
 export function GcodeVirtualPreview({
   activeLineNumber,
   artifact,
+  isPreparing,
   page,
 }: GcodeVirtualPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -133,5 +135,24 @@ export function GcodeVirtualPreview({
     context.globalAlpha = 1;
   }, [activeLineNumber, artifact, page, size]);
 
-  return <canvas className="gcode-preview" ref={canvasRef} />;
+  return (
+    <div className="gcode-preview-frame">
+      <canvas
+        aria-hidden={isPreparing}
+        className="gcode-preview"
+        ref={canvasRef}
+      />
+
+      {isPreparing ? (
+        <div
+          aria-live="polite"
+          className="gcode-preview__overlay"
+          role="status"
+        >
+          <div className="gcode-preview__spinner" />
+          <div className="gcode-preview__label">Preparing G-code preview...</div>
+        </div>
+      ) : null}
+    </div>
+  );
 }

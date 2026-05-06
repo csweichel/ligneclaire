@@ -214,15 +214,15 @@ export function PreviewPane({
                   : "Select a program to start rendering."}
               </div>
             )}
-          </div>
 
-          {showEditorControls ? (
-            <div
-              ref={setEditorCanvasRoot}
-              data-editor-root="true"
-              className="preview-stage__editor-layer"
-            />
-          ) : null}
+            {showEditorControls ? (
+              <div
+                ref={setEditorCanvasRoot}
+                data-editor-root="true"
+                className="preview-paper__editor"
+              />
+            ) : null}
+          </div>
 
           <div className="preview-stage__toolbar" data-preview-control="true">
             <button
