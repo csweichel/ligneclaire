@@ -17,8 +17,9 @@ import {
   connectionId,
   disconnectConnection,
   moveNode,
+  nodeKindLabel,
   nodeLabel,
-  nodeSpecs,
+  nodeSpec,
   selectComposerNode,
   type NodeComposerProgramState,
   type NodeConnection,
@@ -87,7 +88,7 @@ export function NodeComposerGraph({
     }
 
     return programState.nodes.map((node) => {
-      const spec = nodeSpecs[node.kind];
+      const spec = nodeSpec(node.kind);
 
       return {
         id: node.id,
@@ -98,7 +99,7 @@ export function NodeComposerGraph({
         ariaLabel: nodeLabel(programState, node.id),
         data: {
           label: nodeLabel(programState, node.id),
-          kindLabel: spec.title,
+          kindLabel: nodeKindLabel(node),
           inputs: spec.inputs.map((input) => {
             const incoming = incomingConnections.get(`${node.id}:${input.id}`);
             return {

@@ -8,6 +8,7 @@ import {
   distanceBetweenPoints,
   excludePolylineFromPolygon,
   hatchBounds,
+  resolveProgramState,
   plotPalette,
   pointInPolygon,
   sampleEpitrochoid,
@@ -17,12 +18,15 @@ import {
   traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
+  type ParameterSchema,
   type PlotLayer,
   type Point,
   type Polygon,
   type Polyline,
+  type ProgramDefinition,
 } from "@ligneclaire/sdk";
 import { goPenSampleGrid } from "@ligneclaire/sdk";
+import { nodeComposerProgramRegistry } from "../generated/node-composer-program-registry";
 
 export const canvas = {
   widthMm: 210,
@@ -60,7 +64,8 @@ export type NodeComposerSchema = typeof nodeComposerParamSchema;
 
 export type NodeCategory = "paths" | "masks" | "process" | "output";
 export type NodePortKind = "paths" | "mask";
-export type NodeKind =
+type BuiltInNodeKind =
+  | "program"
   | "line-grid"
   | "perlin-field"
   | "circle-grid"
@@ -73,6 +78,7 @@ export type NodeKind =
   | "clip-mask"
   | "merge-paths"
   | "output-layer";
+export type NodeKind = BuiltInNodeKind;
 
 export type NodeConfigValue = string | number | boolean;
 export type NodeConfig = Readonly<Record<string, NodeConfigValue>>;
@@ -195,6 +201,18 @@ type MaskRuntimeValue = Readonly<{
 type RuntimeValue = PathsRuntimeValue | MaskRuntimeValue;
 type RuntimeOutputs = Readonly<Record<string, RuntimeValue | undefined>>;
 
+type EmbeddedProgram = ProgramDefinition<ParameterSchema, unknown>;
+export type EmbeddedProgramParamSet = Readonly<{
+  slug: string;
+  name: string;
+  params: Readonly<Record<string, unknown>>;
+  programState?: unknown;
+}>;
+export type EmbeddedProgramEntry = Readonly<{
+  program: EmbeddedProgram;
+  paramSets: readonly EmbeddedProgramParamSet[];
+}>;
+
 type EvaluationContext = Readonly<{
   nodesById: ReadonlyMap<string, ComposerNode>;
   incomingByInputKey: ReadonlyMap<string, NodeConnection>;
@@ -234,6 +252,40 @@ function textField(config: Omit<TextFieldSpec, "kind">): TextFieldSpec {
     ...config,
     kind: "text",
   };
+}
+
+const embeddedProgramEntries =
+  nodeComposerProgramRegistry as unknown as readonly EmbeddedProgramEntry[];
+const embeddedProgramEntriesById = new Map(
+  embeddedProgramEntries.map((entry) => [entry.program.id, entry])
+);
+const defaultEmbeddedProgramEntry = embeddedProgramEntries[0] ?? null;
+
+function getEmbeddedProgramEntry(programId: string): EmbeddedProgramEntry | null {
+  return embeddedProgramEntriesById.get(programId) ?? null;
+}
+
+function getEmbeddedProgram(programId: string): EmbeddedProgram | null {
+  return getEmbeddedProgramEntry(programId)?.program ?? null;
+}
+
+function getEmbeddedProgramParamSet(
+  programId: string,
+  slug: string
+): EmbeddedProgramParamSet | null {
+  return (
+    getEmbeddedProgramEntry(programId)?.paramSets.find((paramSet) => paramSet.slug === slug) ??
+    null
+  );
+}
+
+function resolveEmbeddedProgramId(value: unknown): string {
+  const candidate = readString(value, defaultEmbeddedProgramEntry?.program.id ?? "");
+  return getEmbeddedProgram(candidate)?.id ?? defaultEmbeddedProgramEntry?.program.id ?? "";
+}
+
+function isNodeKind(kind: string): kind is NodeKind {
+  return kind in builtInNodeSpecs;
 }
 
 function regionFields(defaults: Readonly<{
@@ -323,7 +375,94 @@ const clipModeOptions = [
   { label: "Exclude", value: "exclude" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
-export const nodeSpecs = {
+function humanizeProgramFieldKey(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function fieldForProgramParam(
+  key: string,
+  spec: EmbeddedProgram["params"][string]
+): IntFieldSpec | FloatFieldSpec | BoolFieldSpec {
+  const shared = {
+    key,
+    label: spec.label ?? humanizeProgramFieldKey(key),
+    description: spec.description,
+    unit: spec.unit,
+  } as const;
+
+  if (spec.kind === "bool") {
+    return boolField({
+      ...shared,
+      defaultValue: spec.default,
+    });
+  }
+
+  if (spec.kind === "int") {
+    return intField({
+      ...shared,
+      min: spec.min,
+      max: spec.max,
+      defaultValue: spec.default,
+      step: spec.step,
+    });
+  }
+
+  return floatField({
+    ...shared,
+    min: spec.min,
+    max: spec.max,
+    defaultValue: spec.default,
+    step: spec.step,
+  });
+}
+
+export const programNodePrograms: readonly Readonly<{
+  id: string;
+  title: string;
+  description: string;
+}>[] = embeddedProgramEntries.map((entry) => ({
+  id: entry.program.id,
+  title: entry.program.title,
+  description: entry.program.description,
+}));
+
+export function programNodeParamSets(programId: string): readonly EmbeddedProgramParamSet[] {
+  return getEmbeddedProgramEntry(programId)?.paramSets ?? [];
+}
+
+export function programNodeProgramId(config: NodeConfig): string {
+  return resolveEmbeddedProgramId(config.programId);
+}
+
+export function programNodeProgram(config: NodeConfig): EmbeddedProgram | null {
+  return getEmbeddedProgram(programNodeProgramId(config));
+}
+
+export function programNodeParamFields(config: NodeConfig): readonly NodeFieldSpec[] {
+  const program = programNodeProgram(config);
+  if (!program) {
+    return [];
+  }
+
+  return Object.entries(program.params).map(([key, spec]) => fieldForProgramParam(key, spec));
+}
+
+const builtInNodeSpecs = {
+  program: {
+    kind: "program",
+    title: "Program",
+    summary:
+      "Run any checked-in program as a path generator, then optionally prefill it from an existing parameter set.",
+    category: "paths",
+    inputs: [],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [],
+  },
   "line-grid": {
     kind: "line-grid",
     title: "Line Grid",
@@ -767,7 +906,20 @@ export const nodeSpecs = {
       }),
     ],
   },
-} as const satisfies Record<NodeKind, NodeSpec>;
+} as const satisfies Record<BuiltInNodeKind, NodeSpec>;
+
+export const nodeSpecs = Object.freeze({
+  ...builtInNodeSpecs,
+}) as Readonly<Record<NodeKind, NodeSpec>>;
+
+export function nodeSpec(kind: NodeKind): NodeSpec {
+  const spec = nodeSpecs[kind];
+  if (!spec) {
+    throw new Error(`Unknown node kind "${kind}".`);
+  }
+
+  return spec;
+}
 
 export const nodeCategories = [
   { id: "paths", label: "Path Generators" },
@@ -820,8 +972,39 @@ function normalizeFieldValue(field: NodeFieldSpec, input: unknown): NodeConfigVa
   return field.kind === "int" ? Math.round(clampedValue) : clampedValue;
 }
 
+function normalizeProgramNodeConfig(input: unknown): NodeConfig {
+  const candidate = isRecord(input) ? input : {};
+  const programId = resolveEmbeddedProgramId(candidate.programId);
+  const program = getEmbeddedProgram(programId) ?? defaultEmbeddedProgramEntry?.program ?? null;
+
+  if (!program) {
+    return {};
+  }
+
+  const requestedParamSetId = readString(candidate.paramSetId, "");
+  const paramSet = getEmbeddedProgramParamSet(programId, requestedParamSetId);
+  const normalized: Record<string, NodeConfigValue> = {
+    programId,
+    paramSetId: paramSet?.slug ?? "",
+  };
+
+  for (const [key, spec] of Object.entries(program.params)) {
+    const field = fieldForProgramParam(key, spec);
+    normalized[key] = normalizeFieldValue(
+      field,
+      candidate[key] !== undefined ? candidate[key] : paramSet?.params[key]
+    );
+  }
+
+  return normalized;
+}
+
 function normalizeConfigForSpec(kind: NodeKind, input: unknown): NodeConfig {
-  const spec = nodeSpecs[kind];
+  if (kind === "program") {
+    return normalizeProgramNodeConfig(input);
+  }
+
+  const spec = nodeSpec(kind);
   const candidate = isRecord(input) ? input : {};
   const normalized: Record<string, NodeConfigValue> = {};
 
@@ -879,7 +1062,7 @@ function createNode(
 }
 
 function displayNameForKind(kind: NodeKind): string {
-  return nodeSpecs[kind].title;
+  return nodeSpec(kind).title;
 }
 
 function deriveNextNodeNumber(nodes: readonly ComposerNode[]): number {
@@ -1013,8 +1196,8 @@ function normalizeConnections(
       continue;
     }
 
-    const fromPort = findPort(nodeSpecs[fromNode.kind].outputs, fromPortId);
-    const toPort = findPort(nodeSpecs[toNode.kind].inputs, toPortId);
+    const fromPort = findPort(nodeSpec(fromNode.kind).outputs, fromPortId);
+    const toPort = findPort(nodeSpec(toNode.kind).inputs, toPortId);
     if (!fromPort || !toPort || fromPort.kind !== toPort.kind) {
       continue;
     }
@@ -1046,6 +1229,40 @@ function normalizeConnections(
   }
 
   return normalized;
+}
+
+function normalizePersistedNodeKind(
+  candidate: Readonly<Record<string, unknown>>
+): Readonly<{
+  kind: NodeKind;
+  config: unknown;
+}> | null {
+  const rawKind = readString(candidate.kind, "");
+
+  if (isNodeKind(rawKind)) {
+    return {
+      kind: rawKind,
+      config: candidate.config,
+    };
+  }
+
+  if (rawKind.startsWith("program:")) {
+    const programId = rawKind.slice("program:".length);
+    if (!getEmbeddedProgram(programId)) {
+      return null;
+    }
+    const rawConfig = isRecord(candidate.config) ? candidate.config : {};
+
+    return {
+      kind: "program",
+      config: {
+        programId,
+        ...rawConfig,
+      },
+    };
+  }
+
+  return null;
 }
 
 function makeRegionBounds(config: NodeConfig): Bounds {
@@ -1417,6 +1634,78 @@ function styleToStroke(style: string): string {
   }
 }
 
+function boundsCenter(bounds: Bounds): Point {
+  return {
+    x: (bounds.minX + bounds.maxX) * 0.5,
+    y: (bounds.minY + bounds.maxY) * 0.5,
+  };
+}
+
+function fitPathsIntoBounds(
+  paths: readonly Polyline[],
+  sourceBounds: Bounds,
+  targetBounds: Bounds
+): readonly Polyline[] {
+  const sourceWidth = Math.max(1e-6, sourceBounds.maxX - sourceBounds.minX);
+  const sourceHeight = Math.max(1e-6, sourceBounds.maxY - sourceBounds.minY);
+  const targetWidth = Math.max(1e-6, targetBounds.maxX - targetBounds.minX);
+  const targetHeight = Math.max(1e-6, targetBounds.maxY - targetBounds.minY);
+  const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+  const sourceCenter = boundsCenter(sourceBounds);
+  const targetCenter = boundsCenter(targetBounds);
+
+  return paths.map((path) => ({
+    ...path,
+    points: path.points.map((point) => ({
+      x: targetCenter.x + (point.x - sourceCenter.x) * scale,
+      y: targetCenter.y + (point.y - sourceCenter.y) * scale,
+    })),
+  }));
+}
+
+function programNodeParams(
+  program: EmbeddedProgram,
+  config: NodeConfig,
+  paramSet: EmbeddedProgramParamSet | null
+): Readonly<Record<string, number | boolean>> {
+  return Object.fromEntries(
+    Object.keys(program.params).map((key) => [
+      key,
+      config[key] ?? paramSet?.params[key] ?? fieldDefaultValue(fieldForProgramParam(key, program.params[key]!)),
+    ])
+  ) as Readonly<Record<string, number | boolean>>;
+}
+
+function renderProgramNodePaths(
+  config: NodeConfig,
+  mode: EvaluationContext["mode"]
+): readonly Polyline[] {
+  const programId = programNodeProgramId(config);
+  const program = getEmbeddedProgram(programId) ?? defaultEmbeddedProgramEntry?.program ?? null;
+  if (!program) {
+    return [];
+  }
+
+  const paramSet = getEmbeddedProgramParamSet(programId, readString(config.paramSetId, ""));
+  const params = programNodeParams(program, config, paramSet);
+  const programState = resolveProgramState(program, params as never, paramSet?.programState);
+  const document = program.render({
+    programId: program.id,
+    mode,
+    showDebug: false,
+    params: params as never,
+    programState,
+  });
+
+  return clipPathsToContent(
+    fitPathsIntoBounds(
+      document.layers.flatMap((layer) => layer.paths),
+      contentBounds(program.canvas),
+      content
+    )
+  );
+}
+
 function resolveNodeInput(
   node: ComposerNode,
   portId: string,
@@ -1439,6 +1728,15 @@ function evaluateNodeOutputs(
   context: EvaluationContext,
   evaluateNode: (nodeId: string) => RuntimeOutputs
 ): RuntimeOutputs {
+  if (node.kind === "program") {
+    return {
+      paths: {
+        kind: "paths",
+        paths: renderProgramNodePaths(node.config, context.mode),
+      },
+    };
+  }
+
   if (node.kind === "line-grid") {
     const bounds = makeRegionBounds(node.config);
     return {
@@ -1834,8 +2132,8 @@ export function normalizeNodeComposerProgramState(input: unknown): NodeComposerP
       return [];
     }
 
-    const kind = readString(candidate.kind, "") as NodeKind;
-    if (!(kind in nodeSpecs)) {
+    const normalizedKind = normalizePersistedNodeKind(candidate);
+    if (!normalizedKind) {
       return [];
     }
 
@@ -1843,9 +2141,9 @@ export function normalizeNodeComposerProgramState(input: unknown): NodeComposerP
     return [
       {
         id: normalizeNodeId(candidate.id, index + 1, usedIds),
-        kind,
+        kind: normalizedKind.kind,
         position: normalizePoint(candidate.position, fallbackNode.position),
-        config: normalizeConfigForSpec(kind, candidate.config),
+        config: normalizeConfigForSpec(normalizedKind.kind, normalizedKind.config),
       } satisfies ComposerNode,
     ];
   });
@@ -1910,11 +2208,12 @@ export function addNode(
   programState: NodeComposerProgramState,
   kind: NodeKind
 ): NodeComposerProgramState {
+  const spec = nodeSpec(kind);
   const categoryIndex = nodeCategories.findIndex(
-    (category) => category.id === nodeSpecs[kind].category
+    (category) => category.id === spec.category
   );
   const categoryNodes = programState.nodes.filter(
-    (node) => nodeSpecs[node.kind].category === nodeSpecs[kind].category
+    (node) => nodeSpec(node.kind).category === spec.category
   );
   const selected = selectedNode(programState);
   const position = selected
@@ -2014,6 +2313,68 @@ export function patchNodeConfig(
   };
 }
 
+function replaceNodeConfig(
+  programState: NodeComposerProgramState,
+  nodeId: string,
+  nextConfig: unknown
+): NodeComposerProgramState {
+  return {
+    ...programState,
+    nodes: programState.nodes.map((node) =>
+      node.id === nodeId
+        ? {
+            ...node,
+            config: normalizeConfigForSpec(node.kind, nextConfig),
+          }
+        : node
+    ),
+  };
+}
+
+export function selectProgramNodeProgram(
+  programState: NodeComposerProgramState,
+  nodeId: string,
+  programId: string
+): NodeComposerProgramState {
+  const node = findNode(programState, nodeId);
+  if (!node || node.kind !== "program") {
+    return programState;
+  }
+
+  return replaceNodeConfig(programState, nodeId, {
+    programId,
+    paramSetId: "",
+  });
+}
+
+export function applyProgramNodeParamSet(
+  programState: NodeComposerProgramState,
+  nodeId: string,
+  paramSetId: string
+): NodeComposerProgramState {
+  const node = findNode(programState, nodeId);
+  if (!node || node.kind !== "program") {
+    return programState;
+  }
+
+  const programId = programNodeProgramId(node.config);
+  const program = getEmbeddedProgram(programId);
+  if (!program) {
+    return programState;
+  }
+
+  const currentParams = Object.fromEntries(
+    Object.keys(program.params).map((key) => [key, node.config[key]])
+  );
+  const paramSet = getEmbeddedProgramParamSet(programId, paramSetId);
+
+  return replaceNodeConfig(programState, nodeId, {
+    programId,
+    paramSetId: paramSet?.slug ?? "",
+    ...(paramSet?.params ?? currentParams),
+  });
+}
+
 export function moveNodeAnchor(
   programState: NodeComposerProgramState,
   nodeId: string,
@@ -2070,8 +2431,8 @@ export function canConnectNodes(
     return false;
   }
 
-  const fromPort = findPort(nodeSpecs[fromNode.kind].outputs, connection.from.portId);
-  const toPort = findPort(nodeSpecs[toNode.kind].inputs, connection.to.portId);
+  const fromPort = findPort(nodeSpec(fromNode.kind).outputs, connection.from.portId);
+  const toPort = findPort(nodeSpec(toNode.kind).inputs, connection.to.portId);
   if (!fromPort || !toPort || fromPort.kind !== toPort.kind) {
     return false;
   }
@@ -2136,12 +2497,30 @@ export function nodeLabel(
     return String(node.config.label ?? displayNameForKind(node.kind));
   }
 
+  if (node.kind === "program") {
+    const index =
+      programState.nodes.findIndex((candidate) => candidate.id === node.id) + 1;
+    return `${programNodeProgram(node.config)?.title ?? "Program"} ${index}`;
+  }
+
   const index =
     programState.nodes.findIndex((candidate) => candidate.id === node.id) + 1;
   return `${displayNameForKind(node.kind)} ${index}`;
 }
 
+export function nodeKindLabel(node: ComposerNode): string {
+  if (node.kind === "program") {
+    return "Program";
+  }
+
+  return nodeSpec(node.kind).title;
+}
+
 export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
+  if (node.kind === "program") {
+    return [];
+  }
+
   if (
     node.kind === "line-grid" ||
     node.kind === "perlin-field" ||

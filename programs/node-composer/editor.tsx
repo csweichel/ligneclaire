@@ -5,6 +5,7 @@ import { NodeComposerGraph } from "./graph";
 import { NodeComposerInspector } from "./inspector";
 import {
   addNode,
+  applyProgramNodeParamSet,
   disconnectInput,
   moveNodeAnchor,
   nodeCategories,
@@ -12,6 +13,7 @@ import {
   patchNodeConfig,
   removeNode,
   selectedNode,
+  selectProgramNodeProgram,
   type NodeComposerProgramState,
   type NodeComposerSchema,
 } from "./model";
@@ -82,6 +84,12 @@ export default function NodeComposerEditor({
             }}
             onPatchConfig={(nodeId, patch) => {
               updateProgramState((current) => patchNodeConfig(current, nodeId, patch));
+            }}
+            onSelectProgram={(nodeId, programId) => {
+              updateProgramState((current) => selectProgramNodeProgram(current, nodeId, programId));
+            }}
+            onSelectParamSet={(nodeId, paramSetId) => {
+              updateProgramState((current) => applyProgramNodeParamSet(current, nodeId, paramSetId));
             }}
             onRemoveNode={(nodeId) => {
               updateProgramState((current) => removeNode(current, nodeId));

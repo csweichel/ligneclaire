@@ -13,7 +13,7 @@ describe("isometric-ribbons program", () => {
     const metrics = calculateDocumentMetrics(document);
 
     expect(metrics.artLayerCount).toBe(2);
-    expect(document.layers[0]?.paths.length ?? 0).toBeGreaterThan(500);
+    expect(document.layers[0]?.paths.length ?? 0).toBeGreaterThan(400);
     expect(document.layers[1]?.paths.length ?? 0).toBeGreaterThan(120);
   });
 

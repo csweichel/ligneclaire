@@ -3,7 +3,12 @@ import type { JSX } from "react";
 import {
   connectionForInput,
   nodeLabel,
-  nodeSpecs,
+  programNodeParamFields,
+  programNodeParamSets,
+  programNodeProgram,
+  programNodeProgramId,
+  programNodePrograms,
+  nodeSpec,
   type ComposerNode,
   type NodeComposerProgramState,
   type NodeConfigValue,
@@ -15,6 +20,8 @@ type NodeComposerInspectorProps = Readonly<{
   selectedNode: ComposerNode | null;
   onDisconnectInput: (nodeId: string, portId: string) => void;
   onPatchConfig: (nodeId: string, patch: Readonly<Record<string, NodeConfigValue>>) => void;
+  onSelectProgram: (nodeId: string, programId: string) => void;
+  onSelectParamSet: (nodeId: string, paramSetId: string) => void;
   onRemoveNode: (nodeId: string) => void;
 }>;
 
@@ -141,11 +148,95 @@ function FieldRow({ field, value, onChange }: FieldRowProps): JSX.Element {
   );
 }
 
+type ProgramNodeFieldsProps = Readonly<{
+  selectedNode: ComposerNode;
+  onPatchConfig: (nodeId: string, patch: Readonly<Record<string, NodeConfigValue>>) => void;
+  onSelectProgram: (nodeId: string, programId: string) => void;
+  onSelectParamSet: (nodeId: string, paramSetId: string) => void;
+}>;
+
+function ProgramNodeFields({
+  selectedNode,
+  onPatchConfig,
+  onSelectProgram,
+  onSelectParamSet,
+}: ProgramNodeFieldsProps): JSX.Element {
+  const programId = programNodeProgramId(selectedNode.config);
+  const embeddedProgram = programNodeProgram(selectedNode.config);
+  const paramSets = programNodeParamSets(programId);
+  const paramFields = programNodeParamFields(selectedNode.config);
+  const selectedParamSetId = String(selectedNode.config.paramSetId ?? "");
+
+  return (
+    <div className="lc-node-composer__field-list">
+      <label className="lc-editor-overlay__field">
+        <span className="lc-editor-overlay__label">Program</span>
+        <select
+          className="studio-input studio-input--compact"
+          value={programId}
+          onChange={(event) => {
+            onSelectProgram(selectedNode.id, event.currentTarget.value);
+          }}
+        >
+          {programNodePrograms.map((program) => (
+            <option key={program.id} value={program.id}>
+              {program.title}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="lc-editor-overlay__field">
+        <span className="lc-editor-overlay__label">Parameter Set</span>
+        <select
+          className="studio-input studio-input--compact"
+          value={selectedParamSetId}
+          onChange={(event) => {
+            onSelectParamSet(selectedNode.id, event.currentTarget.value);
+          }}
+        >
+          <option value="">Current Params</option>
+          {paramSets.map((paramSet) => (
+            <option key={paramSet.slug} value={paramSet.slug}>
+              {paramSet.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {embeddedProgram ? (
+        <p className="lc-editor-overlay__copy">{embeddedProgram.description}</p>
+      ) : null}
+
+      {paramFields.length > 0 ? (
+        paramFields.map((field) => (
+          <FieldRow
+            key={field.key}
+            field={field}
+            value={selectedNode.config[field.key]}
+            onChange={(nextValue) => {
+              onPatchConfig(selectedNode.id, {
+                [field.key]: nextValue,
+              });
+            }}
+          />
+        ))
+      ) : (
+        <p className="lc-editor-overlay__copy">
+          This program is configured by its selected parameter set or built-in default state.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function NodeComposerInspector({
   programState,
   selectedNode,
   onDisconnectInput,
   onPatchConfig,
+  onSelectProgram,
+  onSelectParamSet,
   onRemoveNode,
 }: NodeComposerInspectorProps): JSX.Element {
   if (!selectedNode) {
@@ -165,7 +256,7 @@ export function NodeComposerInspector({
     );
   }
 
-  const spec = nodeSpecs[selectedNode.kind];
+  const spec = nodeSpec(selectedNode.kind);
 
   return (
     <section className="lc-node-composer__section">
@@ -219,7 +310,14 @@ export function NodeComposerInspector({
         </div>
       ) : null}
 
-      {spec.fields.length > 0 ? (
+      {selectedNode.kind === "program" ? (
+        <ProgramNodeFields
+          selectedNode={selectedNode}
+          onPatchConfig={onPatchConfig}
+          onSelectProgram={onSelectProgram}
+          onSelectParamSet={onSelectParamSet}
+        />
+      ) : spec.fields.length > 0 ? (
         <div className="lc-node-composer__field-list">
           {spec.fields.map((field) => (
             <FieldRow

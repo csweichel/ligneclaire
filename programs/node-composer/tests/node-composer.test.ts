@@ -1,5 +1,6 @@
 import {
   calculateDocumentMetrics,
+  contentBounds,
   plotPalette,
 } from "@ligneclaire/sdk";
 import { describe, expect, it } from "vitest";
@@ -22,7 +23,7 @@ describe("node-composer program", () => {
     });
     const metrics = calculateDocumentMetrics(document);
 
-    expect(metrics.artLayerCount).toBe(3);
+    expect(metrics.artLayerCount).toBe(1);
     expect(metrics.debugLayerCount).toBe(1);
     expect(metrics.pathCount).toBeGreaterThan(80);
   });
@@ -58,6 +59,17 @@ describe("node-composer program", () => {
         {
           id: "node-c",
           kind: "missing-kind",
+        },
+        {
+          id: "node-d",
+          kind: "program:waves",
+          position: {
+            x: 300,
+            y: 300,
+          },
+          config: {
+            bands: 12,
+          },
         },
       ],
       connections: [
@@ -106,11 +118,17 @@ describe("node-composer program", () => {
       nextNodeNumber: 3,
     });
 
-    expect(normalized.nodes).toHaveLength(2);
+    expect(normalized.nodes).toHaveLength(3);
     expect(normalized.connections).toHaveLength(1);
     expect(normalized.selectedNodeId).toBe("node-b");
     expect(normalized.nodes[0]!.position.x).toBeGreaterThanOrEqual(24);
     expect(normalized.nodes[0]!.position.y).toBeLessThanOrEqual(2200);
+    expect(normalized.nodes[2]).toMatchObject({
+      kind: "program",
+      config: {
+        programId: "waves",
+      },
+    });
   });
 
   it("supports boolean mask clipping with multiple output layers", () => {
@@ -251,6 +269,119 @@ describe("node-composer program", () => {
     expect(document.layers[1]!.stroke).toBe(plotPalette.accent);
     expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
     expect(document.layers[1]!.paths.length).toBe(1);
+  });
+
+  it("uses standalone programs as path-generating nodes", () => {
+    const bounds = contentBounds(program.canvas);
+    const programState: NodeComposerProgramState = {
+      nodes: [
+        {
+          id: "node-1",
+          kind: "program",
+          position: { x: 40, y: 40 },
+          config: {
+            programId: "waves",
+            seed: 1337,
+            bands: 8,
+            amplitude: 10,
+            frequency: 2.4,
+            warp: 0.5,
+            mirror: true,
+          },
+        },
+        {
+          id: "node-2",
+          kind: "output-layer",
+          position: { x: 1020, y: 40 },
+          config: {
+            label: "Embedded Waves",
+            style: "primary",
+            enabled: true,
+          },
+        },
+      ],
+      connections: [
+        {
+          from: { nodeId: "node-1", portId: "paths" },
+          to: { nodeId: "node-2", portId: "paths" },
+        },
+      ],
+      selectedNodeId: "node-1",
+      nextNodeNumber: 3,
+    };
+
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState,
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths).toHaveLength(8);
+    expect(
+      document.layers[0]!.paths.every((path) =>
+        path.points.every(
+          (point) =>
+            point.x >= bounds.minX &&
+            point.x <= bounds.maxX &&
+            point.y >= bounds.minY &&
+            point.y <= bounds.maxY
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("can preload an embedded program from an existing parameter set", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "program",
+              position: { x: 40, y: 40 },
+              config: {
+                programId: "trochoid",
+                paramSetId: "large",
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Preset Trochoid",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths.length).toBeGreaterThan(20);
   });
 
   it("ignores layout-only edits when deriving render state", () => {
