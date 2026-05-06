@@ -108,6 +108,8 @@ describe("terrain-slices program", () => {
       seed: defaultSet.params.seed,
       planeWidth: defaultSet.params.planeSize,
       planeDepth: defaultSet.params.planeSize * 0.86,
+      terrainOffsetX: defaultSet.params.terrainOffsetX,
+      terrainOffsetY: defaultSet.params.terrainOffsetY,
       mountainScale: defaultSet.params.mountainScale,
       height: defaultSet.params.height,
       waterLevel: defaultSet.params.waterLevel,
