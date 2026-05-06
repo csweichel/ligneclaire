@@ -12,6 +12,7 @@ export * from "./params";
 export * from "./reference-image";
 export * from "./rng";
 export * from "./svg";
+export * from "./terrain";
 export * from "./tilepath";
 export * from "./trochoid";
 export * from "./validation";

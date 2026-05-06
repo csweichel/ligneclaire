@@ -7,6 +7,7 @@ import {
   createRng,
   distanceBetweenPoints,
   excludePolylineFromPolygon,
+  generateTerrainSliceGeometry,
   hatchBounds,
   resolveProgramState,
   plotPalette,
@@ -70,6 +71,7 @@ type BuiltInNodeKind =
   | "perlin-field"
   | "circle-grid"
   | "image-circles"
+  | "terrain-slice"
   | "trochoid"
   | "mask-circle"
   | "mask-rect"
@@ -361,6 +363,7 @@ const outputStyleOptions = [
   { label: "Primary", value: "primary" },
   { label: "Accent", value: "accent" },
   { label: "Mask", value: "mask" },
+  { label: "Water", value: "water" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
 const booleanMaskOptions = [
@@ -669,6 +672,108 @@ const builtInNodeSpecs = {
         max: 4,
         defaultValue: 1.8,
         step: 0.025,
+        unit: "mm",
+      }),
+    ],
+  },
+  "terrain-slice": {
+    kind: "terrain-slice",
+    title: "Terrain Slice",
+    summary: "A line-based hill slice with separate terrain and water outputs.",
+    category: "paths",
+    inputs: [],
+    outputs: [
+      { id: "terrain", label: "Terrain", kind: "paths" },
+      { id: "water", label: "Water", kind: "paths" },
+    ],
+    fields: [
+      ...regionFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+        width: 118,
+        height: 92,
+      }),
+      floatField({
+        key: "terrainOffsetX",
+        label: "Terrain X",
+        min: -48,
+        max: 48,
+        defaultValue: 0,
+        step: 0.5,
+        unit: "mm",
+      }),
+      floatField({
+        key: "terrainOffsetY",
+        label: "Terrain Y",
+        min: -48,
+        max: 48,
+        defaultValue: 0,
+        step: 0.5,
+        unit: "mm",
+      }),
+      intField({
+        key: "seed",
+        label: "Seed",
+        min: 1,
+        max: 999999,
+        defaultValue: 2812,
+      }),
+      intField({
+        key: "contourLevels",
+        label: "Contour Levels",
+        min: 4,
+        max: 24,
+        defaultValue: 12,
+      }),
+      floatField({
+        key: "mountainScale",
+        label: "Mountain Scale",
+        min: 0.35,
+        max: 0.95,
+        defaultValue: 0.9,
+        step: 0.01,
+      }),
+      floatField({
+        key: "relief",
+        label: "Relief",
+        min: 6,
+        max: 96,
+        defaultValue: 44,
+        step: 0.5,
+        unit: "mm",
+      }),
+      floatField({
+        key: "waterLevel",
+        label: "Water Level",
+        min: 0,
+        max: 1,
+        defaultValue: 0.42,
+        step: 0.01,
+      }),
+      floatField({
+        key: "roughness",
+        label: "Roughness",
+        min: 0,
+        max: 1,
+        defaultValue: 0.62,
+        step: 0.01,
+      }),
+      floatField({
+        key: "hatchSpacing",
+        label: "Terrain Hatch",
+        min: 0.3,
+        max: 2.5,
+        defaultValue: 0.88,
+        step: 0.02,
+        unit: "mm",
+      }),
+      floatField({
+        key: "waterSpacing",
+        label: "Water Hatch",
+        min: 0.2,
+        max: 2,
+        defaultValue: 0.62,
+        step: 0.02,
         unit: "mm",
       }),
     ],
@@ -1629,6 +1734,8 @@ function styleToStroke(style: string): string {
       return plotPalette.accent;
     case "mask":
       return plotPalette.mask;
+    case "water":
+      return plotPalette.water;
     default:
       return plotPalette.primary;
   }
@@ -1859,6 +1966,38 @@ function evaluateNodeOutputs(
       paths: {
         kind: "paths",
         paths: clipPathsToContent(paths),
+      },
+    };
+  }
+
+  if (node.kind === "terrain-slice") {
+    const geometry = generateTerrainSliceGeometry({
+      center: {
+        x: Number(node.config.centerX),
+        y: Number(node.config.centerY),
+      },
+      seed: Number(node.config.seed),
+      planeWidth: Number(node.config.width),
+      planeDepth: Number(node.config.height),
+      terrainOffsetX: Number(node.config.terrainOffsetX),
+      terrainOffsetY: Number(node.config.terrainOffsetY),
+      mountainScale: Number(node.config.mountainScale),
+      height: Number(node.config.relief),
+      waterLevel: Number(node.config.waterLevel),
+      contourLevels: Number(node.config.contourLevels),
+      hatchSpacing: Number(node.config.hatchSpacing),
+      roughness: Number(node.config.roughness),
+      waterSpacing: Number(node.config.waterSpacing),
+    });
+
+    return {
+      terrain: {
+        kind: "paths",
+        paths: clipPathsToContent(geometry.aboveWaterTerrainPaths),
+      },
+      water: {
+        kind: "paths",
+        paths: clipPathsToContent(geometry.waterPaths),
       },
     };
   }
@@ -2550,6 +2689,29 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
         80
       ),
     ];
+  }
+
+  if (node.kind === "terrain-slice") {
+    const geometry = generateTerrainSliceGeometry({
+      center: {
+        x: Number(node.config.centerX),
+        y: Number(node.config.centerY),
+      },
+      seed: Number(node.config.seed),
+      planeWidth: Number(node.config.width),
+      planeDepth: Number(node.config.height),
+      terrainOffsetX: Number(node.config.terrainOffsetX),
+      terrainOffsetY: Number(node.config.terrainOffsetY),
+      mountainScale: Number(node.config.mountainScale),
+      height: Number(node.config.relief),
+      waterLevel: Number(node.config.waterLevel),
+      contourLevels: Number(node.config.contourLevels),
+      hatchSpacing: Number(node.config.hatchSpacing),
+      roughness: Number(node.config.roughness),
+      waterSpacing: Number(node.config.waterSpacing),
+    });
+
+    return [geometry.planeOutline, geometry.baseOutline];
   }
 
   if (node.kind === "mask-circle") {

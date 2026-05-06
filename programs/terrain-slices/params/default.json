@@ -1,0 +1,21 @@
+{
+  "programId": "terrain-slices",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "seed": 760699,
+    "contourLevels": 17,
+    "planeSize": 80,
+    "terrainOffsetX": -9,
+    "terrainOffsetY": -5,
+    "mountainScale": 0.46,
+    "height": 11,
+    "roughness": 0.95,
+    "waterLevel": 0,
+    "hatchSpacing": 0.96,
+    "waterSpacing": 1.5
+  },
+  "programState": {},
+  "createdAt": "2026-05-06T00:00:00.000Z",
+  "updatedAt": "2026-05-06T19:30:41.808Z"
+}

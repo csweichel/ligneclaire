@@ -1,0 +1,232 @@
+{
+  "programId": "node-composer",
+  "programVersion": "1.0.0",
+  "name": "Four Hills",
+  "params": {},
+  "programState": {
+    "nodes": [
+      {
+        "id": "node-1",
+        "kind": "line-grid",
+        "position": {
+          "x": 36,
+          "y": 112
+        },
+        "config": {
+          "centerX": 105,
+          "centerY": 148.5,
+          "width": 164,
+          "height": 222,
+          "spacing": 7.5,
+          "angleDeg": 30
+        }
+      },
+      {
+        "id": "node-2",
+        "kind": "mask-circle",
+        "position": {
+          "x": 330,
+          "y": 42
+        },
+        "config": {
+          "centerX": 82,
+          "centerY": 176,
+          "radius": 62
+        }
+      },
+      {
+        "id": "node-3",
+        "kind": "mask-polygon",
+        "position": {
+          "x": 330,
+          "y": 202
+        },
+        "config": {
+          "centerX": 136,
+          "centerY": 124,
+          "radius": 48,
+          "sides": 6,
+          "rotationDeg": 12
+        }
+      },
+      {
+        "id": "node-4",
+        "kind": "mask-boolean",
+        "position": {
+          "x": 598,
+          "y": 122
+        },
+        "config": {
+          "operation": "union"
+        }
+      },
+      {
+        "id": "node-5",
+        "kind": "clip-mask",
+        "position": {
+          "x": 842,
+          "y": 122
+        },
+        "config": {
+          "mode": "clip"
+        }
+      },
+      {
+        "id": "node-6",
+        "kind": "output-layer",
+        "position": {
+          "x": 1102,
+          "y": 122
+        },
+        "config": {
+          "style": "primary",
+          "label": "Masked Grid",
+          "enabled": true
+        }
+      },
+      {
+        "id": "node-7",
+        "kind": "perlin-field",
+        "position": {
+          "x": 36,
+          "y": 372
+        },
+        "config": {
+          "centerX": 152,
+          "centerY": 80,
+          "width": 86,
+          "height": 86,
+          "seed": 9051,
+          "paths": 140,
+          "segmentLength": 2.25,
+          "steps": 10,
+          "columns": 20,
+          "rows": 20,
+          "frequency": 2.85,
+          "continuousCurves": true
+        }
+      },
+      {
+        "id": "node-8",
+        "kind": "output-layer",
+        "position": {
+          "x": 1102,
+          "y": 372
+        },
+        "config": {
+          "style": "accent",
+          "label": "Perlin Field",
+          "enabled": true
+        }
+      },
+      {
+        "id": "node-9",
+        "kind": "trochoid",
+        "position": {
+          "x": 598,
+          "y": 372
+        },
+        "config": {
+          "centerX": 94,
+          "centerY": 84,
+          "useEpitrochoid": true,
+          "fixedRadius": 72,
+          "rollingRadius": 18,
+          "pointOffsetRatio": 1.15,
+          "figureRadius": 34,
+          "rotationDeg": 18,
+          "samplesPerTurn": 220
+        }
+      },
+      {
+        "id": "node-10",
+        "kind": "output-layer",
+        "position": {
+          "x": 1102,
+          "y": 522
+        },
+        "config": {
+          "style": "mask",
+          "label": "Trochoid",
+          "enabled": true
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "nodeId": "node-1",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-5",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-2",
+          "portId": "mask"
+        },
+        "to": {
+          "nodeId": "node-4",
+          "portId": "a"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-3",
+          "portId": "mask"
+        },
+        "to": {
+          "nodeId": "node-4",
+          "portId": "b"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-4",
+          "portId": "mask"
+        },
+        "to": {
+          "nodeId": "node-5",
+          "portId": "mask"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-5",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-6",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-7",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-8",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-9",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-10",
+          "portId": "paths"
+        }
+      }
+    ],
+    "selectedNodeId": "node-1",
+    "nextNodeNumber": 11
+  },
+  "createdAt": "2026-05-06T19:30:48.889Z",
+  "updatedAt": "2026-05-06T19:30:54.984Z"
+}

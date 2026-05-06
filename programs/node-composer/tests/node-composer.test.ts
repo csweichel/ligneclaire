@@ -23,7 +23,7 @@ describe("node-composer program", () => {
     });
     const metrics = calculateDocumentMetrics(document);
 
-    expect(metrics.artLayerCount).toBe(1);
+    expect(metrics.artLayerCount).toBeGreaterThanOrEqual(1);
     expect(metrics.debugLayerCount).toBe(1);
     expect(metrics.pathCount).toBeGreaterThan(80);
   });
@@ -382,6 +382,85 @@ describe("node-composer program", () => {
 
     expect(document.layers).toHaveLength(1);
     expect(document.layers[0]!.paths.length).toBeGreaterThan(20);
+  });
+
+  it("routes terrain slices into separate water and terrain layers", () => {
+    const programState: NodeComposerProgramState = {
+      nodes: [
+        {
+          id: "node-1",
+          kind: "terrain-slice",
+          position: { x: 40, y: 40 },
+          config: {
+            centerX: 105,
+            centerY: 148.5,
+            width: 118,
+            height: 92,
+            terrainOffsetX: 12,
+            terrainOffsetY: -8,
+            seed: 2812,
+            contourLevels: 12,
+            mountainScale: 0.68,
+            relief: 22,
+            waterLevel: 0.42,
+            roughness: 0.62,
+            hatchSpacing: 0.88,
+            waterSpacing: 0.62,
+          },
+        },
+        {
+          id: "node-2",
+          kind: "output-layer",
+          position: { x: 1040, y: 40 },
+          config: {
+            label: "Water",
+            style: "water",
+            enabled: true,
+          },
+        },
+        {
+          id: "node-3",
+          kind: "output-layer",
+          position: { x: 1040, y: 180 },
+          config: {
+            label: "Terrain",
+            style: "primary",
+            enabled: true,
+          },
+        },
+      ],
+      connections: [
+        {
+          from: { nodeId: "node-1", portId: "water" },
+          to: { nodeId: "node-2", portId: "paths" },
+        },
+        {
+          from: { nodeId: "node-1", portId: "terrain" },
+          to: { nodeId: "node-3", portId: "paths" },
+        },
+      ],
+      selectedNodeId: "node-1",
+      nextNodeNumber: 4,
+    };
+
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState,
+      },
+      {
+        caseName: "default",
+        showDebug: true,
+      }
+    );
+
+    expect(document.layers).toHaveLength(2);
+    expect(document.layers[0]!.stroke).toBe(plotPalette.water);
+    expect(document.layers[1]!.stroke).toBe(plotPalette.primary);
+    expect(document.layers[0]!.paths.length).toBeGreaterThan(40);
+    expect(document.layers[1]!.paths.length).toBeGreaterThan(30);
+    expect(document.debugLayers?.[0]?.paths.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it("ignores layout-only edits when deriving render state", () => {

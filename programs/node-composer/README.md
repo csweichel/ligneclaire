@@ -4,7 +4,7 @@
 
 ## Included Node Types
 
-- Path generators: `Line Grid`, `Perlin Field`, `Circle Grid`, `Image Circles`, `Trochoid`
+- Path generators: `Line Grid`, `Perlin Field`, `Circle Grid`, `Image Circles`, `Terrain Slice`, `Trochoid`
 - Program node: one generic `Program` path generator can target any checked-in program except `node-composer`, then optionally preload one of that program’s checked-in parameter sets
 - Masks: `Circle Mask`, `Rectangle Mask`, `Polygon Mask`
 - Processing: `Mask Boolean`, `Clip Mask`, `Merge Paths`
