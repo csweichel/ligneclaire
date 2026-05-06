@@ -74,6 +74,7 @@ export type ProgramDefinition<Schema extends ParameterSchema, ProgramState = Rec
     assets?: ProgramAssetManifest;
     editor?: LazyEditorDescriptor<Schema, ProgramState>;
     defaultProgramState?: ProgramState | (() => ProgramState);
+    selectRenderProgramState?: (programState: ProgramState) => unknown;
     normalizeProgramState?: (
       input: unknown,
       ctx: Readonly<{
@@ -159,4 +160,3 @@ export function summarizeProgram<Schema extends ParameterSchema, ProgramState>(
     validationCases: program.validation?.cases ?? [],
   };
 }
-

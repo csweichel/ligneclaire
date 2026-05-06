@@ -156,6 +156,25 @@ function createDownloadName(
   return `${programId}-${slug}${suffix}`;
 }
 
+function selectRenderProgramState(
+  localProgram: LocalProgram | undefined,
+  programState: unknown
+): unknown {
+  if (!localProgram?.selectRenderProgramState) {
+    return programState;
+  }
+
+  try {
+    return localProgram.selectRenderProgramState(programState);
+  } catch (error) {
+    console.error(
+      `Failed to derive render state for program "${localProgram.id}". Falling back to full program state.`,
+      error
+    );
+    return programState;
+  }
+}
+
 export function useStudioData(): StudioModel {
   const persistenceRef = useRef(loadStudioSessionState());
   const [programs, setPrograms] = useState<readonly ProgramListItem[]>([]);
@@ -203,6 +222,24 @@ export function useStudioData(): StudioModel {
     [exportSettings.rotationDeg, programDetails?.canvas, selectedPlotter]
   );
   const dirty = current ? snapshotValue(current) !== savedSnapshot : false;
+  const previewProgramState = useMemo(
+    () =>
+      current
+        ? selectRenderProgramState(localProgram, current.programState)
+        : undefined,
+    [current?.programState, localProgram]
+  );
+  const previewRequestSnapshot = useMemo(
+    () =>
+      current && selectedProgramId
+        ? snapshotValue({
+            params: current.params,
+            programState: previewProgramState,
+            showDebug,
+          })
+        : "",
+    [current?.params, previewProgramState, selectedProgramId, showDebug]
+  );
   const transport = useGcodeTransport({
     current,
     deviceId: exportSettings.deviceId,
@@ -467,7 +504,7 @@ export function useStudioData(): StudioModel {
       {
         programId: selectedProgramId,
         params: current.params,
-        programState: current.programState,
+        programState: previewProgramState,
         showDebug,
         mode: "preview",
       },
@@ -496,7 +533,7 @@ export function useStudioData(): StudioModel {
     return () => {
       controller.abort();
     };
-  }, [current, selectedProgramId, showDebug]);
+  }, [previewRequestSnapshot, selectedProgramId]);
 
   useEffect(() => {
     setExportSettings((existing) => {

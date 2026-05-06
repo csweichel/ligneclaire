@@ -1,0 +1,153 @@
+{
+  "programId": "node-composer",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {},
+  "programState": {
+    "nodes": [
+      {
+        "id": "node-11",
+        "kind": "perlin-field",
+        "position": {
+          "x": 36,
+          "y": 42
+        },
+        "config": {
+          "centerX": 105,
+          "centerY": 148.5,
+          "width": 190,
+          "height": 277,
+          "seed": 499589,
+          "paths": 1043,
+          "segmentLength": 5.5,
+          "steps": 10,
+          "columns": 38,
+          "rows": 20,
+          "frequency": 3.9,
+          "continuousCurves": true
+        }
+      },
+      {
+        "id": "node-12",
+        "kind": "output-layer",
+        "position": {
+          "x": 1030.0518731988473,
+          "y": 360.35734870317
+        },
+        "config": {
+          "style": "primary",
+          "label": "Layer",
+          "enabled": true
+        }
+      },
+      {
+        "id": "node-14",
+        "kind": "mask-circle",
+        "position": {
+          "x": 24,
+          "y": 250.96829971181558
+        },
+        "config": {
+          "centerX": 105,
+          "centerY": 148.5,
+          "radius": 54
+        }
+      },
+      {
+        "id": "node-15",
+        "kind": "clip-mask",
+        "position": {
+          "x": 315.34870317002884,
+          "y": 181.60230547550432
+        },
+        "config": {
+          "mode": "clip"
+        }
+      },
+      {
+        "id": "node-16",
+        "kind": "trochoid",
+        "position": {
+          "x": 93.2622478386167,
+          "y": 480.5129682997118
+        },
+        "config": {
+          "centerX": 105,
+          "centerY": 148.5,
+          "useEpitrochoid": true,
+          "fixedRadius": 80,
+          "rollingRadius": 43,
+          "pointOffsetRatio": 1.16,
+          "figureRadius": 122,
+          "rotationDeg": 28,
+          "samplesPerTurn": 240
+        }
+      },
+      {
+        "id": "node-17",
+        "kind": "merge-paths",
+        "position": {
+          "x": 624.5475504322767,
+          "y": 356.11527377521617
+        },
+        "config": {}
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "nodeId": "node-11",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-15",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-14",
+          "portId": "mask"
+        },
+        "to": {
+          "nodeId": "node-15",
+          "portId": "mask"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-15",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-17",
+          "portId": "a"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-16",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-17",
+          "portId": "b"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-17",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-12",
+          "portId": "paths"
+        }
+      }
+    ],
+    "selectedNodeId": "node-17",
+    "nextNodeNumber": 19
+  },
+  "createdAt": "2026-05-06T00:00:00.000Z",
+  "updatedAt": "2026-05-06T17:36:30.425Z"
+}

@@ -25,8 +25,8 @@ type PreviewPaneProps = Readonly<{
   updateProgramState: (updater: (current: unknown) => unknown) => void;
 }>;
 
-function svgDataUrl(svg: string): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+function inlineSvgMarkup(svg: string): string {
+  return svg.replace(/^<\?xml[^>]*\?>/, "");
 }
 
 const fallbackCanvas = {
@@ -52,15 +52,83 @@ export function PreviewPane({
   const [previewSize, setPreviewSize] = useState({ width: 1, height: 1 });
   const [editorCanvasRoot, setEditorCanvasRoot] = useState<HTMLDivElement | null>(null);
   const [editorPanelRoot, setEditorPanelRoot] = useState<HTMLElement | null>(null);
+  const [editorWorkspaceRoot, setEditorWorkspaceRoot] = useState<HTMLElement | null>(null);
+  const [workspaceTabLabel, setWorkspaceTabLabel] = useState("Editor");
+  const [workspaceHasContent, setWorkspaceHasContent] = useState(false);
+  const [didAutoOpenWorkspace, setDidAutoOpenWorkspace] = useState(false);
+  const [activeEditorSurface, setActiveEditorSurface] = useState<"preview" | "workspace">(
+    "preview"
+  );
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
   const canvas = programDetails?.canvas ?? fallbackCanvas;
+  const hasInteractiveEditor = Boolean(editorComponent && current && programDetails);
+  const showEditorControls = hasInteractiveEditor && showEditor;
+  const editorCanvas = showEditorControls && programDetails ? programDetails.canvas : null;
+  const editorInstance = showEditorControls ? editorComponent : null;
+  const currentDocument = showEditorControls ? current : null;
 
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setWorkspaceHasContent(false);
+    setWorkspaceTabLabel("Editor");
+    setDidAutoOpenWorkspace(false);
+    setActiveEditorSurface("preview");
   }, [programDetails?.id]);
+
+  useEffect(() => {
+    if (!showEditorControls) {
+      setWorkspaceHasContent(false);
+      setWorkspaceTabLabel("Editor");
+      setDidAutoOpenWorkspace(false);
+      setActiveEditorSurface("preview");
+      return;
+    }
+
+    const root = editorWorkspaceRoot;
+    if (!root) {
+      return;
+    }
+
+    const syncWorkspaceState = () => {
+      const workspaceElement = root.querySelector<HTMLElement>("[data-editor-workspace='true']");
+      const hasContent = Boolean(workspaceElement);
+      setWorkspaceHasContent(hasContent);
+      setWorkspaceTabLabel(workspaceElement?.dataset.tabLabel ?? "Editor");
+      if (!hasContent) {
+        setDidAutoOpenWorkspace(false);
+        setActiveEditorSurface("preview");
+        return;
+      }
+
+      setDidAutoOpenWorkspace((alreadyOpened) => {
+        if (!alreadyOpened) {
+          setActiveEditorSurface("workspace");
+          return true;
+        }
+
+        return alreadyOpened;
+      });
+    };
+
+    syncWorkspaceState();
+
+    const observer = new MutationObserver(() => {
+      syncWorkspaceState();
+    });
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-tab-label"],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [editorWorkspaceRoot, showEditorControls]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -93,11 +161,9 @@ export function PreviewPane({
     [canvas, previewSize, zoom, pan]
   );
 
-  const hasInteractiveEditor = Boolean(editorComponent && current && programDetails);
-  const showEditorControls = hasInteractiveEditor && showEditor;
-  const editorCanvas = showEditorControls && programDetails ? programDetails.canvas : null;
-  const editorInstance = showEditorControls ? editorComponent : null;
-  const currentDocument = showEditorControls ? current : null;
+  const showWorkspaceTab = showEditorControls && workspaceHasContent;
+  const showPreviewSurface = !showWorkspaceTab || activeEditorSurface === "preview";
+  const showWorkspaceSurface = showWorkspaceTab && activeEditorSurface === "workspace";
 
   return (
     <section className="preview-pane">
@@ -190,69 +256,134 @@ export function PreviewPane({
             );
           }}
         >
-          <div
-            className="preview-paper"
-            style={{
-              left: `${previewLayout.originX}px`,
-              top: `${previewLayout.originY}px`,
-              width: `${previewLayout.paperWidth}px`,
-              height: `${previewLayout.paperHeight}px`,
-            }}
-          >
-            {svg ? (
-              <img
-                alt="Plot preview"
-                className="preview-paper__image"
-                src={svgDataUrl(svg)}
-              />
-            ) : (
-              <div className="preview-paper__placeholder">
-                {programDetails
-                  ? isRendering
-                    ? "Rendering preview..."
-                    : "Preview will appear here."
-                  : "Select a program to start rendering."}
-              </div>
-            )}
+          {showWorkspaceTab ? (
+            <div
+              aria-label="Preview surfaces"
+              className="preview-stage__tabs"
+              data-preview-control="true"
+              role="tablist"
+            >
+              <button
+                aria-selected={showPreviewSurface}
+                aria-pressed={showPreviewSurface}
+                className={cx(
+                  "preview-pane__tab",
+                  showPreviewSurface && "preview-pane__tab--active"
+                )}
+                role="tab"
+                type="button"
+                onClick={() => {
+                  setActiveEditorSurface("preview");
+                }}
+              >
+                Preview
+              </button>
+              <button
+                aria-selected={showWorkspaceSurface}
+                aria-pressed={showWorkspaceSurface}
+                className={cx(
+                  "preview-pane__tab",
+                  showWorkspaceSurface && "preview-pane__tab--active"
+                )}
+                role="tab"
+                type="button"
+                onClick={() => {
+                  setActiveEditorSurface("workspace");
+                }}
+              >
+                {workspaceTabLabel}
+              </button>
+            </div>
+          ) : null}
 
-            {showEditorControls ? (
-              <div
-                ref={setEditorCanvasRoot}
-                data-editor-root="true"
-                className="preview-paper__editor"
-              />
-            ) : null}
+          <div
+            aria-hidden={!showPreviewSurface}
+            className={cx(
+              "preview-stage__preview",
+              !showPreviewSurface && "preview-stage__preview--hidden"
+            )}
+          >
+            <div
+              className="preview-paper"
+              style={{
+                left: `${previewLayout.originX}px`,
+                top: `${previewLayout.originY}px`,
+                width: `${previewLayout.paperWidth}px`,
+                height: `${previewLayout.paperHeight}px`,
+              }}
+            >
+              {svg ? (
+                <div
+                  aria-label="Plot preview"
+                  className="preview-paper__image"
+                  dangerouslySetInnerHTML={{
+                    __html: inlineSvgMarkup(svg),
+                  }}
+                />
+              ) : (
+                <div className="preview-paper__placeholder">
+                  {programDetails
+                    ? isRendering
+                      ? "Rendering preview..."
+                      : "Preview will appear here."
+                    : "Select a program to start rendering."}
+                </div>
+              )}
+
+              {showEditorControls ? (
+                <div
+                  ref={setEditorCanvasRoot}
+                  data-editor-root="true"
+                  className="preview-paper__editor"
+                />
+              ) : null}
+            </div>
+
+            <div className="preview-stage__toolbar" data-preview-control="true">
+              <button
+                className="studio-button studio-button--compact"
+                type="button"
+                onClick={() => {
+                  setZoom((currentZoom) => Math.max(0.45, currentZoom - 0.15));
+                }}
+              >
+                -
+              </button>
+              <button
+                className="studio-button studio-button--compact"
+                type="button"
+                onClick={() => {
+                  setZoom(1);
+                  setPan({ x: 0, y: 0 });
+                }}
+              >
+                Reset view
+              </button>
+              <button
+                className="studio-button studio-button--compact"
+                type="button"
+                onClick={() => {
+                  setZoom((currentZoom) => Math.min(4.5, currentZoom + 0.15));
+                }}
+              >
+                +
+              </button>
+            </div>
           </div>
 
-          <div className="preview-stage__toolbar" data-preview-control="true">
-            <button
-              className="studio-button studio-button--compact"
-              type="button"
-              onClick={() => {
-                setZoom((currentZoom) => Math.max(0.45, currentZoom - 0.15));
-              }}
-            >
-              -
-            </button>
-            <button
-              className="studio-button studio-button--compact"
-              type="button"
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-              }}
-            >
-              Reset view
-            </button>
-            <button
-              className="studio-button studio-button--compact"
-              type="button"
-              onClick={() => {
-                setZoom((currentZoom) => Math.min(4.5, currentZoom + 0.15));
-              }}
-            >
-              +
-            </button>
+          <div
+            aria-hidden={!showWorkspaceSurface}
+            className={cx(
+              "preview-stage__workspace",
+              showWorkspaceSurface && "preview-stage__workspace--active",
+              showWorkspaceTab && "preview-stage__workspace--with-tabs"
+            )}
+            data-preview-control="true"
+          >
+            <div
+              ref={setEditorWorkspaceRoot}
+              className="preview-stage__workspace-root"
+            />
           </div>
         </div>
 
@@ -273,6 +404,7 @@ export function PreviewPane({
           current={currentDocument}
           panelRoot={editorPanelRoot}
           preview={previewLayout.bridge}
+          workspaceRoot={editorWorkspaceRoot}
           updateParam={updateParam}
           updateProgramState={updateProgramState}
         />
@@ -288,6 +420,7 @@ type EditorHostProps = Readonly<{
   current: CurrentDocumentState;
   panelRoot: HTMLElement | null;
   preview: AnyEditorProps["preview"];
+  workspaceRoot: HTMLElement | null;
   updateParam: (key: string, value: number | boolean) => void;
   updateProgramState: (updater: (current: unknown) => unknown) => void;
 }>;
@@ -299,6 +432,7 @@ function EditorHost({
   current,
   panelRoot,
   preview,
+  workspaceRoot,
   updateParam,
   updateProgramState,
 }: EditorHostProps) {
@@ -306,6 +440,7 @@ function EditorHost({
     <ProgramEditorSurfacesProvider
       canvasRoot={canvasRoot}
       panelRoot={panelRoot}
+      workspaceRoot={workspaceRoot}
     >
       <EditorComponent
         canvas={canvas}

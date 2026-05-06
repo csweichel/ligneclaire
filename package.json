@@ -19,7 +19,8 @@
     "@ligneclaire/engine": "workspace:*",
     "@ligneclaire/node-runtime": "workspace:*",
     "@ligneclaire/sdk": "workspace:*",
-    "@ligneclaire/ui": "workspace:*"
+    "@ligneclaire/ui": "workspace:*",
+    "@xyflow/react": "12.10.2"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
