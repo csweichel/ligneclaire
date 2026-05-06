@@ -1,6 +1,7 @@
 export * from "./document";
 export * from "./clip";
 export * from "./contour";
+export * from "./deform";
 export * from "./field";
 export * from "./geometry";
 export * from "./image";

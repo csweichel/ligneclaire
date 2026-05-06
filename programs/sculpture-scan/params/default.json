@@ -1,0 +1,19 @@
+{
+  "programId": "sculpture-scan",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "seed": 700775,
+    "lineSpacing": 0.85,
+    "sampleStep": 0.5,
+    "relief": 13.8,
+    "features": 24,
+    "featureRadius": 57.5,
+    "stretch": 1.3,
+    "detail": 0.6,
+    "warp": 0.99
+  },
+  "programState": {},
+  "createdAt": "2026-05-06T00:00:00.000Z",
+  "updatedAt": "2026-05-06T18:37:54.880Z"
+}
