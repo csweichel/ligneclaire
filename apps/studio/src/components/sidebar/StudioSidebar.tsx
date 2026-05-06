@@ -158,7 +158,7 @@ export function StudioSidebar({ studio }: StudioSidebarProps) {
           )}
         </div>
 
-        <details className="studio-sidebar__details" open>
+        <details className="studio-sidebar__details studio-sidebar__details--status" open>
           <summary>Status</summary>
           <div className="studio-sidebar__details-body">
             {studio.programDetails ? (

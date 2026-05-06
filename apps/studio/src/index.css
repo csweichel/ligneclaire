@@ -725,6 +725,12 @@ body {
   overflow: hidden;
 }
 
+.studio-sidebar__details--status {
+  max-height: min(34vh, 18rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .studio-sidebar__details summary {
   cursor: pointer;
   list-style: none;
@@ -744,6 +750,12 @@ body {
   padding: 0 12px 12px;
   display: grid;
   gap: 8px;
+}
+
+.studio-sidebar__details--status .studio-sidebar__details-body {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 8px;
 }
 
 .studio-sidebar__meta-grid {
