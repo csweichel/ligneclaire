@@ -8,6 +8,12 @@ Local-first creative coding framework for pen plotters.
 
 The repo is organized around a shared TypeScript engine, a thin Node runtime/CLI, a Vite + React studio, and checked-in plot programs under `programs/`. The canonical product contract lives in [spec.md](/workspaces/ligneclaire/spec.md).
 
+## Best In Ona
+
+LigneClaire is best run in Ona. The checked-in Dev Container and Ona automation start the studio stack in a reproducible environment and expose the browser workspace with the intended port and access settings.
+
+[![Build with Ona](https://ona.com/build-with-ona.svg)](https://app.ona.com/#https://github.com/csweichel/ligneclaire)
+
 ## Workspace
 
 - `apps/studio`: React + Vite + Tailwind studio UI.
