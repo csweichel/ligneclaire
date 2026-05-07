@@ -171,7 +171,8 @@ export function NodeComposerGraph({
           <h3 className="lc-editor-overlay__title">Signal Flow</h3>
         </div>
         <p className="lc-node-composer__section-note">
-          Click a source handle, then a target handle to connect. Click an edge to remove it.
+          Click a source handle, then a target handle to connect. Outputs can fan out to multiple
+          downstream inputs. Click an edge to remove it.
         </p>
       </div>
 

@@ -6,227 +6,229 @@
   "programState": {
     "nodes": [
       {
-        "id": "node-1",
-        "kind": "line-grid",
+        "id": "node-11",
+        "kind": "program",
         "position": {
           "x": 36,
-          "y": 112
+          "y": 160.88033881065735
+        },
+        "config": {
+          "programId": "terrain-slices",
+          "paramSetId": "",
+          "seed": 2812,
+          "contourLevels": 12,
+          "planeSize": 120,
+          "terrainOffsetX": -21.5,
+          "terrainOffsetY": -12.5,
+          "mountainScale": 0.77,
+          "height": 20.5,
+          "roughness": 0.62,
+          "waterLevel": 0.42,
+          "hatchSpacing": 0.88,
+          "waterSpacing": 0.62
+        }
+      },
+      {
+        "id": "node-12",
+        "kind": "mask-circle",
+        "position": {
+          "x": 42.819828786665,
+          "y": 349.9143098185394
         },
         "config": {
           "centerX": 105,
           "centerY": 148.5,
-          "width": 164,
-          "height": 222,
-          "spacing": 7.5,
-          "angleDeg": 30
+          "radius": 54
         }
       },
       {
-        "id": "node-2",
-        "kind": "mask-circle",
-        "position": {
-          "x": 330,
-          "y": 42
-        },
-        "config": {
-          "centerX": 82,
-          "centerY": 176,
-          "radius": 62
-        }
-      },
-      {
-        "id": "node-3",
-        "kind": "mask-polygon",
-        "position": {
-          "x": 330,
-          "y": 202
-        },
-        "config": {
-          "centerX": 136,
-          "centerY": 124,
-          "radius": 48,
-          "sides": 6,
-          "rotationDeg": 12
-        }
-      },
-      {
-        "id": "node-4",
-        "kind": "mask-boolean",
-        "position": {
-          "x": 598,
-          "y": 122
-        },
-        "config": {
-          "operation": "union"
-        }
-      },
-      {
-        "id": "node-5",
+        "id": "node-14",
         "kind": "clip-mask",
         "position": {
-          "x": 842,
-          "y": 122
+          "x": 525.3195226999118,
+          "y": 198.26469295284176
         },
         "config": {
           "mode": "clip"
         }
       },
       {
-        "id": "node-6",
+        "id": "node-15",
+        "kind": "clip-mask",
+        "position": {
+          "x": 540.2677960355245,
+          "y": 530.875264695826
+        },
+        "config": {
+          "mode": "exclude"
+        }
+      },
+      {
+        "id": "node-16",
+        "kind": "program",
+        "position": {
+          "x": 36.35292393712234,
+          "y": 493.223114518117
+        },
+        "config": {
+          "programId": "waves",
+          "paramSetId": "density",
+          "seed": 71765,
+          "bands": 180,
+          "amplitude": 40,
+          "frequency": 8,
+          "warp": 2,
+          "mirror": true
+        }
+      },
+      {
+        "id": "node-17",
+        "kind": "merge-paths",
+        "position": {
+          "x": 868.6035265960045,
+          "y": 357.74235219413777
+        },
+        "config": {}
+      },
+      {
+        "id": "node-18",
         "kind": "output-layer",
         "position": {
-          "x": 1102,
-          "y": 122
+          "x": 1180.7526469582608,
+          "y": 365.9086659330364
         },
         "config": {
           "style": "primary",
-          "label": "Masked Grid",
+          "label": "Layer",
           "enabled": true
         }
       },
       {
-        "id": "node-7",
-        "kind": "perlin-field",
+        "id": "node-19",
+        "kind": "path-transform",
         "position": {
-          "x": 36,
-          "y": 372
+          "x": 358.4962264581982,
+          "y": 24
         },
         "config": {
-          "centerX": 152,
-          "centerY": 80,
-          "width": 86,
-          "height": 86,
-          "seed": 9051,
-          "paths": 140,
-          "segmentLength": 2.25,
-          "steps": 10,
-          "columns": 20,
-          "rows": 20,
-          "frequency": 2.85,
-          "continuousCurves": true
+          "translateX": 9,
+          "translateY": -15,
+          "scaleX": 2.1,
+          "scaleY": 2.15,
+          "rotationDeg": 0
         }
       },
       {
-        "id": "node-8",
-        "kind": "output-layer",
+        "id": "node-21",
+        "kind": "path-transform",
         "position": {
-          "x": 1102,
-          "y": 372
+          "x": 1127.9796210479371,
+          "y": 580.4388540121455
         },
         "config": {
-          "style": "accent",
-          "label": "Perlin Field",
-          "enabled": true
-        }
-      },
-      {
-        "id": "node-9",
-        "kind": "trochoid",
-        "position": {
-          "x": 598,
-          "y": 372
-        },
-        "config": {
-          "centerX": 94,
-          "centerY": 84,
-          "useEpitrochoid": true,
-          "fixedRadius": 72,
-          "rollingRadius": 18,
-          "pointOffsetRatio": 1.15,
-          "figureRadius": 34,
-          "rotationDeg": 18,
-          "samplesPerTurn": 220
-        }
-      },
-      {
-        "id": "node-10",
-        "kind": "output-layer",
-        "position": {
-          "x": 1102,
-          "y": 522
-        },
-        "config": {
-          "style": "mask",
-          "label": "Trochoid",
-          "enabled": true
+          "translateX": 0,
+          "translateY": 0,
+          "scaleX": 1.5,
+          "scaleY": 1.5,
+          "rotationDeg": -90
         }
       }
     ],
     "connections": [
       {
         "from": {
-          "nodeId": "node-1",
-          "portId": "paths"
+          "nodeId": "node-12",
+          "portId": "mask"
         },
         "to": {
-          "nodeId": "node-5",
-          "portId": "paths"
+          "nodeId": "node-14",
+          "portId": "mask"
         }
       },
       {
         "from": {
-          "nodeId": "node-2",
+          "nodeId": "node-12",
           "portId": "mask"
         },
         "to": {
-          "nodeId": "node-4",
+          "nodeId": "node-15",
+          "portId": "mask"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-14",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-17",
           "portId": "a"
         }
       },
       {
         "from": {
-          "nodeId": "node-3",
-          "portId": "mask"
+          "nodeId": "node-15",
+          "portId": "paths"
         },
         "to": {
-          "nodeId": "node-4",
+          "nodeId": "node-17",
           "portId": "b"
         }
       },
       {
         "from": {
-          "nodeId": "node-4",
-          "portId": "mask"
-        },
-        "to": {
-          "nodeId": "node-5",
-          "portId": "mask"
-        }
-      },
-      {
-        "from": {
-          "nodeId": "node-5",
+          "nodeId": "node-11",
           "portId": "paths"
         },
         "to": {
-          "nodeId": "node-6",
+          "nodeId": "node-19",
           "portId": "paths"
         }
       },
       {
         "from": {
-          "nodeId": "node-7",
+          "nodeId": "node-19",
           "portId": "paths"
         },
         "to": {
-          "nodeId": "node-8",
+          "nodeId": "node-14",
           "portId": "paths"
         }
       },
       {
         "from": {
-          "nodeId": "node-9",
+          "nodeId": "node-16",
           "portId": "paths"
         },
         "to": {
-          "nodeId": "node-10",
+          "nodeId": "node-15",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-17",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-21",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-21",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-18",
           "portId": "paths"
         }
       }
     ],
-    "selectedNodeId": "node-1",
-    "nextNodeNumber": 11
+    "selectedNodeId": "node-21",
+    "nextNodeNumber": 22
   },
   "createdAt": "2026-05-06T19:30:48.889Z",
-  "updatedAt": "2026-05-06T19:30:54.984Z"
+  "updatedAt": "2026-05-07T06:58:15.129Z"
 }

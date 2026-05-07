@@ -78,6 +78,7 @@ type BuiltInNodeKind =
   | "mask-polygon"
   | "mask-boolean"
   | "clip-mask"
+  | "path-transform"
   | "merge-paths"
   | "output-layer";
 export type NodeKind = BuiltInNodeKind;
@@ -971,6 +972,59 @@ const builtInNodeSpecs = {
       }),
     ],
   },
+  "path-transform": {
+    kind: "path-transform",
+    title: "Path Transform",
+    summary: "Translate, scale, and rotate a path stream around its shared bounds center.",
+    category: "process",
+    inputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [
+      floatField({
+        key: "translateX",
+        label: "Move X",
+        min: -contentWidth,
+        max: contentWidth,
+        defaultValue: 0,
+        step: 0.5,
+        unit: "mm",
+      }),
+      floatField({
+        key: "translateY",
+        label: "Move Y",
+        min: -contentHeight,
+        max: contentHeight,
+        defaultValue: 0,
+        step: 0.5,
+        unit: "mm",
+      }),
+      floatField({
+        key: "scaleX",
+        label: "Scale X",
+        min: 0.1,
+        max: 4,
+        defaultValue: 1,
+        step: 0.05,
+      }),
+      floatField({
+        key: "scaleY",
+        label: "Scale Y",
+        min: 0.1,
+        max: 4,
+        defaultValue: 1,
+        step: 0.05,
+      }),
+      floatField({
+        key: "rotationDeg",
+        label: "Rotation",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 1,
+        unit: "deg",
+      }),
+    ],
+  },
   "merge-paths": {
     kind: "merge-paths",
     title: "Merge Paths",
@@ -1351,6 +1405,13 @@ function normalizePersistedNodeKind(
     };
   }
 
+  if (rawKind === "path-scale") {
+    return {
+      kind: "path-transform",
+      config: candidate.config,
+    };
+  }
+
   if (rawKind.startsWith("program:")) {
     const programId = rawKind.slice("program:".length);
     if (!getEmbeddedProgram(programId)) {
@@ -1478,6 +1539,96 @@ function reversePath(path: Polyline): Polyline {
     ...path,
     points: [...path.points].reverse(),
   };
+}
+
+function polylineBounds(polyline: Polyline): Bounds | null {
+  if (polyline.points.length === 0) {
+    return null;
+  }
+
+  const xs = polyline.points.map((point) => point.x);
+  const ys = polyline.points.map((point) => point.y);
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+function pathSetBounds(paths: readonly Polyline[]): Bounds | null {
+  let combinedBounds: Bounds | null = null;
+
+  for (const path of paths) {
+    const bounds = polylineBounds(path);
+    if (!bounds) {
+      continue;
+    }
+
+    combinedBounds = combinedBounds ? unionBounds(combinedBounds, bounds) : bounds;
+  }
+
+  return combinedBounds;
+}
+
+function rotatePoint(point: Point, radians: number): Point {
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+
+  return {
+    x: point.x * cosine - point.y * sine,
+    y: point.x * sine + point.y * cosine,
+  };
+}
+
+function transformPolyline(
+  polyline: Polyline,
+  center: Point,
+  transform: Readonly<{
+    translateX: number;
+    translateY: number;
+    scaleX: number;
+    scaleY: number;
+    rotationDeg: number;
+  }>
+): Polyline {
+  const rotationRadians = (transform.rotationDeg / 180) * Math.PI;
+
+  return {
+    ...polyline,
+    points: polyline.points.map((point) => {
+      const local = {
+        x: (point.x - center.x) * transform.scaleX,
+        y: (point.y - center.y) * transform.scaleY,
+      };
+      const rotated = rotatePoint(local, rotationRadians);
+
+      return {
+        x: center.x + rotated.x + transform.translateX,
+        y: center.y + rotated.y + transform.translateY,
+      };
+    }),
+  };
+}
+
+function transformPathsAroundCenter(
+  paths: readonly Polyline[],
+  transform: Readonly<{
+    translateX: number;
+    translateY: number;
+    scaleX: number;
+    scaleY: number;
+    rotationDeg: number;
+  }>
+): readonly Polyline[] {
+  const bounds = pathSetBounds(paths);
+  if (!bounds) {
+    return [];
+  }
+
+  const center = boundsCenter(bounds);
+  return paths.map((path) => transformPolyline(path, center, transform));
 }
 
 function clipPathsToContent(paths: readonly Polyline[]): readonly Polyline[] {
@@ -2137,6 +2288,26 @@ function evaluateNodeOutputs(
       paths: {
         kind: "paths",
         paths: maskValue?.kind === "mask" ? applyMaskToPaths(paths, maskValue.mask, mode) : paths,
+      },
+    };
+  }
+
+  if (node.kind === "path-transform") {
+    const input = resolveNodeInput(node, "paths", "paths", context, evaluateNode);
+    const paths = input?.kind === "paths" ? input.paths : [];
+
+    return {
+      paths: {
+        kind: "paths",
+        paths: clipPathsToContent(
+          transformPathsAroundCenter(paths, {
+            translateX: Number(node.config.translateX ?? 0),
+            translateY: Number(node.config.translateY ?? 0),
+            scaleX: Number(node.config.scaleX ?? 1),
+            scaleY: Number(node.config.scaleY ?? 1),
+            rotationDeg: Number(node.config.rotationDeg ?? 0),
+          })
+        ),
       },
     };
   }

@@ -7,7 +7,7 @@
 - Path generators: `Line Grid`, `Perlin Field`, `Circle Grid`, `Image Circles`, `Terrain Slice`, `Trochoid`
 - Program node: one generic `Program` path generator can target any checked-in program except `node-composer`, then optionally preload one of that program’s checked-in parameter sets
 - Masks: `Circle Mask`, `Rectangle Mask`, `Polygon Mask`
-- Processing: `Mask Boolean`, `Clip Mask`, `Merge Paths`
+- Processing: `Mask Boolean`, `Clip Mask`, `Path Transform`, `Merge Paths`
 - Output: `Output Layer`
 
 ## Current Model

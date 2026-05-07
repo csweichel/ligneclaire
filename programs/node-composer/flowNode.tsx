@@ -50,6 +50,8 @@ export function ComposerFlowNode(props: NodeProps<ComposerFlowNodeType>): JSX.El
                     <Handle
                       className={`lc-node-composer__flow-handle${input.sourceLabel ? " lc-node-composer__flow-handle--connected" : ""}`}
                       id={input.id}
+                      isConnectableEnd
+                      isConnectableStart={false}
                       position={Position.Left}
                       type="target"
                     />
@@ -75,6 +77,8 @@ export function ComposerFlowNode(props: NodeProps<ComposerFlowNodeType>): JSX.El
                     <Handle
                       className={`lc-node-composer__flow-handle${output.connectionCount > 0 ? " lc-node-composer__flow-handle--connected" : ""}`}
                       id={output.id}
+                      isConnectableEnd={false}
+                      isConnectableStart
                       position={Position.Right}
                       type="source"
                     />

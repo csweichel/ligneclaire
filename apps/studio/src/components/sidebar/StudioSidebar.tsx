@@ -86,7 +86,7 @@ export function StudioSidebar({ studio }: StudioSidebarProps) {
               className="studio-button"
               type="button"
               onClick={() => {
-                void studio.createFromDefaults();
+                void studio.createFromCurrent();
               }}
             >
               New

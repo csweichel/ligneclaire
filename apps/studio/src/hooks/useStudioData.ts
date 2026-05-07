@@ -762,23 +762,29 @@ export function useStudioData(): StudioModel {
     }
   }
 
-  async function createFromDefaults(): Promise<void> {
-    if (!selectedProgramId) {
+  async function createFromCurrent(): Promise<void> {
+    if (!selectedProgramId || !current) {
       return;
     }
 
     try {
-      const nextName = createUniqueName("Untitled", paramSetList.items);
+      const nextName = createUniqueName(current.name.trim() || "Untitled", paramSetList.items);
       const created = await apiSend<CreateParamSetRequest, LoadedParamSet>(
         `/api/programs/${selectedProgramId}/params`,
         "POST",
-        { name: nextName }
+        {
+          name: nextName,
+          params: current.params,
+          programState: current.programState,
+        }
       );
 
+      clearStoredDraft(selectedProgramId, current.slug);
+      clearStoredDraft(selectedProgramId, created.slug);
       await refreshParamSets(created.slug);
       setStatus({
         tone: "success",
-        message: `Created "${created.name}".`,
+        message: `Created "${created.name}" from the current values.`,
       });
     } catch (error) {
       setStatus({
@@ -967,7 +973,7 @@ export function useStudioData(): StudioModel {
     setExportOversizeHandling,
     saveCurrent,
     duplicateCurrent,
-    createFromDefaults,
+    createFromCurrent,
     resetToDefaults,
     deleteCurrent,
     exportRawSvg,

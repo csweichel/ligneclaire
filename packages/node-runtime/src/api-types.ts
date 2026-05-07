@@ -188,6 +188,8 @@ export type ValidationReport = Readonly<{
 export type CreateParamSetRequest = Readonly<{
   name: string;
   sourceSlug?: string;
+  params?: Readonly<Record<string, unknown>>;
+  programState?: unknown;
 }>;
 
 export type SaveParamSetRequest = Readonly<{

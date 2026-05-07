@@ -18,6 +18,7 @@ import { program as isometricRibbonsProgram } from "../isometric-ribbons/index";
 import { program as logoProgram } from "../logo/index";
 import { program as referencePosterProgram } from "../reference-poster/index";
 import { program as sculptureScanProgram } from "../sculpture-scan/index";
+import { program as terrainSlicesProgram } from "../terrain-slices/index";
 import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as trochoidProgram } from "../trochoid/index";
 import { program as wavesProgram } from "../waves/index";
@@ -259,6 +260,29 @@ export const nodeComposerProgramRegistry = [
             "stretch": 1.3,
             "detail": 0.6,
             "warp": 0.99
+          },
+        programState: {}
+      }
+    ]
+  },
+  {
+    program: terrainSlicesProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "seed": 760699,
+            "contourLevels": 17,
+            "planeSize": 80,
+            "terrainOffsetX": -9,
+            "terrainOffsetY": -5,
+            "mountainScale": 0.46,
+            "height": 11,
+            "roughness": 0.95,
+            "waterLevel": 0,
+            "hatchSpacing": 0.96,
+            "waterSpacing": 1.5
           },
         programState: {}
       }

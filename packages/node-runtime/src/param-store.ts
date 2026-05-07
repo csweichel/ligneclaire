@@ -236,6 +236,15 @@ export async function createParamSet(
     request.sourceSlug !== undefined
       ? await loadParamSet(programId, request.sourceSlug)
       : null;
+  const normalized = normalizeParams(
+    program.params,
+    request.params ?? source?.params ?? defaultsFromSchema(program.params)
+  );
+  const programState = resolveProgramState(
+    program,
+    normalized.params,
+    request.programState !== undefined ? request.programState : source?.programState
+  );
 
   const slug = await ensureUniqueSlug(programId, slugify(name));
   const createdAt = nowIso();
@@ -244,8 +253,8 @@ export async function createParamSet(
     programId: program.id,
     programVersion: program.version,
     name,
-    params: source?.params ?? defaultsFromSchema(program.params),
-    programState: source?.programState ?? resolveProgramState(program, normalizeParams(program.params, {}).params, undefined),
+    params: normalized.params,
+    programState,
     createdAt,
     updatedAt: createdAt,
   };

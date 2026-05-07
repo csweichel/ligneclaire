@@ -2,11 +2,14 @@ import {
   calculateDocumentMetrics,
   contentBounds,
   plotPalette,
+  type Polyline,
 } from "@ligneclaire/sdk";
 import { describe, expect, it } from "vitest";
 import { expectDeterministicProgramRender, renderProgramCase } from "../../test-helpers";
 import { program } from "../index";
 import {
+  canConnectNodes,
+  connectNodes,
   moveNode,
   normalizeNodeComposerProgramState,
   selectComposerNode,
@@ -14,6 +17,26 @@ import {
   type NodeComposerProgramState,
 } from "../model";
 import defaultSet from "../params/default.json";
+
+function pathBounds(paths: readonly Polyline[]) {
+  const points = paths.flatMap((path) => path.points);
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+function boundsCenter(bounds: ReturnType<typeof pathBounds>) {
+  return {
+    x: (bounds.minX + bounds.maxX) * 0.5,
+    y: (bounds.minY + bounds.maxY) * 0.5,
+  };
+}
 
 describe("node-composer program", () => {
   it("renders deterministically from the checked-in default parameter set", () => {
@@ -127,6 +150,40 @@ describe("node-composer program", () => {
       kind: "program",
       config: {
         programId: "waves",
+      },
+    });
+  });
+
+  it("loads legacy path-scale nodes as path-transform", () => {
+    const normalized = normalizeNodeComposerProgramState({
+      nodes: [
+        {
+          id: "node-a",
+          kind: "path-scale",
+          position: {
+            x: 320,
+            y: 240,
+          },
+          config: {
+            scaleX: 0.5,
+            scaleY: 0.75,
+          },
+        },
+      ],
+      connections: [],
+      selectedNodeId: "node-a",
+      nextNodeNumber: 2,
+    });
+
+    expect(normalized.nodes).toHaveLength(1);
+    expect(normalized.nodes[0]).toMatchObject({
+      kind: "path-transform",
+      config: {
+        translateX: 0,
+        translateY: 0,
+        scaleX: 0.5,
+        scaleY: 0.75,
+        rotationDeg: 0,
       },
     });
   });
@@ -269,6 +326,202 @@ describe("node-composer program", () => {
     expect(document.layers[1]!.stroke).toBe(plotPalette.accent);
     expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
     expect(document.layers[1]!.paths.length).toBe(1);
+  });
+
+  it("lets one output feed multiple downstream layers", () => {
+    const baseState: NodeComposerProgramState = {
+      nodes: [
+        {
+          id: "node-1",
+          kind: "line-grid",
+          position: { x: 40, y: 40 },
+          config: {
+            centerX: 105,
+            centerY: 148.5,
+            width: 150,
+            height: 200,
+            spacing: 8,
+            angleDeg: 45,
+          },
+        },
+        {
+          id: "node-2",
+          kind: "output-layer",
+          position: { x: 1020, y: 110 },
+          config: {
+            label: "Primary Layer",
+            style: "primary",
+            enabled: true,
+          },
+        },
+        {
+          id: "node-3",
+          kind: "output-layer",
+          position: { x: 1020, y: 280 },
+          config: {
+            label: "Accent Layer",
+            style: "accent",
+            enabled: true,
+          },
+        },
+      ],
+      connections: [
+        {
+          from: { nodeId: "node-1", portId: "paths" },
+          to: { nodeId: "node-2", portId: "paths" },
+        },
+      ],
+      selectedNodeId: "node-1",
+      nextNodeNumber: 4,
+    };
+    const secondConnection = {
+      from: { nodeId: "node-1", portId: "paths" },
+      to: { nodeId: "node-3", portId: "paths" },
+    } as const;
+
+    expect(canConnectNodes(baseState, secondConnection)).toBe(true);
+
+    const nextState = connectNodes(baseState, secondConnection);
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: nextState,
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(nextState.connections).toHaveLength(2);
+    expect(
+      nextState.connections.filter(
+        (connection) =>
+          connection.from.nodeId === "node-1" && connection.from.portId === "paths"
+      )
+    ).toHaveLength(2);
+    expect(document.layers).toHaveLength(2);
+    expect(document.layers[0]!.stroke).toBe(plotPalette.primary);
+    expect(document.layers[1]!.stroke).toBe(plotPalette.accent);
+    expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
+    expect(document.layers[0]!.paths.length).toBe(document.layers[1]!.paths.length);
+  });
+
+  it("transforms path streams with translate, scale, and rotate", () => {
+    const baseState: NodeComposerProgramState = {
+      nodes: [
+        {
+          id: "node-1",
+          kind: "line-grid",
+          position: { x: 40, y: 40 },
+          config: {
+            centerX: 105,
+            centerY: 148.5,
+            width: 120,
+            height: 160,
+            spacing: 10,
+            angleDeg: 0,
+          },
+        },
+        {
+          id: "node-2",
+          kind: "output-layer",
+          position: { x: 1020, y: 110 },
+          config: {
+            label: "Base",
+            style: "primary",
+            enabled: true,
+          },
+        },
+      ],
+      connections: [
+        {
+          from: { nodeId: "node-1", portId: "paths" },
+          to: { nodeId: "node-2", portId: "paths" },
+        },
+      ],
+      selectedNodeId: "node-1",
+      nextNodeNumber: 3,
+    };
+    const scaledState: NodeComposerProgramState = {
+      nodes: [
+        baseState.nodes[0]!,
+        {
+          id: "node-2",
+          kind: "path-transform",
+          position: { x: 560, y: 110 },
+          config: {
+            translateX: 18,
+            translateY: -12,
+            scaleX: 0.5,
+            scaleY: 0.75,
+            rotationDeg: 90,
+          },
+        },
+        {
+          id: "node-3",
+          kind: "output-layer",
+          position: { x: 1020, y: 110 },
+          config: {
+            label: "Scaled",
+            style: "primary",
+            enabled: true,
+          },
+        },
+      ],
+      connections: [
+        {
+          from: { nodeId: "node-1", portId: "paths" },
+          to: { nodeId: "node-2", portId: "paths" },
+        },
+        {
+          from: { nodeId: "node-2", portId: "paths" },
+          to: { nodeId: "node-3", portId: "paths" },
+        },
+      ],
+      selectedNodeId: "node-2",
+      nextNodeNumber: 4,
+    };
+
+    const baseDocument = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: baseState,
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+    const scaledDocument = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: scaledState,
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+    const baseBounds = pathBounds(baseDocument.layers[0]!.paths);
+    const scaledBounds = pathBounds(scaledDocument.layers[0]!.paths);
+    const baseCenter = boundsCenter(baseBounds);
+    const scaledCenter = boundsCenter(scaledBounds);
+
+    expect(scaledDocument.layers[0]!.paths).toHaveLength(baseDocument.layers[0]!.paths.length);
+    expect(scaledCenter.x).toBeCloseTo(baseCenter.x + 18, 3);
+    expect(scaledCenter.y).toBeCloseTo(baseCenter.y - 12, 3);
+    expect(scaledBounds.maxX - scaledBounds.minX).toBeCloseTo(
+      (baseBounds.maxY - baseBounds.minY) * 0.75,
+      3
+    );
+    expect(scaledBounds.maxY - scaledBounds.minY).toBeCloseTo(
+      (baseBounds.maxX - baseBounds.minX) * 0.5,
+      3
+    );
   });
 
   it("uses standalone programs as path-generating nodes", () => {
