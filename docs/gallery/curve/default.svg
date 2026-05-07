@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="tiny" height="29.70001604cm" version="1.2" viewBox="0 0 793.7012159999999 1122.5202912" width="21.00001134cm">
+  <metadata>
+    <rdf:RDF>
+      <cc:Work>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:source>vpype read /tmp/ligneclaire-svg-7Xf8EF/input.svg linemerge linesimplify reloop linesort write /workspaces/ligneclaire/docs/gallery/curve/default.svg
+</dc:source>
+        <dc:date>2026-05-07T07:16:11.696388</dc:date>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs/>
+  <g fill="none" id="layer1" inkscape:groupmode="layer" inkscape:label="1" stroke="#526a7a" stroke-width="1.3228" style="display:inline">
+    <polyline points="217.323,561.2601 224.5041,496.1698 231.6852,435.1697 238.8663,382.0919 242.4568,359.592 246.0474,340.2722 249.6379,324.4375 253.2285,312.3377 256.819,304.1637 260.4096,300.044 264.0001,300.044 267.5907,304.1637 271.1812,312.3377 274.7718,324.4375 278.3624,340.2722 281.9529,359.592 285.5435,382.0919 292.7246,435.1697 299.9057,496.1698 317.8584,657.6102 325.0395,715.1025 328.6301,740.4284 332.2207,762.9283 335.8112,782.2481 339.4018,798.0828 342.9923,810.1826 346.5829,818.3566 350.1734,822.4763 353.764,822.4763 357.3545,818.3566 360.9451,810.1826 364.5356,798.0828 368.1262,782.2481 371.7167,762.9283 375.3073,740.4284 382.4884,687.3505 389.6695,626.3504 407.6223,464.9101 414.8034,407.4178 418.3939,382.0919 421.9845,359.592 425.575,340.2722 429.1656,324.4375 432.7561,312.3377 436.3467,304.1637 439.9372,300.044 443.5278,300.044 447.1184,304.1637 450.7089,312.3377 454.2995,324.4375 457.89,340.2722 461.4806,359.592 465.0711,382.0919 472.2522,435.1697 479.4333,496.1698 497.3861,657.6102 504.5672,715.1025 508.1578,740.4284 511.7483,762.9283 515.3389,782.2481 518.9294,798.0828 522.52,810.1826 526.1105,818.3566 529.7011,822.4763 533.2916,822.4763 536.8822,818.3566 540.4727,810.1826 544.0633,798.0828 547.6538,782.2481 551.2444,762.9283 554.8349,740.4284 562.0161,687.3505 569.1972,626.3504 576.3783,561.2601"/>
+  </g>
+  <g fill="none" id="layer2" inkscape:groupmode="layer" inkscape:label="2" stroke="#d98a7a" stroke-width="1.3228" style="display:inline">
+    <polygon points="217.323,822.9926 576.3783,822.9926 576.3783,299.5277 217.323,299.5277"/>
+  </g>
+</svg>

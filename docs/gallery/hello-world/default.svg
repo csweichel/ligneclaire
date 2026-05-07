@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="tiny" height="29.70001604cm" version="1.2" viewBox="0 0 793.7012159999999 1122.5202912" width="21.00001134cm">
+  <metadata>
+    <rdf:RDF>
+      <cc:Work>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:source>vpype read /tmp/ligneclaire-svg-YkQQND/input.svg linemerge linesimplify reloop linesort write /workspaces/ligneclaire/docs/gallery/hello-world/default.svg
+</dc:source>
+        <dc:date>2026-05-07T07:16:17.418435</dc:date>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs/>
+  <g fill="none" id="layer1" inkscape:groupmode="layer" inkscape:label="1" stroke="#526a7a" stroke-width="1.3228" style="display:inline">
+    <polyline points="347.9246,37.7953 37.7953,1084.725 340.0779,37.7953"/>
+    <polyline points="346.5111,37.7953 37.7953,1084.725 352.3757,37.7953"/>
+    <polyline points="351.98,37.7953 37.7953,1084.725 350.2286,37.7953"/>
+    <polyline points="354.8041,37.7953 37.7953,1084.725 361.1458,37.7953"/>
+    <polyline points="363.1024,37.7953 37.7953,1084.725 366.7236,37.7953"/>
+    <polyline points="377.448,37.7953 37.7953,1084.725 386.0472,37.7953"/>
+    <polyline points="392.4233,37.7953 37.7953,1084.725 396.4284,37.7953"/>
+    <polyline points="402.5157,37.7953 37.7953,1084.725 418.8547,37.7953"/>
+    <polyline points="446.0325,37.7953 37.7953,1084.725 451.5517,37.7953"/>
+    <polyline points="472.5357,37.7953 37.7953,1084.725 476.2623,37.7953"/>
+    <polyline points="507.8924,37.7953 37.7953,1084.725 524.3194,37.7953"/>
+    <polyline points="567.9586,37.7953 37.7953,1084.725 584.9801,37.7953"/>
+    <polyline points="626.2378,37.7953 37.7953,1084.725 646.5913,37.7953"/>
+    <polyline points="698.9877,37.7953 37.7953,1084.725 755.9059,53.1568"/>
+    <polyline points="755.9059,105.7082 37.7953,1084.725 755.9059,174.688"/>
+    <polyline points="755.9059,236.4689 37.7953,1084.725 755.9059,337.6904"/>
+    <polyline points="755.9059,388.4752 37.7953,1084.725 755.9059,402.2659"/>
+    <polyline points="755.9059,535.5389 37.7953,1084.725 755.9059,552.8692"/>
+    <polyline points="755.9059,645.7485 37.7953,1084.725 755.9059,679.7779"/>
+    <polyline points="755.9059,753.6896 37.7953,1084.725 755.9059,778.6685"/>
+    <polyline points="755.9059,873.0861 37.7953,1084.725 755.9059,893.4196"/>
+    <polyline points="755.9059,901.4994 37.7953,1084.725 755.9059,960.0916"/>
+    <polyline points="755.9059,966.3702 37.7953,1084.725 755.9059,1059.8954"/>
+    <line x1="755.9059" x2="37.7953" y1="1073.9938" y2="1084.725"/>
+  </g>
+  <g fill="none" id="layer2" inkscape:groupmode="layer" inkscape:label="2" stroke="#d98a7a" stroke-width="1.3228" style="display:inline">
+    <polyline points="447.9986,37.7953 755.9059,1084.725 454.7572,37.7953"/>
+    <polyline points="454.9601,37.7953 755.9059,1084.725 443.03,37.7953"/>
+    <polyline points="443.4609,37.7953 755.9059,1084.725 440.3991,37.7953"/>
+    <polyline points="436.428,37.7953 755.9059,1084.725 451.2807,37.7953"/>
+    <polyline points="434.4751,37.7953 755.9059,1084.725 417.5711,37.7953"/>
+    <polyline points="411.0057,37.7953 755.9059,1084.725 408.4231,37.7953"/>
+    <polyline points="399.0892,37.7953 755.9059,1084.725 389.6563,37.7953"/>
+    <polyline points="374.9286,37.7953 755.9059,1084.725 365.606,37.7953"/>
+    <polyline points="351.8451,37.7953 755.9059,1084.725 343.3703,37.7953"/>
+    <polyline points="338.6466,37.7953 755.9059,1084.725 308.9542,37.7953"/>
+    <polyline points="287.3633,37.7953 755.9059,1084.725 269.0658,37.7953"/>
+    <polyline points="241.1431,37.7953 755.9059,1084.725 200.1231,37.7953"/>
+    <polyline points="158.8109,37.7953 755.9059,1084.725 127.5421,37.7953"/>
+    <polyline points="96.9563,37.7953 755.9059,1084.725 37.7953,56.2394"/>
+    <polyline points="37.7953,107.6803 755.9059,1084.725 37.7953,173.0756"/>
+    <polyline points="37.7953,190.7922 755.9059,1084.725 37.7953,278.8095"/>
+    <polyline points="37.7953,379.5411 755.9059,1084.725 37.7953,474.7452"/>
+    <polyline points="37.7953,497.0323 755.9059,1084.725 37.7953,606.5019"/>
+    <polyline points="37.7953,622.854 755.9059,1084.725 37.7953,655.0492"/>
+    <polyline points="37.7953,720.2079 755.9059,1084.725 37.7953,807.6911"/>
+    <polyline points="37.7953,866.4621 755.9059,1084.725 37.7953,921.1024"/>
+    <polyline points="37.7953,951.7989 755.9059,1084.725 37.7953,954.826"/>
+    <polyline points="37.7953,1019.6653 755.9059,1084.725 37.7953,1021.8317"/>
+    <polyline points="37.7953,1053.0922 755.9059,1084.725 37.7953,1077.793"/>
+    <line x1="37.7953" x2="755.9059" y1="1061.671" y2="1084.725"/>
+  </g>
+</svg>
