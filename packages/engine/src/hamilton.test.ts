@@ -39,10 +39,43 @@ describe("generateHamiltonPaths", () => {
     });
 
     expect(first.centerline.points).toEqual(second.centerline.points);
+    expect(first.baseNodes).toEqual(second.baseNodes);
     expect(first.centerline.points).toHaveLength(20);
+    expect(first.baseNodes).toHaveLength(20);
     expect(
       new Set(first.centerline.points.map((point) => pointKey(point.x, point.y))).size
     ).toBe(20);
+  });
+
+  it("supports oblique lattices while preserving the full node count", () => {
+    const result = generateHamiltonPaths(
+      {
+        minX: 0,
+        minY: 0,
+        maxX: 140,
+        maxY: 100,
+      },
+      {
+        rows: 4,
+        cols: 6,
+        seed: 91,
+        mixSteps: 320,
+        gridRotationDeg: 12,
+        latticeAngleDeg: 60,
+        rowStepRatio: 1,
+      }
+    );
+
+    expect(result.baseNodes).toHaveLength(24);
+    expect(
+      result.centerline.points.slice(1).some((point, index) => {
+        const previous = result.centerline.points[index]!;
+        return (
+          Math.abs(point.x - previous.x) > 1e-6 &&
+          Math.abs(point.y - previous.y) > 1e-6
+        );
+      })
+    ).toBe(true);
   });
 
   it("draws one fewer line when rendering centerlines between strokes", () => {

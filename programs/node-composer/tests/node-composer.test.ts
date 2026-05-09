@@ -10,6 +10,7 @@ import { program } from "../index";
 import {
   canConnectNodes,
   connectNodes,
+  guidePathsForNode,
   moveNode,
   normalizeNodeComposerProgramState,
   selectComposerNode,
@@ -610,6 +611,9 @@ describe("node-composer program", () => {
                 seed: 2417,
                 columns: 18,
                 rows: 28,
+                gridRotationDeg: 12,
+                latticeAngleDeg: 60,
+                rowStepRatio: 1.1,
                 strokeCount: 3,
                 strokeSpacing: 0.72,
                 cornerRadius: 1.1,
@@ -659,6 +663,33 @@ describe("node-composer program", () => {
     ).toBe(true);
   });
 
+  it("draws Hamilton guide nodes for the fitted base lattice", () => {
+    const guides = guidePathsForNode({
+      id: "node-1",
+      kind: "hamilton-path",
+      position: { x: 40, y: 40 },
+      config: {
+        centerX: 105,
+        centerY: 148.5,
+        width: 146,
+        height: 220,
+        seed: 2417,
+        columns: 7,
+        rows: 9,
+        gridRotationDeg: 12,
+        latticeAngleDeg: 60,
+        rowStepRatio: 1.1,
+        strokeCount: 3,
+        strokeSpacing: 0.72,
+        cornerRadius: 1.1,
+        deflection: 0,
+        drawCenterlines: false,
+      },
+    });
+
+    expect(guides).toHaveLength(1 + 63);
+  });
+
   it("uses a connected mask as the Hamilton path domain", () => {
     const center = { x: 105, y: 148.5 };
     const radius = 54;
@@ -690,6 +721,9 @@ describe("node-composer program", () => {
                 seed: 2417,
                 columns: 18,
                 rows: 28,
+                gridRotationDeg: 0,
+                latticeAngleDeg: 90,
+                rowStepRatio: 1,
                 strokeCount: 3,
                 strokeSpacing: 3.5,
                 cornerRadius: 1.1,

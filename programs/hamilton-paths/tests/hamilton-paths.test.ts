@@ -41,6 +41,39 @@ describe("hamilton-paths program", () => {
     ).toBe(true);
   });
 
+  it("keeps non-orthogonal lattices inside the printable content bounds", () => {
+    const document = expectDeterministicProgramRender(
+      program,
+      {
+        ...defaultSet,
+        params: {
+          ...defaultSet.params,
+          gridRotationDeg: 12,
+          latticeAngleDeg: 60,
+          rowStepRatio: 1.1,
+        },
+      },
+      {
+        caseName: "default",
+      }
+    );
+    const bounds = contentBounds(document.canvas);
+
+    expect(
+      document.layers.every((layer) =>
+        layer.paths.every((path) =>
+          path.points.every(
+            (point) =>
+              point.x >= bounds.minX - 1e-6 &&
+              point.x <= bounds.maxX + 1e-6 &&
+              point.y >= bounds.minY - 1e-6 &&
+              point.y <= bounds.maxY + 1e-6
+          )
+        )
+      )
+    ).toBe(true);
+  });
+
   it("keeps zero-deflection unrounded straight runs orthogonal", () => {
     const document = expectDeterministicProgramRender(
       program,
@@ -88,5 +121,17 @@ describe("hamilton-paths program", () => {
     );
 
     expect(document.layers[0]?.paths).toHaveLength(defaultSet.params.strokeCount - 1);
+  });
+
+  it("draws one debug marker per base node", () => {
+    const document = expectDeterministicProgramRender(program, defaultSet, {
+      caseName: "default",
+      showDebug: true,
+    });
+
+    expect(document.debugLayers).toHaveLength(1);
+    expect(document.debugLayers?.[0]?.paths).toHaveLength(
+      defaultSet.params.rows * defaultSet.params.columns
+    );
   });
 });

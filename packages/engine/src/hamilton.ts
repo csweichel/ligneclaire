@@ -1,5 +1,5 @@
 import type { Bounds, Point, Polyline } from "./document";
-import { expandBounds, sampleQuadraticBezier } from "./geometry";
+import { clamp, expandBounds, sampleQuadraticBezier } from "./geometry";
 import { createRng } from "./rng";
 
 export type HamiltonPathOptions = Readonly<{
@@ -11,12 +11,16 @@ export type HamiltonPathOptions = Readonly<{
   drawCenterlines?: boolean;
   cornerRadius?: number;
   deflection?: number;
+  gridRotationDeg?: number;
+  latticeAngleDeg?: number;
+  rowStepRatio?: number;
   mixSteps?: number;
 }>;
 
 export type HamiltonPathResult = Readonly<{
   centerline: Polyline;
   paths: readonly Polyline[];
+  baseNodes: readonly Point[];
   rows: number;
   cols: number;
   cellSize: number;
@@ -32,6 +36,9 @@ type NormalizedHamiltonPathOptions = Readonly<{
   drawCenterlines: boolean;
   cornerRadius: number;
   deflection: number;
+  gridRotationDeg: number;
+  latticeAngleDeg: number;
+  rowStepRatio: number;
   mixSteps: number;
 }>;
 
@@ -42,6 +49,9 @@ function normalizeOptions(options: HamiltonPathOptions): NormalizedHamiltonPathO
   const strokeSpacing = Math.max(0, options.strokeSpacing ?? 0.6);
   const cornerRadius = Math.max(0, options.cornerRadius ?? 0);
   const deflection = Math.max(0, options.deflection ?? 0);
+  const gridRotationDeg = clamp(options.gridRotationDeg ?? 0, -180, 180);
+  const latticeAngleDeg = clamp(options.latticeAngleDeg ?? 90, 15, 165);
+  const rowStepRatio = clamp(options.rowStepRatio ?? 1, 0.2, 4);
   const cellCount = rows * cols;
   const defaultMixSteps = Math.min(Math.max(cellCount * 8, 256), 24000);
 
@@ -54,6 +64,9 @@ function normalizeOptions(options: HamiltonPathOptions): NormalizedHamiltonPathO
     drawCenterlines: Boolean(options.drawCenterlines),
     cornerRadius,
     deflection,
+    gridRotationDeg,
+    latticeAngleDeg,
+    rowStepRatio,
     mixSteps: Math.max(0, Math.floor(options.mixSteps ?? defaultMixSteps)),
   };
 }
@@ -62,6 +75,7 @@ function emptyResult(gridBounds: Bounds, options: NormalizedHamiltonPathOptions)
   return {
     centerline: { points: [] },
     paths: [],
+    baseNodes: [],
     rows: options.rows,
     cols: options.cols,
     cellSize: 0,
@@ -133,21 +147,21 @@ function appendPoint(target: Point[], point: Point): Point[] {
   return target;
 }
 
-function axisDirection(start: Point, end: Point): Point {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return {
-      x: dx >= 0 ? 1 : -1,
-      y: 0,
-    };
-  }
-
+function rotatePoint(point: Point, radians: number): Point {
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
   return {
-    x: 0,
-    y: dy >= 0 ? 1 : -1,
+    x: point.x * cosine - point.y * sine,
+    y: point.x * sine + point.y * cosine,
   };
+}
+
+function segmentDirection(start: Point, end: Point): Point {
+  return normalizePoint(subtractPoint(end, start));
+}
+
+function crossProduct(left: Point, right: Point): number {
+  return left.x * right.y - left.y * right.x;
 }
 
 function segmentNormal(direction: Point): Point {
@@ -158,7 +172,23 @@ function segmentNormal(direction: Point): Point {
 }
 
 function directionEquals(left: Point, right: Point): boolean {
-  return left.x === right.x && left.y === right.y;
+  return Math.abs(left.x - right.x) < 1e-6 && Math.abs(left.y - right.y) < 1e-6;
+}
+
+function lineIntersection(
+  startA: Point,
+  directionA: Point,
+  startB: Point,
+  directionB: Point
+): Point | null {
+  const denominator = crossProduct(directionA, directionB);
+  if (Math.abs(denominator) < 1e-6) {
+    return null;
+  }
+
+  const delta = subtractPoint(startB, startA);
+  const distance = crossProduct(delta, directionB) / denominator;
+  return addPoint(startA, scalePoint(directionA, distance));
 }
 
 function cornerDeflectionDirection(prevNormal: Point, nextNormal: Point, offset: number): Point {
@@ -181,7 +211,7 @@ function buildLanePolyline(
 
   const directions = Array.from(
     { length: centerline.points.length - 1 },
-    (_, index) => axisDirection(centerline.points[index]!, centerline.points[index + 1]!)
+    (_, index) => segmentDirection(centerline.points[index]!, centerline.points[index + 1]!)
   );
   const normals = directions.map((direction) => segmentNormal(direction));
   const points: Point[] = [];
@@ -200,10 +230,14 @@ function buildLanePolyline(
       continue;
     }
 
-    let corner = addPoint(
-      center,
-      scalePoint(addPoint(prevNormal, nextNormal), offset)
-    );
+    const prevShift = addPoint(center, scalePoint(prevNormal, offset));
+    const nextShift = addPoint(center, scalePoint(nextNormal, offset));
+    const fallbackDirection = normalizePoint(addPoint(prevNormal, nextNormal));
+    let corner =
+      lineIntersection(prevShift, prevDirection, nextShift, nextDirection) ??
+      (fallbackDirection.x === 0 && fallbackDirection.y === 0
+        ? prevShift
+        : addPoint(center, scalePoint(fallbackDirection, offset)));
     if (deflection > 0) {
       corner = addPoint(
         corner,
@@ -404,56 +438,116 @@ function applyBackbite(
   reverseRange(path, positions, rng.pick(candidatePositions) + 1, last);
 }
 
-function fitGrid(
+function pointsBounds(points: readonly Point[]): Bounds | null {
+  if (points.length === 0) {
+    return null;
+  }
+
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+function latticePoint(
+  origin: Point,
+  columnStep: Point,
+  rowStep: Point,
+  column: number,
+  row: number
+): Point {
+  return addPoint(
+    origin,
+    addPoint(scalePoint(columnStep, column), scalePoint(rowStep, row))
+  );
+}
+
+function fitLattice(
   bounds: Bounds,
   rows: number,
-  cols: number
+  cols: number,
+  gridRotationDeg: number,
+  latticeAngleDeg: number,
+  rowStepRatio: number
 ): Readonly<{
   gridBounds: Bounds;
   cellSize: number;
+  baseNodes: readonly Point[];
 }> | null {
+  const rotationRadians = (gridRotationDeg / 180) * Math.PI;
+  const latticeRadians = (latticeAngleDeg / 180) * Math.PI;
+  const rawColumnStep = rotatePoint({ x: 1, y: 0 }, rotationRadians);
+  const rawRowStep = rotatePoint(
+    {
+      x: Math.cos(latticeRadians) * rowStepRatio,
+      y: Math.sin(latticeRadians) * rowStepRatio,
+    },
+    rotationRadians
+  );
+  const cornerPoints: Point[] = [];
+
+  for (let row = 0; row <= rows; row += 1) {
+    for (let col = 0; col <= cols; col += 1) {
+      cornerPoints.push(
+        addPoint(scalePoint(rawColumnStep, col), scalePoint(rawRowStep, row))
+      );
+    }
+  }
+
+  const rawBounds = pointsBounds(cornerPoints);
+  if (!rawBounds) {
+    return null;
+  }
+
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  const cellSize = Math.min(width / cols, height / rows);
+  const rawWidth = rawBounds.maxX - rawBounds.minX;
+  const rawHeight = rawBounds.maxY - rawBounds.minY;
+  const cellSize = Math.min(width / rawWidth, height / rawHeight);
 
   if (!Number.isFinite(cellSize) || cellSize <= 0) {
     return null;
   }
 
-  const gridWidth = cellSize * cols;
-  const gridHeight = cellSize * rows;
-  const minX = bounds.minX + (width - gridWidth) * 0.5;
-  const minY = bounds.minY + (height - gridHeight) * 0.5;
+  const gridWidth = rawWidth * cellSize;
+  const gridHeight = rawHeight * cellSize;
+  const origin = {
+    x: bounds.minX + (width - gridWidth) * 0.5 - rawBounds.minX * cellSize,
+    y: bounds.minY + (height - gridHeight) * 0.5 - rawBounds.minY * cellSize,
+  };
+  const columnStep = scalePoint(rawColumnStep, cellSize);
+  const rowStep = scalePoint(rawRowStep, cellSize);
+  const baseNodes: Point[] = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      baseNodes.push(latticePoint(origin, columnStep, rowStep, col + 0.5, row + 0.5));
+    }
+  }
 
   return {
     gridBounds: {
-      minX,
-      minY,
-      maxX: minX + gridWidth,
-      maxY: minY + gridHeight,
+      minX: origin.x + rawBounds.minX * cellSize,
+      minY: origin.y + rawBounds.minY * cellSize,
+      maxX: origin.x + rawBounds.maxX * cellSize,
+      maxY: origin.y + rawBounds.maxY * cellSize,
     },
     cellSize,
-  };
-}
-
-function cellPoint(index: number, cols: number, gridBounds: Bounds, cellSize: number): Point {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-
-  return {
-    x: gridBounds.minX + (col + 0.5) * cellSize,
-    y: gridBounds.minY + (row + 0.5) * cellSize,
+    baseNodes,
   };
 }
 
 function toPolyline(
   path: readonly number[],
-  cols: number,
-  gridBounds: Bounds,
-  cellSize: number
+  baseNodes: readonly Point[]
 ): Polyline {
   return {
-    points: path.map((index) => cellPoint(index, cols, gridBounds, cellSize)),
+    points: path.map((index) => baseNodes[index]!),
   };
 }
 
@@ -480,7 +574,14 @@ export function generateHamiltonPaths(
     return emptyResult(bounds, normalized);
   }
 
-  const fit = fitGrid(insetBounds, normalized.rows, normalized.cols);
+  const fit = fitLattice(
+    insetBounds,
+    normalized.rows,
+    normalized.cols,
+    normalized.gridRotationDeg,
+    normalized.latticeAngleDeg,
+    normalized.rowStepRatio
+  );
   if (!fit) {
     return emptyResult(bounds, normalized);
   }
@@ -498,7 +599,7 @@ export function generateHamiltonPaths(
     applyBackbite(path, positions, neighbors, rng);
   }
 
-  const centerline = toPolyline(path, normalized.cols, fit.gridBounds, fit.cellSize);
+  const centerline = toPolyline(path, fit.baseNodes);
   const paths = offsets.map((offset) =>
     roundPolylineCorners(
       buildLanePolyline(centerline, offset, normalized.deflection),
@@ -510,6 +611,7 @@ export function generateHamiltonPaths(
   return {
     centerline,
     paths,
+    baseNodes: fit.baseNodes,
     rows: normalized.rows,
     cols: normalized.cols,
     cellSize: fit.cellSize,

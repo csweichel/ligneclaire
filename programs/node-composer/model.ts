@@ -682,7 +682,7 @@ const builtInNodeSpecs = {
   "hamilton-path": {
     kind: "hamilton-path",
     title: "Hamilton Path",
-    summary: "A seeded Hamiltonian grid walk rendered as parallel strokes, with an optional mask domain.",
+    summary: "A seeded Hamiltonian lattice walk rendered as parallel strokes, with an optional mask domain.",
     category: "paths",
     inputs: [{ id: "domain", label: "Domain", kind: "mask" }],
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
@@ -713,6 +713,32 @@ const builtInNodeSpecs = {
         min: 2,
         max: 90,
         defaultValue: 28,
+      }),
+      floatField({
+        key: "gridRotationDeg",
+        label: "Grid Rotation",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 0.5,
+        unit: "deg",
+      }),
+      floatField({
+        key: "latticeAngleDeg",
+        label: "Lattice Angle",
+        min: 15,
+        max: 165,
+        defaultValue: 90,
+        step: 0.5,
+        unit: "deg",
+      }),
+      floatField({
+        key: "rowStepRatio",
+        label: "Row Step Ratio",
+        min: 0.2,
+        max: 4,
+        defaultValue: 1,
+        step: 0.02,
       }),
       intField({
         key: "strokeCount",
@@ -2207,6 +2233,9 @@ function evaluateNodeOutputs(
       rows: Number(node.config.rows),
       cols: Number(node.config.columns),
       seed: Number(node.config.seed),
+      gridRotationDeg: Number(node.config.gridRotationDeg ?? 0),
+      latticeAngleDeg: Number(node.config.latticeAngleDeg ?? 90),
+      rowStepRatio: Number(node.config.rowStepRatio ?? 1),
       strokeCount: Number(node.config.strokeCount),
       strokeSpacing: Number(node.config.strokeSpacing),
       cornerRadius: Number(node.config.cornerRadius),
@@ -2938,8 +2967,7 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
     node.kind === "line-grid" ||
     node.kind === "perlin-field" ||
     node.kind === "circle-grid" ||
-    node.kind === "image-circles" ||
-    node.kind === "hamilton-path"
+    node.kind === "image-circles"
   ) {
     const bounds = makeRegionBounds(node.config);
     return [
@@ -2952,6 +2980,37 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
         ],
         closed: true,
       },
+    ];
+  }
+
+  if (node.kind === "hamilton-path") {
+    const bounds = makeRegionBounds(node.config);
+    const rowStepRatio = Number(node.config.rowStepRatio ?? 1);
+    const guide = generateHamiltonPaths(bounds, {
+      rows: Number(node.config.rows),
+      cols: Number(node.config.columns),
+      seed: 1,
+      gridRotationDeg: Number(node.config.gridRotationDeg ?? 0),
+      latticeAngleDeg: Number(node.config.latticeAngleDeg ?? 90),
+      rowStepRatio,
+      mixSteps: 0,
+    });
+    const debugRadius = Math.max(
+      0.35,
+      Math.min(guide.cellSize * Math.min(1, rowStepRatio) * 0.18, 1.6)
+    );
+
+    return [
+      {
+        points: [
+          { x: bounds.minX, y: bounds.minY },
+          { x: bounds.maxX, y: bounds.minY },
+          { x: bounds.maxX, y: bounds.maxY },
+          { x: bounds.minX, y: bounds.maxY },
+        ],
+        closed: true,
+      },
+      ...guide.baseNodes.map((point) => makeCirclePath(point.x, point.y, debugRadius, 24)),
     ];
   }
 
