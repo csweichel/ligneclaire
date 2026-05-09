@@ -7,6 +7,7 @@ import {
   createRng,
   distanceBetweenPoints,
   excludePolylineFromPolygon,
+  generateHamiltonPaths,
   generateTerrainSliceGeometry,
   hatchBounds,
   resolveProgramState,
@@ -71,6 +72,7 @@ type BuiltInNodeKind =
   | "perlin-field"
   | "circle-grid"
   | "image-circles"
+  | "hamilton-path"
   | "terrain-slice"
   | "trochoid"
   | "mask-circle"
@@ -674,6 +676,82 @@ const builtInNodeSpecs = {
         defaultValue: 1.8,
         step: 0.025,
         unit: "mm",
+      }),
+    ],
+  },
+  "hamilton-path": {
+    kind: "hamilton-path",
+    title: "Hamilton Path",
+    summary: "A seeded Hamiltonian grid walk rendered as parallel strokes, with an optional mask domain.",
+    category: "paths",
+    inputs: [{ id: "domain", label: "Domain", kind: "mask" }],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [
+      ...regionFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+        width: 150,
+        height: 220,
+      }),
+      intField({
+        key: "seed",
+        label: "Seed",
+        min: 1,
+        max: 999999,
+        defaultValue: 2417,
+      }),
+      intField({
+        key: "columns",
+        label: "Columns",
+        min: 2,
+        max: 60,
+        defaultValue: 18,
+      }),
+      intField({
+        key: "rows",
+        label: "Rows",
+        min: 2,
+        max: 90,
+        defaultValue: 28,
+      }),
+      intField({
+        key: "strokeCount",
+        label: "Parallel Strokes",
+        min: 1,
+        max: 12,
+        defaultValue: 3,
+      }),
+      floatField({
+        key: "strokeSpacing",
+        label: "Stroke Gap",
+        min: 0.2,
+        max: 12,
+        defaultValue: 0.62,
+        step: 0.02,
+        unit: "mm",
+      }),
+      floatField({
+        key: "cornerRadius",
+        label: "Corner Radius",
+        min: 0,
+        max: 24,
+        defaultValue: 1.1,
+        step: 0.05,
+        unit: "mm",
+      }),
+      floatField({
+        key: "deflection",
+        label: "Deflection",
+        min: 0,
+        max: 8,
+        defaultValue: 0,
+        step: 0.05,
+        unit: "mm",
+      }),
+      boolField({
+        key: "drawCenterlines",
+        label: "Draw Centerlines",
+        defaultValue: false,
       }),
     ],
   },
@@ -2121,6 +2199,31 @@ function evaluateNodeOutputs(
     };
   }
 
+  if (node.kind === "hamilton-path") {
+    const domainValue = resolveNodeInput(node, "domain", "mask", context, evaluateNode);
+    const domainMask = domainValue?.kind === "mask" ? domainValue.mask : null;
+    const bounds = domainMask ? domainMask.bounds : makeRegionBounds(node.config);
+    const result = generateHamiltonPaths(bounds, {
+      rows: Number(node.config.rows),
+      cols: Number(node.config.columns),
+      seed: Number(node.config.seed),
+      strokeCount: Number(node.config.strokeCount),
+      strokeSpacing: Number(node.config.strokeSpacing),
+      cornerRadius: Number(node.config.cornerRadius),
+      deflection: Number(node.config.deflection),
+      drawCenterlines: Boolean(node.config.drawCenterlines),
+    });
+
+    return {
+      paths: {
+        kind: "paths",
+        paths: clipPathsToContent(
+          domainMask ? applyMaskToPaths(result.paths, domainMask, "clip") : result.paths
+        ),
+      },
+    };
+  }
+
   if (node.kind === "terrain-slice") {
     const geometry = generateTerrainSliceGeometry({
       center: {
@@ -2835,7 +2938,8 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
     node.kind === "line-grid" ||
     node.kind === "perlin-field" ||
     node.kind === "circle-grid" ||
-    node.kind === "image-circles"
+    node.kind === "image-circles" ||
+    node.kind === "hamilton-path"
   ) {
     const bounds = makeRegionBounds(node.config);
     return [

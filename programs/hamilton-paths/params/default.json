@@ -1,0 +1,18 @@
+{
+  "programId": "hamilton-paths",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "seed": 668449,
+    "columns": 6,
+    "rows": 12,
+    "strokeCount": 6,
+    "strokeSpacing": 4.3,
+    "cornerRadius": 17.4,
+    "deflection": 0,
+    "drawCenterlines": false
+  },
+  "programState": {},
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "updatedAt": "2026-05-09T11:23:39.961Z"
+}

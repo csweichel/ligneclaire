@@ -590,6 +590,155 @@ describe("node-composer program", () => {
     ).toBe(true);
   });
 
+  it("renders Hamilton path generator nodes with configurable parallel strokes", () => {
+    const bounds = contentBounds(program.canvas);
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "hamilton-path",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 146,
+                height: 220,
+                seed: 2417,
+                columns: 18,
+                rows: 28,
+                strokeCount: 3,
+                strokeSpacing: 0.72,
+                cornerRadius: 1.1,
+                deflection: 0,
+                drawCenterlines: true,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Hamilton",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths).toHaveLength(2);
+    expect(
+      document.layers[0]!.paths.every((path) =>
+        path.points.every(
+          (point) =>
+            point.x >= bounds.minX &&
+            point.x <= bounds.maxX &&
+            point.y >= bounds.minY &&
+            point.y <= bounds.maxY
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("uses a connected mask as the Hamilton path domain", () => {
+    const center = { x: 105, y: 148.5 };
+    const radius = 54;
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "mask-circle",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: center.x,
+                centerY: center.y,
+                radius,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "hamilton-path",
+              position: { x: 340, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 160,
+                height: 240,
+                seed: 2417,
+                columns: 18,
+                rows: 28,
+                strokeCount: 3,
+                strokeSpacing: 3.5,
+                cornerRadius: 1.1,
+                deflection: 0,
+                drawCenterlines: true,
+              },
+            },
+            {
+              id: "node-3",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Hamilton",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "mask" },
+              to: { nodeId: "node-2", portId: "domain" },
+            },
+            {
+              from: { nodeId: "node-2", portId: "paths" },
+              to: { nodeId: "node-3", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-2",
+          nextNodeNumber: 4,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths.length).toBeGreaterThanOrEqual(2);
+    expect(
+      document.layers[0]!.paths.every((path) =>
+        path.points.every(
+          (point) => Math.hypot(point.x - center.x, point.y - center.y) <= radius + 1e-6
+        )
+      )
+    ).toBe(true);
+  });
+
   it("can preload an embedded program from an existing parameter set", () => {
     const document = renderProgramCase(
       program,

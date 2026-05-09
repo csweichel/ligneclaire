@@ -8,6 +8,7 @@ import { program as clipFieldProgram } from "../clip-field/index";
 import { program as continuousContourProgram } from "../continuous-contour/index";
 import { program as curveProgram } from "../curve/index";
 import { program as fieldProgram } from "../field/index";
+import { program as hamiltonPathsProgram } from "../hamilton-paths/index";
 import { program as helloWorldProgram } from "../hello-world/index";
 import { program as hilbertDensityProgram } from "../hilbert-density/index";
 import { program as hilbertLoopsGradientProgram } from "../hilbert-loops-gradient/index";
@@ -87,6 +88,41 @@ export const nodeComposerProgramRegistry = [
             "steps": 10,
             "continuousCurves": true
           }
+      }
+    ]
+  },
+  {
+    program: hamiltonPathsProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "seed": 668449,
+            "columns": 6,
+            "rows": 12,
+            "strokeCount": 6,
+            "strokeSpacing": 4.3,
+            "cornerRadius": 17.4,
+            "deflection": 0,
+            "drawCenterlines": false
+          },
+        programState: {}
+      },
+      {
+        slug: "default-copy",
+        name: "Default Copy",
+        params: {
+            "seed": 668449,
+            "columns": 6,
+            "rows": 12,
+            "strokeCount": 6,
+            "strokeSpacing": 4.3,
+            "cornerRadius": 17.4,
+            "deflection": 0,
+            "drawCenterlines": false
+          },
+        programState: {}
       }
     ]
   },
