@@ -4,7 +4,7 @@ import {
   type Node as FlowNode,
   type NodeProps,
 } from "@xyflow/react";
-import type { JSX } from "react";
+import type { JSX, PointerEvent as ReactPointerEvent } from "react";
 
 export type ComposerFlowNodeInput = Readonly<{
   id: string;
@@ -16,6 +16,7 @@ export type ComposerFlowNodeOutput = Readonly<{
   id: string;
   label: string;
   connectionCount: number;
+  isPending: boolean;
 }>;
 
 export type ComposerFlowNodeData = Readonly<{
@@ -23,12 +24,29 @@ export type ComposerFlowNodeData = Readonly<{
   kindLabel: string;
   inputs: readonly ComposerFlowNodeInput[];
   outputs: readonly ComposerFlowNodeOutput[];
+  manualConnectEnabled: boolean;
+  onManualInputPress?: (inputId: string) => void;
+  onManualOutputPress?: (outputId: string) => void;
 }>;
 
 export type ComposerFlowNodeType = FlowNode<ComposerFlowNodeData, "composer">;
 
 export function ComposerFlowNode(props: NodeProps<ComposerFlowNodeType>): JSX.Element {
   const rows = Math.max(props.data.inputs.length, props.data.outputs.length, 1);
+
+  function handleManualConnect(
+    event: ReactPointerEvent<HTMLDivElement>,
+    callback: ((portId: string) => void) | undefined,
+    portId: string
+  ): void {
+    if (!props.data.manualConnectEnabled || !callback) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    callback(portId);
+  }
 
   return (
     <div className="lc-node-composer__flow-node">
@@ -52,6 +70,9 @@ export function ComposerFlowNode(props: NodeProps<ComposerFlowNodeType>): JSX.El
                       id={input.id}
                       isConnectableEnd
                       isConnectableStart={false}
+                      onPointerDown={(event) => {
+                        handleManualConnect(event, props.data.onManualInputPress, input.id);
+                      }}
                       position={Position.Left}
                       type="target"
                     />
@@ -75,10 +96,13 @@ export function ComposerFlowNode(props: NodeProps<ComposerFlowNodeType>): JSX.El
                       </span>
                     </div>
                     <Handle
-                      className={`lc-node-composer__flow-handle${output.connectionCount > 0 ? " lc-node-composer__flow-handle--connected" : ""}`}
+                      className={`lc-node-composer__flow-handle${output.connectionCount > 0 ? " lc-node-composer__flow-handle--connected" : ""}${output.isPending ? " lc-node-composer__flow-handle--pending" : ""}`}
                       id={output.id}
                       isConnectableEnd={false}
                       isConnectableStart
+                      onPointerDown={(event) => {
+                        handleManualConnect(event, props.data.onManualOutputPress, output.id);
+                      }}
                       position={Position.Right}
                       type="source"
                     />

@@ -21,7 +21,8 @@
     "@ligneclaire/node-runtime": "workspace:*",
     "@ligneclaire/sdk": "workspace:*",
     "@ligneclaire/ui": "workspace:*",
-    "@xyflow/react": "12.10.2"
+    "@xyflow/react": "12.10.2",
+    "opentype.js": "2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

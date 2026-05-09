@@ -18,3 +18,4 @@ export * from "./terrain";
 export * from "./tilepath";
 export * from "./trochoid";
 export * from "./validation";
+export * from "./voronoi";

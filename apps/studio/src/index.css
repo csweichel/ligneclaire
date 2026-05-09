@@ -1455,10 +1455,12 @@ body {
 }
 
 .lc-node-composer__flow .react-flow__edge:hover .react-flow__edge-path,
-.lc-node-composer__flow .react-flow__edge.selected .react-flow__edge-path,
-.lc-node-composer__flow .react-flow__handle.connecting,
-.lc-node-composer__flow .react-flow__handle-valid {
+.lc-node-composer__flow .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--studio-blue);
+}
+
+.lc-node-composer__flow .react-flow__handle.connecting::after,
+.lc-node-composer__flow .react-flow__handle-valid::after {
   border-color: var(--studio-blue);
 }
 
@@ -1487,7 +1489,7 @@ body {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 10px 18px rgba(31, 41, 55, 0.08);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .lc-node-composer__flow .react-flow__node.selected .lc-node-composer__flow-node {
@@ -1538,7 +1540,7 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
-  min-height: 28px;
+  min-height: 36px;
 }
 
 .lc-node-composer__flow-port-slot {
@@ -1548,8 +1550,13 @@ body {
   gap: 8px;
 }
 
+.lc-node-composer__flow-port-slot--input {
+  padding-left: 18px;
+}
+
 .lc-node-composer__flow-port-slot--output {
   justify-content: flex-end;
+  padding-right: 18px;
 }
 
 .lc-node-composer__flow-port-copy {
@@ -1580,17 +1587,34 @@ body {
 }
 
 .lc-node-composer__flow-handle {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--studio-line);
+  width: 28px;
+  height: 28px;
+  border: 0;
   border-radius: 999px;
-  background: var(--studio-panel);
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
   top: 50%;
 }
 
-.lc-node-composer__flow-handle--connected {
+.lc-node-composer__flow-handle::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 2px solid var(--studio-line);
+  border-radius: 999px;
+  background: var(--studio-panel);
+}
+
+.lc-node-composer__flow-handle--connected::after {
   border-color: var(--studio-green);
   background: var(--studio-green-soft);
+}
+
+.lc-node-composer__flow-handle--pending::after {
+  border-color: var(--studio-blue);
+  background: rgba(91, 108, 255, 0.14);
+  box-shadow: 0 0 0 4px rgba(91, 108, 255, 0.18);
 }
 
 .lc-node-composer__inspector-wiring {
@@ -1612,6 +1636,70 @@ body {
 .lc-node-composer__field-list {
   display: grid;
   gap: 12px;
+}
+
+.lc-node-composer__font-picker {
+  position: relative;
+}
+
+.lc-node-composer__font-picker-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 12;
+  max-height: 260px;
+  overflow: auto;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--studio-line-soft);
+  border-radius: 8px;
+  background: var(--studio-panel);
+  box-shadow: 0 14px 28px rgba(31, 41, 55, 0.12);
+}
+
+.lc-node-composer__font-picker-option {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--studio-ink);
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lc-node-composer__font-picker-option:hover,
+.lc-node-composer__font-picker-option[aria-selected="true"] {
+  background: var(--studio-bg);
+}
+
+.lc-node-composer__font-picker-family {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.lc-node-composer__font-picker-meta,
+.lc-node-composer__font-picker-current,
+.lc-node-composer__font-picker-status,
+.lc-node-composer__font-picker-error {
+  color: var(--studio-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.lc-node-composer__font-picker-current,
+.lc-node-composer__font-picker-error {
+  display: block;
+  margin-top: 6px;
+}
+
+.lc-node-composer__font-picker-error {
+  color: var(--studio-red);
 }
 
 .lc-node-composer__overlay-svg {

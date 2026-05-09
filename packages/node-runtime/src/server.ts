@@ -14,6 +14,7 @@ import type {
 } from "./api-types";
 import { getProgramDetails, listPrograms } from "./registry";
 import { renderProgram } from "./render";
+import { resolveGoogleFont, searchGoogleFonts } from "./google-fonts";
 import { listPlotters } from "./plotters";
 import { getToolDiagnostics } from "./tools";
 
@@ -92,7 +93,8 @@ export function createApiServer(port = 7345, host = "127.0.0.1") {
   const handleRequest = async (request: IncomingMessage, response: ServerResponse) => {
     try {
       const method = request.method ?? "GET";
-      const pathname = new URL(request.url ?? "/", `http://${host}:${port}`).pathname;
+      const requestUrl = new URL(request.url ?? "/", `http://${host}:${port}`);
+      const pathname = requestUrl.pathname;
 
       if (method === "GET" && pathname === "/api/programs") {
         sendJson(response, 200, listPrograms());
@@ -159,6 +161,22 @@ export function createApiServer(port = 7345, host = "127.0.0.1") {
 
       if (method === "GET" && pathname === "/api/system/tools") {
         sendJson(response, 200, await getToolDiagnostics());
+        return;
+      }
+
+      if (method === "GET" && pathname === "/api/google-fonts/search") {
+        const query = requestUrl.searchParams.get("q") ?? "";
+        const limit = Number(requestUrl.searchParams.get("limit") ?? "24");
+        sendJson(response, 200, {
+          items: await searchGoogleFonts(query, limit),
+        });
+        return;
+      }
+
+      if (method === "GET" && pathname === "/api/google-fonts/resolve") {
+        const family = requestUrl.searchParams.get("family") ?? "";
+        const weight = Number(requestUrl.searchParams.get("weight") ?? "400");
+        sendJson(response, 200, await resolveGoogleFont(family, weight));
         return;
       }
 

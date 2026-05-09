@@ -39,6 +39,15 @@ function boundsCenter(bounds: ReturnType<typeof pathBounds>) {
   };
 }
 
+function segmentMidpoints(paths: readonly Polyline[]) {
+  return paths.flatMap((path) =>
+    path.points.slice(1).map((point, index) => ({
+      x: (path.points[index]!.x + point.x) * 0.5,
+      y: (path.points[index]!.y + point.y) * 0.5,
+    }))
+  );
+}
+
 describe("node-composer program", () => {
   it("renders deterministically from the checked-in default parameter set", () => {
     const document = expectDeterministicProgramRender(program, defaultSet, {
@@ -327,6 +336,329 @@ describe("node-composer program", () => {
     expect(document.layers[1]!.stroke).toBe(plotPalette.accent);
     expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
     expect(document.layers[1]!.paths.length).toBe(1);
+  });
+
+  it("renders dashed line generator nodes with thickness support", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "line",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                length: 40,
+                angleDeg: 0,
+                style: "dashed",
+                thickness: 0.35,
+                dashLength: 8,
+                dashGap: 4,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Line",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths).toHaveLength(4);
+  });
+
+  it("draws text generator nodes from bundled Google font outlines", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "text",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                text: "LC",
+                fontId: "inter",
+                fontSize: 18,
+                fontWeight: 700,
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Text",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths.length).toBeGreaterThan(1);
+    expect(document.layers[0]!.paths.every((path) => path.closed === true)).toBe(true);
+  });
+
+  it("fills text nodes with hatch patterns while preserving counters", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "text",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                text: "O",
+                fontId: "inter",
+                fontSize: 42,
+                fontWeight: 700,
+                rotationDeg: 0,
+                fillPattern: "cross-hatch",
+                includeOutline: false,
+                fillSpacing: 3,
+                fillAngleDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Text Fill",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    const paths = document.layers[0]!.paths;
+    const center = { x: 105, y: 148.5 };
+    const nearestMidpoint = Math.min(
+      ...segmentMidpoints(paths).map((point) => Math.hypot(point.x - center.x, point.y - center.y))
+    );
+
+    expect(paths.length).toBeGreaterThan(10);
+    expect(paths.every((path) => path.closed !== true)).toBe(true);
+    expect(nearestMidpoint).toBeGreaterThan(4);
+  });
+
+  it("supports continual inset fills for text nodes", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "text",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                text: "LC",
+                fontId: "inter",
+                fontSize: 28,
+                fontWeight: 600,
+                rotationDeg: 0,
+                fillPattern: "inset",
+                includeOutline: false,
+                fillSpacing: 2,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Inset Fill",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths.length).toBeGreaterThan(6);
+  });
+
+  it("supports space-filling curve fills for text nodes", () => {
+    const patterns = ["hilbert", "moore", "peano", "dragon"] as const;
+    const pathCounts = patterns.map((fillPattern) => {
+      const document = renderProgramCase(
+        program,
+        {
+          ...defaultSet,
+          programState: {
+            nodes: [
+              {
+                id: "node-1",
+                kind: "text",
+                position: { x: 40, y: 40 },
+                config: {
+                  centerX: 105,
+                  centerY: 148.5,
+                  text: "LC",
+                  fontId: "space-grotesk",
+                  fontSize: 28,
+                  fontWeight: 600,
+                  rotationDeg: 0,
+                  fillPattern,
+                  includeOutline: false,
+                  fillSpacing: 2.4,
+                  fillAngleDeg: 18,
+                  curveOrder: 4,
+                },
+              },
+              {
+                id: "node-2",
+                kind: "output-layer",
+                position: { x: 1020, y: 40 },
+                config: {
+                  label: "Curve Fill",
+                  style: "primary",
+                  enabled: true,
+                },
+              },
+            ],
+            connections: [
+              {
+                from: { nodeId: "node-1", portId: "paths" },
+                to: { nodeId: "node-2", portId: "paths" },
+              },
+            ],
+            selectedNodeId: "node-1",
+            nextNodeNumber: 3,
+          },
+        },
+        {
+          caseName: "default",
+          showDebug: false,
+        }
+      );
+
+      expect(document.layers).toHaveLength(1);
+      expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
+      expect(document.layers[0]!.paths.every((path) => path.closed !== true)).toBe(true);
+      return document.layers[0]!.paths.length;
+    });
+
+    expect(new Set(pathCounts).size).toBeGreaterThan(1);
+  });
+
+  it("builds guide paths for line and text nodes", () => {
+    const lineGuides = guidePathsForNode({
+      id: "node-1",
+      kind: "line",
+      position: { x: 40, y: 40 },
+      config: {
+        centerX: 105,
+        centerY: 148.5,
+        length: 40,
+        angleDeg: 0,
+        style: "dashed",
+        thickness: 0.35,
+        dashLength: 8,
+        dashGap: 4,
+      },
+    });
+    const textGuides = guidePathsForNode({
+      id: "node-2",
+      kind: "text",
+      position: { x: 40, y: 40 },
+      config: {
+        centerX: 105,
+        centerY: 148.5,
+        text: "LC",
+        fontId: "inter",
+        fontSize: 18,
+        fontWeight: 700,
+        rotationDeg: 0,
+      },
+    });
+
+    expect(lineGuides).toHaveLength(4);
+    expect(textGuides.length).toBeGreaterThan(1);
   });
 
   it("lets one output feed multiple downstream layers", () => {
@@ -771,6 +1103,96 @@ describe("node-composer program", () => {
         )
       )
     ).toBe(true);
+  });
+
+  it("renders Voronoi nested cell generator nodes as closed loops", () => {
+    const bounds = contentBounds(program.canvas);
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "voronoi-nested-cells",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 180,
+                pointCount: 8,
+                randomSeed: 20,
+                filletRadius: 16,
+                layerCount: 4,
+                scaleBase: 0.88,
+                rotationStep: 0.4,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Voronoi",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths).toHaveLength(32);
+    expect(document.layers[0]!.paths.every((path) => path.closed === true)).toBe(true);
+    expect(
+      document.layers[0]!.paths.every((path) =>
+        path.points.every(
+          (point) =>
+            point.x >= bounds.minX &&
+            point.x <= bounds.maxX &&
+            point.y >= bounds.minY &&
+            point.y <= bounds.maxY
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("draws Voronoi seed guides for the configured region", () => {
+    const guides = guidePathsForNode({
+      id: "node-1",
+      kind: "voronoi-nested-cells",
+      position: { x: 40, y: 40 },
+      config: {
+        centerX: 105,
+        centerY: 148.5,
+        width: 120,
+        height: 180,
+        pointCount: 8,
+        randomSeed: 20,
+        filletRadius: 16,
+        layerCount: 4,
+        scaleBase: 0.88,
+        rotationStep: 0.4,
+      },
+    });
+
+    expect(guides).toHaveLength(9);
   });
 
   it("can preload an embedded program from an existing parameter set", () => {

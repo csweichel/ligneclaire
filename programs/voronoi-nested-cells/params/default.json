@@ -1,0 +1,18 @@
+{
+  "programId": "voronoi-nested-cells",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "boundaryWidth": 150,
+    "boundaryHeight": 220,
+    "pointCount": 51,
+    "randomSeed": 20,
+    "filletRadius": 100,
+    "layerCount": 10,
+    "scaleBase": 0.9,
+    "rotationStep": 7
+  },
+  "programState": {},
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "updatedAt": "2026-05-09T00:00:00.000Z"
+}

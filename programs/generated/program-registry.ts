@@ -28,6 +28,7 @@ import { program as sculptureScanProgram } from "../sculpture-scan/index";
 import { program as terrainSlicesProgram } from "../terrain-slices/index";
 import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as trochoidProgram } from "../trochoid/index";
+import { program as voronoiNestedCellsProgram } from "../voronoi-nested-cells/index";
 import { program as wavesProgram } from "../waves/index";
 
-export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, delaunayPathsProgram, dragonCurveProgram, fieldProgram, hamiltonPathsProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, isometricRibbonsProgram, kochCurvesProgram, logoProgram, mooreCurveProgram, nodeComposerProgram, peanoCurveProgram, referencePosterProgram, sculptureScanProgram, terrainSlicesProgram, tilepathGridProgram, trochoidProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];
+export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, delaunayPathsProgram, dragonCurveProgram, fieldProgram, hamiltonPathsProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, isometricRibbonsProgram, kochCurvesProgram, logoProgram, mooreCurveProgram, nodeComposerProgram, peanoCurveProgram, referencePosterProgram, sculptureScanProgram, terrainSlicesProgram, tilepathGridProgram, trochoidProgram, voronoiNestedCellsProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];

@@ -116,6 +116,23 @@ export type ToolDiagnostics = Readonly<{
   vpypeGcode: ToolStatus;
 }>;
 
+export type GoogleFontSearchResult = Readonly<{
+  family: string;
+  category: string;
+  availableWeights: readonly number[];
+}>;
+
+export type GoogleFontSearchResponse = Readonly<{
+  items: readonly GoogleFontSearchResult[];
+}>;
+
+export type GoogleFontResolveResponse = Readonly<{
+  family: string;
+  resolvedWeight: number;
+  fontDataBase64: string;
+  fontCacheKey: string;
+}>;
+
 export type GcodeRotationDeg = 0 | 90 | 180 | 270;
 
 export type GcodeOversizeHandling = "ignore" | "scale" | "clip";

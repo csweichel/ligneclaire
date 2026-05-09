@@ -7,8 +7,13 @@ import {
   createRng,
   distanceBetweenPoints,
   excludePolylineFromPolygon,
+  generateDragonCurve,
   generateHamiltonPaths,
+  generateHilbertCurve,
+  generateMooreCurve,
+  generatePeanoCurve,
   generateTerrainSliceGeometry,
+  generateVoronoiNestedCells,
   hatchBounds,
   resolveProgramState,
   plotPalette,
@@ -29,6 +34,7 @@ import {
 } from "@ligneclaire/sdk";
 import { goPenSampleGrid } from "@ligneclaire/sdk";
 import { nodeComposerProgramRegistry } from "../generated/node-composer-program-registry";
+import { generateTextPaths } from "./text";
 
 export const canvas = {
   widthMm: 210,
@@ -69,10 +75,13 @@ export type NodePortKind = "paths" | "mask";
 type BuiltInNodeKind =
   | "program"
   | "line-grid"
+  | "line"
   | "perlin-field"
   | "circle-grid"
   | "image-circles"
+  | "text"
   | "hamilton-path"
+  | "voronoi-nested-cells"
   | "terrain-slice"
   | "trochoid"
   | "mask-circle"
@@ -381,6 +390,22 @@ const clipModeOptions = [
   { label: "Exclude", value: "exclude" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
+const lineStyleOptions = [
+  { label: "Solid", value: "solid" },
+  { label: "Dashed", value: "dashed" },
+] as const satisfies readonly ChoiceFieldOption[];
+
+const textFillPatternOptions = [
+  { label: "Outline", value: "outline" },
+  { label: "Hatch", value: "hatch" },
+  { label: "Cross Hatch", value: "cross-hatch" },
+  { label: "Continual Inset", value: "inset" },
+  { label: "Hilbert", value: "hilbert" },
+  { label: "Moore", value: "moore" },
+  { label: "Peano", value: "peano" },
+  { label: "Dragon", value: "dragon" },
+] as const satisfies readonly ChoiceFieldOption[];
+
 function humanizeProgramFieldKey(key: string): string {
   return key
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -500,6 +525,71 @@ const builtInNodeSpecs = {
         defaultValue: 24,
         step: 1,
         unit: "deg",
+      }),
+    ],
+  },
+  line: {
+    kind: "line",
+    title: "Line",
+    summary: "A centered line segment rendered as either a solid or dashed band of parallel strokes.",
+    category: "paths",
+    inputs: [],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [
+      ...centerFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+      }),
+      floatField({
+        key: "length",
+        label: "Length",
+        min: 4,
+        max: contentWidth,
+        defaultValue: 120,
+        step: 1,
+        unit: "mm",
+      }),
+      floatField({
+        key: "angleDeg",
+        label: "Angle",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 1,
+        unit: "deg",
+      }),
+      choiceField({
+        key: "style",
+        label: "Style",
+        defaultValue: "solid",
+        options: lineStyleOptions,
+      }),
+      floatField({
+        key: "thickness",
+        label: "Thickness",
+        min: 0.35,
+        max: 24,
+        defaultValue: 1.2,
+        step: 0.05,
+        unit: "mm",
+      }),
+      floatField({
+        key: "dashLength",
+        label: "Dash Length",
+        min: 0.5,
+        max: 40,
+        defaultValue: 10,
+        step: 0.25,
+        unit: "mm",
+      }),
+      floatField({
+        key: "dashGap",
+        label: "Dash Gap",
+        min: 0.25,
+        max: 40,
+        defaultValue: 5,
+        step: 0.25,
+        unit: "mm",
       }),
     ],
   },
@@ -679,6 +769,97 @@ const builtInNodeSpecs = {
       }),
     ],
   },
+  text: {
+    kind: "text",
+    title: "Text",
+    summary:
+      "Outlined or pattern-filled text from bundled Google fonts, with adjustable size, weight, and rotation.",
+    category: "paths",
+    inputs: [],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [
+      ...centerFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+      }),
+      textField({
+        key: "text",
+        label: "Text",
+        defaultValue: "Ligne Claire",
+        placeholder: "Plot text",
+        maxLength: 80,
+      }),
+      textField({
+        key: "fontId",
+        label: "Font",
+        defaultValue: "inter",
+        placeholder: "Search Google Fonts",
+        maxLength: 120,
+      }),
+      floatField({
+        key: "fontSize",
+        label: "Size",
+        min: 4,
+        max: 96,
+        defaultValue: 24,
+        step: 0.5,
+        unit: "mm",
+      }),
+      intField({
+        key: "fontWeight",
+        label: "Weight",
+        min: 100,
+        max: 900,
+        defaultValue: 400,
+        step: 50,
+      }),
+      floatField({
+        key: "rotationDeg",
+        label: "Rotation",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 1,
+        unit: "deg",
+      }),
+      choiceField({
+        key: "fillPattern",
+        label: "Fill Pattern",
+        defaultValue: "outline",
+        options: textFillPatternOptions,
+      }),
+      boolField({
+        key: "includeOutline",
+        label: "Include Outline",
+        defaultValue: true,
+      }),
+      floatField({
+        key: "fillSpacing",
+        label: "Fill Spacing",
+        min: 0.35,
+        max: 24,
+        defaultValue: 3.6,
+        step: 0.05,
+        unit: "mm",
+      }),
+      floatField({
+        key: "fillAngleDeg",
+        label: "Fill Angle",
+        min: -180,
+        max: 180,
+        defaultValue: 45,
+        step: 1,
+        unit: "deg",
+      }),
+      intField({
+        key: "curveOrder",
+        label: "Curve Order",
+        min: 1,
+        max: 6,
+        defaultValue: 4,
+      }),
+    ],
+  },
   "hamilton-path": {
     kind: "hamilton-path",
     title: "Hamilton Path",
@@ -778,6 +959,70 @@ const builtInNodeSpecs = {
         key: "drawCenterlines",
         label: "Draw Centerlines",
         defaultValue: false,
+      }),
+    ],
+  },
+  "voronoi-nested-cells": {
+    kind: "voronoi-nested-cells",
+    title: "Voronoi Nested Cells",
+    summary:
+      "Scatter seeded Voronoi cells inside a rectangular region, fillet them, then emit nested scaled and rotated closed loops.",
+    category: "paths",
+    inputs: [],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [
+      ...regionFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+        width: 150,
+        height: 220,
+      }),
+      intField({
+        key: "pointCount",
+        label: "Point Count",
+        min: 1,
+        max: 200,
+        defaultValue: 51,
+      }),
+      intField({
+        key: "randomSeed",
+        label: "Random Seed",
+        min: 1,
+        max: 999999,
+        defaultValue: 20,
+      }),
+      floatField({
+        key: "filletRadius",
+        label: "Fillet Radius",
+        min: 0,
+        max: 200,
+        defaultValue: 100,
+        step: 1,
+        unit: "mm",
+      }),
+      intField({
+        key: "layerCount",
+        label: "Layer Count",
+        min: 1,
+        max: 24,
+        defaultValue: 10,
+      }),
+      floatField({
+        key: "scaleBase",
+        label: "Scale Base",
+        min: 0.1,
+        max: 1.2,
+        defaultValue: 0.9,
+        step: 0.01,
+      }),
+      floatField({
+        key: "rotationStep",
+        label: "Rotation Step",
+        min: -14,
+        max: 14,
+        defaultValue: 7,
+        step: 0.05,
+        unit: "rad",
       }),
     ],
   },
@@ -1289,6 +1534,29 @@ function normalizeConfigForSpec(kind: NodeKind, input: unknown): NodeConfig {
     normalized.maxHatchSpacing = Math.max(minSpacing + 0.1, Number(normalized.maxHatchSpacing));
   }
 
+  if (kind === "text") {
+    const fontCacheKey = readString(candidate.fontCacheKey, "").trim();
+    const fontDataBase64 = readString(candidate.fontDataBase64, "").trim();
+    const fontResolvedWeight = Math.round(readNumber(candidate.fontResolvedWeight, 0));
+    const fontRequestedWeight = Math.round(readNumber(candidate.fontRequestedWeight, 0));
+
+    if (fontCacheKey.length > 0) {
+      normalized.fontCacheKey = fontCacheKey;
+    }
+
+    if (fontDataBase64.length > 0) {
+      normalized.fontDataBase64 = fontDataBase64;
+    }
+
+    if (fontResolvedWeight > 0) {
+      normalized.fontResolvedWeight = fontResolvedWeight;
+    }
+
+    if (fontRequestedWeight > 0) {
+      normalized.fontRequestedWeight = fontRequestedWeight;
+    }
+  }
+
   if (kind === "output-layer") {
     const label = String(normalized.label ?? "").trim();
     normalized.label = label.length > 0 ? label.slice(0, 48) : "Layer";
@@ -1758,6 +2026,444 @@ function interpolatePoint(start: Point, end: Point, amount: number): Point {
   };
 }
 
+const THICK_LINE_SPACING_MM = 0.6;
+
+function thickLineOffsets(thickness: number): readonly number[] {
+  if (thickness <= THICK_LINE_SPACING_MM * 1.25) {
+    return [0];
+  }
+
+  const count = Math.max(2, Math.floor(thickness / THICK_LINE_SPACING_MM) + 1);
+  const start = -thickness * 0.5;
+  const step = count > 1 ? thickness / (count - 1) : 0;
+
+  return Array.from({ length: count }, (_, index) => start + step * index);
+}
+
+function lineNodeCenterline(config: NodeConfig): Readonly<{ start: Point; end: Point }> {
+  const center = {
+    x: Number(config.centerX),
+    y: Number(config.centerY),
+  };
+  const halfLength = Number(config.length) * 0.5;
+  const direction = rotatePoint(
+    {
+      x: halfLength,
+      y: 0,
+    },
+    (Number(config.angleDeg) / 180) * Math.PI
+  );
+
+  return {
+    start: {
+      x: center.x - direction.x,
+      y: center.y - direction.y,
+    },
+    end: {
+      x: center.x + direction.x,
+      y: center.y + direction.y,
+    },
+  };
+}
+
+function buildLineNodePaths(config: NodeConfig): readonly Polyline[] {
+  const { start, end } = lineNodeCenterline(config);
+  const length = distanceBetweenPoints(start, end);
+  if (length < 1e-6) {
+    return [];
+  }
+
+  const direction = {
+    x: (end.x - start.x) / length,
+    y: (end.y - start.y) / length,
+  };
+  const normal = {
+    x: -direction.y,
+    y: direction.x,
+  };
+  const dashLength = Math.max(0.1, Number(config.dashLength));
+  const dashGap = Math.max(0.1, Number(config.dashGap));
+  const solid = String(config.style) !== "dashed";
+  const paths: Polyline[] = [];
+
+  for (const offset of thickLineOffsets(Number(config.thickness))) {
+    const offsetVector = {
+      x: normal.x * offset,
+      y: normal.y * offset,
+    };
+    const laneStart = {
+      x: start.x + offsetVector.x,
+      y: start.y + offsetVector.y,
+    };
+    const laneEnd = {
+      x: end.x + offsetVector.x,
+      y: end.y + offsetVector.y,
+    };
+
+    if (solid) {
+      paths.push({
+        points: [laneStart, laneEnd],
+      });
+      continue;
+    }
+
+    let cursor = 0;
+    while (cursor < length - 1e-6) {
+      const dashStart = interpolatePoint(laneStart, laneEnd, cursor / length);
+      const dashEnd = interpolatePoint(
+        laneStart,
+        laneEnd,
+        Math.min(1, (cursor + dashLength) / length)
+      );
+      paths.push({
+        points: [dashStart, dashEnd],
+      });
+      cursor += dashLength + dashGap;
+    }
+  }
+
+  return paths;
+}
+
+function pointInBoundsInclusive(point: Point, bounds: Bounds): boolean {
+  return (
+    point.x >= bounds.minX &&
+    point.x <= bounds.maxX &&
+    point.y >= bounds.minY &&
+    point.y <= bounds.maxY
+  );
+}
+
+function polygonSignedArea(points: readonly Point[]): number {
+  if (points.length < 3) {
+    return 0;
+  }
+
+  let area = 0;
+
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index]!;
+    const next = points[(index + 1) % points.length]!;
+    area += current.x * next.y - next.x * current.y;
+  }
+
+  return area * 0.5;
+}
+
+function insetBounds(bounds: Bounds, inset: number): Bounds {
+  if (inset <= 0) {
+    return bounds;
+  }
+
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  if (width <= inset * 2 || height <= inset * 2) {
+    return bounds;
+  }
+
+  return {
+    minX: bounds.minX + inset,
+    minY: bounds.minY + inset,
+    maxX: bounds.maxX - inset,
+    maxY: bounds.maxY - inset,
+  };
+}
+
+function closePolylineLoop(polyline: Polyline): Polyline {
+  if (polyline.points.length < 2) {
+    return polyline;
+  }
+
+  const first = polyline.points[0]!;
+  const last = polyline.points.at(-1)!;
+  const alreadyClosed = distanceBetweenPoints(first, last) < 1e-6;
+
+  return {
+    points: alreadyClosed ? [...polyline.points] : [...polyline.points, first],
+  };
+}
+
+function closedPolylineNormal(start: Point, end: Point): Point {
+  const length = distanceBetweenPoints(start, end) || 1;
+  return {
+    x: -(end.y - start.y) / length,
+    y: (end.x - start.x) / length,
+  };
+}
+
+function offsetClosedPolyline(polyline: Polyline, offsetMm: number): Polyline {
+  if (polyline.points.length < 3) {
+    return polyline;
+  }
+
+  const count = polyline.points.length;
+  const points = polyline.points.map((point, index) => {
+    const previous = polyline.points[(index + count - 1) % count]!;
+    const next = polyline.points[(index + 1) % count]!;
+    const before = closedPolylineNormal(previous, point);
+    const after = closedPolylineNormal(point, next);
+    const normal = {
+      x: before.x + after.x,
+      y: before.y + after.y,
+    };
+    const length = Math.hypot(normal.x, normal.y);
+    const safeNormal = length > 1e-6 ? { x: normal.x / length, y: normal.y / length } : before;
+
+    return {
+      x: point.x + safeNormal.x * offsetMm,
+      y: point.y + safeNormal.y * offsetMm,
+    };
+  });
+
+  return {
+    points,
+    closed: true,
+  };
+}
+
+function makeTextMask(outlines: readonly Polyline[]): MaskShape | null {
+  const bounds = pathSetBounds(outlines);
+  if (!bounds) {
+    return null;
+  }
+
+  const contours = outlines.flatMap((path) => {
+    if (!path.closed || path.points.length < 3) {
+      return [];
+    }
+
+    const contourBounds = polylineBounds(path);
+    if (!contourBounds) {
+      return [];
+    }
+
+    return [
+      {
+        bounds: contourBounds,
+        polygon: [...path.points] as Polygon,
+      },
+    ];
+  });
+
+  if (contours.length === 0) {
+    return null;
+  }
+
+  return makeMask(
+    bounds,
+    (point) => {
+      if (!pointInBoundsInclusive(point, bounds)) {
+        return false;
+      }
+
+      let hits = 0;
+      for (const contour of contours) {
+        if (!pointInBoundsInclusive(point, contour.bounds)) {
+          continue;
+        }
+
+        if (pointInPolygon(point, contour.polygon)) {
+          hits += 1;
+        }
+      }
+
+      return hits % 2 === 1;
+    },
+    outlines
+  );
+}
+
+function textInsetDirection(path: Polyline, mask: MaskShape): number {
+  const epsilon = 0.35;
+
+  for (let index = 0; index < path.points.length; index += 1) {
+    const start = path.points[index]!;
+    const end = path.points[(index + 1) % path.points.length]!;
+    const length = distanceBetweenPoints(start, end);
+    if (length < 1e-6) {
+      continue;
+    }
+
+    const midpoint = interpolatePoint(start, end, 0.5);
+    const tangent = {
+      x: (end.x - start.x) / length,
+      y: (end.y - start.y) / length,
+    };
+    const normal = {
+      x: -tangent.y,
+      y: tangent.x,
+    };
+    const positive = {
+      x: midpoint.x + normal.x * epsilon,
+      y: midpoint.y + normal.y * epsilon,
+    };
+    const negative = {
+      x: midpoint.x - normal.x * epsilon,
+      y: midpoint.y - normal.y * epsilon,
+    };
+    const positiveInside = mask.contains(positive);
+    const negativeInside = mask.contains(negative);
+
+    if (positiveInside !== negativeInside) {
+      return positiveInside ? 1 : -1;
+    }
+  }
+
+  return polygonSignedArea(path.points) >= 0 ? 1 : -1;
+}
+
+function buildTextInsetPaths(
+  outlines: readonly Polyline[],
+  mask: MaskShape,
+  spacing: number
+): readonly Polyline[] {
+  const maxDimension = Math.max(
+    mask.bounds.maxX - mask.bounds.minX,
+    mask.bounds.maxY - mask.bounds.minY
+  );
+  const maxPasses = Math.max(1, Math.min(96, Math.ceil(maxDimension / Math.max(spacing, 0.1))));
+  const insetPaths: Polyline[] = [];
+
+  for (const path of outlines) {
+    if (!path.closed || path.points.length < 3) {
+      continue;
+    }
+
+    const direction = textInsetDirection(path, mask);
+    let emptyPasses = 0;
+
+    for (let index = 1; index <= maxPasses; index += 1) {
+      const offsetPath = closePolylineLoop(offsetClosedPolyline(path, spacing * direction * index));
+      const clipped = applyMaskToPaths([offsetPath], mask, "clip");
+
+      if (clipped.length === 0) {
+        emptyPasses += 1;
+        if (emptyPasses >= 2) {
+          break;
+        }
+        continue;
+      }
+
+      emptyPasses = 0;
+      insetPaths.push(...clipped);
+    }
+  }
+
+  return insetPaths;
+}
+
+function buildTextCurveFillPaths(
+  pattern: string,
+  bounds: Bounds,
+  rotationDeg: number,
+  order: number,
+  spacing: number
+): readonly Polyline[] {
+  const curveBounds = insetBounds(bounds, spacing * 0.25);
+  let curve: Polyline | null = null;
+
+  switch (pattern) {
+    case "hilbert":
+      curve = generateHilbertCurve(clamp(order, 1, 6), curveBounds);
+      break;
+    case "moore":
+      curve = generateMooreCurve(clamp(order, 1, 6), curveBounds);
+      break;
+    case "peano":
+      curve = generatePeanoCurve(clamp(order, 1, 4), curveBounds);
+      break;
+    case "dragon":
+      curve = generateDragonCurve(clamp(order + 4, 2, 16), curveBounds);
+      break;
+    default:
+      return [];
+  }
+
+  if (rotationDeg === 0) {
+    return [curve];
+  }
+
+  return transformPathsAroundCenter([curve], {
+    translateX: 0,
+    translateY: 0,
+    scaleX: 1,
+    scaleY: 1,
+    rotationDeg,
+  });
+}
+
+function buildTextFillPaths(
+  outlines: readonly Polyline[],
+  bounds: Bounds,
+  config: NodeConfig
+): readonly Polyline[] {
+  const pattern = String(config.fillPattern ?? "outline");
+  if (pattern === "outline") {
+    return [];
+  }
+
+  const mask = makeTextMask(outlines);
+  if (!mask) {
+    return [];
+  }
+
+  const spacing = Math.max(0.35, Number(config.fillSpacing ?? 3.6));
+  const angleDeg = Number(config.fillAngleDeg ?? 45);
+  const curveOrder = Math.round(Number(config.curveOrder ?? 4));
+
+  if (pattern === "inset") {
+    return buildTextInsetPaths(outlines, mask, spacing);
+  }
+
+  if (pattern === "hatch" || pattern === "cross-hatch") {
+    const hatchPaths = [
+      ...hatchBounds(bounds, spacing, angleDeg),
+      ...(pattern === "cross-hatch" ? hatchBounds(bounds, spacing, angleDeg + 90) : []),
+    ];
+
+    return applyMaskToPaths(hatchPaths, mask, "clip");
+  }
+
+  return applyMaskToPaths(
+    buildTextCurveFillPaths(pattern, bounds, angleDeg, curveOrder, spacing),
+    mask,
+    "clip"
+  );
+}
+
+function buildTextNodePaths(config: NodeConfig): readonly Polyline[] {
+  const textResult = generateTextPaths({
+    center: {
+      x: Number(config.centerX),
+      y: Number(config.centerY),
+    },
+    text: String(config.text ?? ""),
+    fontId: String(config.fontId ?? "inter"),
+    fontSize: Number(config.fontSize),
+    fontWeight: Number(config.fontWeight),
+    rotationDeg: Number(config.rotationDeg ?? 0),
+    fontDataBase64: String(config.fontDataBase64 ?? ""),
+    fontCacheKey: String(config.fontCacheKey ?? ""),
+  });
+  const outlines = textResult.paths;
+  const bounds = textResult.bounds;
+  if (!bounds || outlines.length === 0) {
+    return [];
+  }
+
+  const pattern = String(config.fillPattern ?? "outline");
+  if (pattern === "outline") {
+    return outlines;
+  }
+
+  const fillPaths = buildTextFillPaths(outlines, bounds, config);
+  if (!Boolean(config.includeOutline ?? true)) {
+    return fillPaths;
+  }
+
+  return [...fillPaths, ...outlines];
+}
+
 function clipPolylineToMaskSampling(
   polyline: Polyline,
   mask: MaskShape,
@@ -2109,6 +2815,15 @@ function evaluateNodeOutputs(
     };
   }
 
+  if (node.kind === "line") {
+    return {
+      paths: {
+        kind: "paths",
+        paths: clipPathsToContent(buildLineNodePaths(node.config)),
+      },
+    };
+  }
+
   if (node.kind === "perlin-field") {
     const bounds = makeRegionBounds(node.config);
     return {
@@ -2225,6 +2940,15 @@ function evaluateNodeOutputs(
     };
   }
 
+  if (node.kind === "text") {
+    return {
+      paths: {
+        kind: "paths",
+        paths: buildTextNodePaths(node.config),
+      },
+    };
+  }
+
   if (node.kind === "hamilton-path") {
     const domainValue = resolveNodeInput(node, "domain", "mask", context, evaluateNode);
     const domainMask = domainValue?.kind === "mask" ? domainValue.mask : null;
@@ -2249,6 +2973,25 @@ function evaluateNodeOutputs(
         paths: clipPathsToContent(
           domainMask ? applyMaskToPaths(result.paths, domainMask, "clip") : result.paths
         ),
+      },
+    };
+  }
+
+  if (node.kind === "voronoi-nested-cells") {
+    const bounds = makeRegionBounds(node.config);
+    const result = generateVoronoiNestedCells(bounds, {
+      pointCount: Number(node.config.pointCount),
+      seed: Number(node.config.randomSeed),
+      filletRadius: Number(node.config.filletRadius),
+      layerCount: Number(node.config.layerCount),
+      scaleBase: Number(node.config.scaleBase),
+      rotationStep: Number(node.config.rotationStep),
+    });
+
+    return {
+      paths: {
+        kind: "paths",
+        paths: result.paths,
       },
     };
   }
@@ -2963,6 +3706,14 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
     return [];
   }
 
+  if (node.kind === "line") {
+    return buildLineNodePaths(node.config);
+  }
+
+  if (node.kind === "text") {
+    return buildTextNodePaths(node.config);
+  }
+
   if (
     node.kind === "line-grid" ||
     node.kind === "perlin-field" ||
@@ -3011,6 +3762,31 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
         closed: true,
       },
       ...guide.baseNodes.map((point) => makeCirclePath(point.x, point.y, debugRadius, 24)),
+    ];
+  }
+
+  if (node.kind === "voronoi-nested-cells") {
+    const bounds = makeRegionBounds(node.config);
+    const result = generateVoronoiNestedCells(bounds, {
+      pointCount: Number(node.config.pointCount),
+      seed: Number(node.config.randomSeed),
+      filletRadius: Number(node.config.filletRadius),
+      layerCount: 1,
+      scaleBase: 1,
+      rotationStep: 0,
+    });
+    const averageCellSpan = Math.sqrt(
+      (Number(node.config.width) * Number(node.config.height)) /
+        Math.max(1, Number(node.config.pointCount))
+    );
+    const debugRadius = clamp(averageCellSpan * 0.08, 0.35, 1.25);
+
+    return [
+      {
+        points: result.boundary,
+        closed: true,
+      },
+      ...result.seedPoints.map((point) => makeCirclePath(point.x, point.y, debugRadius, 24)),
     ];
   }
 

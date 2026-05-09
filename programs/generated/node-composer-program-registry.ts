@@ -27,6 +27,7 @@ import { program as sculptureScanProgram } from "../sculpture-scan/index";
 import { program as terrainSlicesProgram } from "../terrain-slices/index";
 import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as trochoidProgram } from "../trochoid/index";
+import { program as voronoiNestedCellsProgram } from "../voronoi-nested-cells/index";
 import { program as wavesProgram } from "../waves/index";
 
 export const nodeComposerProgramRegistry = [
@@ -573,6 +574,26 @@ export const nodeComposerProgramRegistry = [
             "selectedFigureId": "figure-1",
             "nextFigureNumber": 2
           }
+      }
+    ]
+  },
+  {
+    program: voronoiNestedCellsProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "boundaryWidth": 150,
+            "boundaryHeight": 220,
+            "pointCount": 51,
+            "randomSeed": 20,
+            "filletRadius": 100,
+            "layerCount": 10,
+            "scaleBase": 0.9,
+            "rotationStep": 7
+          },
+        programState: {}
       }
     ]
   },

@@ -1,19 +1,20 @@
 import { clamp } from "@ligneclaire/sdk";
-import type { JSX } from "react";
+import { useDeferredValue, useEffect, useRef, useState, type JSX } from "react";
 import {
   connectionForInput,
   nodeLabel,
+  nodeSpec,
   programNodeParamFields,
   programNodeParamSets,
   programNodeProgram,
   programNodeProgramId,
   programNodePrograms,
-  nodeSpec,
   type ComposerNode,
   type NodeComposerProgramState,
   type NodeConfigValue,
   type NodeFieldSpec,
 } from "./model";
+import { googleTextFonts, isGoogleTextFontId } from "./text-fonts";
 
 type NodeComposerInspectorProps = Readonly<{
   programState: NodeComposerProgramState;
@@ -230,6 +231,277 @@ function ProgramNodeFields({
   );
 }
 
+type GoogleFontSearchItem = Readonly<{
+  family: string;
+  category: string;
+  availableWeights: readonly number[];
+}>;
+
+type GoogleFontSearchResponse = Readonly<{
+  items: readonly GoogleFontSearchItem[];
+}>;
+
+type GoogleFontResolveResponse = Readonly<{
+  family: string;
+  resolvedWeight: number;
+  fontDataBase64: string;
+  fontCacheKey: string;
+}>;
+
+const legacyGoogleFontFamilyById = new Map<string, string>(
+  googleTextFonts.map((font) => [font.id, font.label] as const)
+);
+
+function fontFamilyLabel(fontId: string): string {
+  return legacyGoogleFontFamilyById.get(fontId) ?? fontId;
+}
+
+function fontWeightSummary(weights: readonly number[]): string {
+  if (weights.length === 0) {
+    return "Default";
+  }
+
+  if (weights.length === 1) {
+    return `${weights[0]}`;
+  }
+
+  return `${weights[0]}-${weights[weights.length - 1]}`;
+}
+
+async function fetchJson<Response>(url: string, signal?: AbortSignal): Promise<Response> {
+  const response = await fetch(url, signal ? { signal } : undefined);
+  const text = await response.text();
+  const payload = text.length > 0 ? (JSON.parse(text) as Response & { message?: string }) : ({} as Response);
+
+  if (!response.ok) {
+    throw new Error((payload as { message?: string }).message ?? `Request failed with ${response.status}`);
+  }
+
+  return payload;
+}
+
+type TextNodeFieldsProps = Readonly<{
+  selectedNode: ComposerNode;
+  onPatchConfig: (nodeId: string, patch: Readonly<Record<string, NodeConfigValue>>) => void;
+}>;
+
+function TextNodeFields({ selectedNode, onPatchConfig }: TextNodeFieldsProps): JSX.Element {
+  const textSpec = nodeSpec("text");
+  const rawFontId = String(selectedNode.config.fontId ?? "inter").trim();
+  const currentFontFamily = fontFamilyLabel(rawFontId || "inter");
+  const fontWeight = typeof selectedNode.config.fontWeight === "number" ? selectedNode.config.fontWeight : 400;
+  const [searchQuery, setSearchQuery] = useState(currentFontFamily);
+  const deferredWeight = useDeferredValue(fontWeight);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [results, setResults] = useState<readonly GoogleFontSearchItem[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const resolveGenerationRef = useRef(0);
+
+  useEffect(() => {
+    setSearchQuery(currentFontFamily);
+    setResolveError(null);
+  }, [currentFontFamily, selectedNode.id]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const searchValue = deferredSearchQuery.trim();
+
+    setSearchLoading(true);
+    setSearchError(null);
+
+    void fetchJson<GoogleFontSearchResponse>(
+      `/api/google-fonts/search?q=${encodeURIComponent(searchValue)}&limit=24`,
+      controller.signal
+    )
+      .then((payload) => {
+        setResults(payload.items);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setSearchError(error instanceof Error ? error.message : "Failed to search Google Fonts.");
+        setResults([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setSearchLoading(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [deferredSearchQuery, selectedNode.id]);
+
+  async function resolveAndApplyFont(family: string, weight: number): Promise<void> {
+    const generation = resolveGenerationRef.current + 1;
+    resolveGenerationRef.current = generation;
+    setResolveError(null);
+
+    try {
+      const payload = await fetchJson<GoogleFontResolveResponse>(
+        `/api/google-fonts/resolve?family=${encodeURIComponent(family)}&weight=${weight}`
+      );
+
+      if (resolveGenerationRef.current !== generation) {
+        return;
+      }
+
+      onPatchConfig(selectedNode.id, {
+        fontId: payload.family,
+        fontCacheKey: payload.fontCacheKey,
+        fontDataBase64: payload.fontDataBase64,
+        fontResolvedWeight: payload.resolvedWeight,
+        fontRequestedWeight: weight,
+      });
+      setSearchQuery(payload.family);
+      setDropdownOpen(false);
+    } catch (error) {
+      if (resolveGenerationRef.current !== generation) {
+        return;
+      }
+
+      setResolveError(error instanceof Error ? error.message : "Failed to load Google font.");
+    }
+  }
+
+  useEffect(() => {
+    const hasExternalFontData = String(selectedNode.config.fontDataBase64 ?? "").length > 0;
+    const requestedWeight = typeof selectedNode.config.fontRequestedWeight === "number"
+      ? selectedNode.config.fontRequestedWeight
+      : 0;
+
+    if (!hasExternalFontData && isGoogleTextFontId(rawFontId)) {
+      return;
+    }
+
+    if (hasExternalFontData && requestedWeight === deferredWeight) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void resolveAndApplyFont(currentFontFamily, deferredWeight);
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    currentFontFamily,
+    deferredWeight,
+    rawFontId,
+    selectedNode.config.fontDataBase64,
+    selectedNode.config.fontRequestedWeight,
+    selectedNode.id,
+  ]);
+
+  return (
+    <div className="lc-node-composer__field-list">
+      {textSpec.fields.map((field) => {
+        if (field.key === "fontId") {
+          return (
+            <label key={field.key} className="lc-editor-overlay__field">
+              <span className="lc-editor-overlay__label">Font</span>
+              <div
+                className="lc-node-composer__font-picker"
+                onBlur={() => {
+                  window.setTimeout(() => {
+                    setDropdownOpen(false);
+                  }, 100);
+                }}
+              >
+                <input
+                  className="studio-input studio-input--compact"
+                  placeholder="Type to search Google Fonts"
+                  type="text"
+                  value={searchQuery}
+                  role="combobox"
+                  aria-expanded={dropdownOpen}
+                  aria-controls={`text-font-results-${selectedNode.id}`}
+                  onFocus={() => {
+                    setDropdownOpen(true);
+                  }}
+                  onChange={(event) => {
+                    setSearchQuery(event.currentTarget.value);
+                    setDropdownOpen(true);
+                  }}
+                />
+
+                {dropdownOpen ? (
+                  <div
+                    id={`text-font-results-${selectedNode.id}`}
+                    role="listbox"
+                    className="lc-node-composer__font-picker-panel"
+                  >
+                    {searchLoading ? (
+                      <div className="lc-node-composer__font-picker-status">Searching Google Fonts…</div>
+                    ) : null}
+                    {!searchLoading && searchError ? (
+                      <div className="lc-node-composer__font-picker-status">{searchError}</div>
+                    ) : null}
+                    {!searchLoading && !searchError && results.length === 0 ? (
+                      <div className="lc-node-composer__font-picker-status">No fonts found.</div>
+                    ) : null}
+                    {!searchLoading && !searchError
+                      ? results.map((item) => (
+                          <button
+                            key={item.family}
+                            className="lc-node-composer__font-picker-option"
+                            type="button"
+                            role="option"
+                            aria-selected={item.family === currentFontFamily}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              void resolveAndApplyFont(item.family, fontWeight);
+                            }}
+                          >
+                            <span className="lc-node-composer__font-picker-family">{item.family}</span>
+                            <span className="lc-node-composer__font-picker-meta">
+                              {item.category} · {fontWeightSummary(item.availableWeights)}
+                            </span>
+                          </button>
+                        ))
+                      : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <span className="lc-node-composer__font-picker-current">
+                Current: {currentFontFamily}
+                {typeof selectedNode.config.fontResolvedWeight === "number"
+                  ? ` · rendered at ${selectedNode.config.fontResolvedWeight}`
+                  : ""}
+              </span>
+              {resolveError ? (
+                <span className="lc-node-composer__font-picker-error">{resolveError}</span>
+              ) : null}
+            </label>
+          );
+        }
+
+        const value = selectedNode.config[field.key];
+        return (
+          <FieldRow
+            key={field.key}
+            field={field}
+            value={value}
+            onChange={(nextValue) => {
+              onPatchConfig(selectedNode.id, {
+                [field.key]: nextValue,
+              });
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function NodeComposerInspector({
   programState,
   selectedNode,
@@ -316,6 +588,11 @@ export function NodeComposerInspector({
           onPatchConfig={onPatchConfig}
           onSelectProgram={onSelectProgram}
           onSelectParamSet={onSelectParamSet}
+        />
+      ) : selectedNode.kind === "text" ? (
+        <TextNodeFields
+          selectedNode={selectedNode}
+          onPatchConfig={onPatchConfig}
         />
       ) : spec.fields.length > 0 ? (
         <div className="lc-node-composer__field-list">
