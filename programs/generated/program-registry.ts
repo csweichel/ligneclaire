@@ -7,6 +7,8 @@ import type { ProgramDefinition } from "@ligneclaire/sdk";
 import { program as clipFieldProgram } from "../clip-field/index";
 import { program as continuousContourProgram } from "../continuous-contour/index";
 import { program as curveProgram } from "../curve/index";
+import { program as delaunayPathsProgram } from "../delaunay-paths/index";
+import { program as dragonCurveProgram } from "../dragon-curve/index";
 import { program as fieldProgram } from "../field/index";
 import { program as hamiltonPathsProgram } from "../hamilton-paths/index";
 import { program as helloWorldProgram } from "../hello-world/index";
@@ -16,8 +18,11 @@ import { program as hilbertThickGradientProgram } from "../hilbert-thick-gradien
 import { program as imageCirclesProgram } from "../image-circles/index";
 import { program as imageJiggleProgram } from "../image-jiggle/index";
 import { program as isometricRibbonsProgram } from "../isometric-ribbons/index";
+import { program as kochCurvesProgram } from "../koch-curves/index";
 import { program as logoProgram } from "../logo/index";
+import { program as mooreCurveProgram } from "../moore-curve/index";
 import { program as nodeComposerProgram } from "../node-composer/index";
+import { program as peanoCurveProgram } from "../peano-curve/index";
 import { program as referencePosterProgram } from "../reference-poster/index";
 import { program as sculptureScanProgram } from "../sculpture-scan/index";
 import { program as terrainSlicesProgram } from "../terrain-slices/index";
@@ -25,4 +30,4 @@ import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as trochoidProgram } from "../trochoid/index";
 import { program as wavesProgram } from "../waves/index";
 
-export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, fieldProgram, hamiltonPathsProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, isometricRibbonsProgram, logoProgram, nodeComposerProgram, referencePosterProgram, sculptureScanProgram, terrainSlicesProgram, tilepathGridProgram, trochoidProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];
+export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, delaunayPathsProgram, dragonCurveProgram, fieldProgram, hamiltonPathsProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, isometricRibbonsProgram, kochCurvesProgram, logoProgram, mooreCurveProgram, nodeComposerProgram, peanoCurveProgram, referencePosterProgram, sculptureScanProgram, terrainSlicesProgram, tilepathGridProgram, trochoidProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];

@@ -1,0 +1,11 @@
+{
+  "programId": "peano-curve",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "order": 3
+  },
+  "programState": {},
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "updatedAt": "2026-05-09T00:00:00.000Z"
+}

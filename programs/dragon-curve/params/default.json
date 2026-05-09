@@ -1,0 +1,11 @@
+{
+  "programId": "dragon-curve",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "iterations": 12
+  },
+  "programState": {},
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "updatedAt": "2026-05-09T00:00:00.000Z"
+}

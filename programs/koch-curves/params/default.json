@@ -1,0 +1,12 @@
+{
+  "programId": "koch-curves",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "iterations": 4,
+    "snowflake": true
+  },
+  "programState": {},
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "updatedAt": "2026-05-09T00:00:00.000Z"
+}

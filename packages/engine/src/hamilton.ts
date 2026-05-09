@@ -14,6 +14,7 @@ export type HamiltonPathOptions = Readonly<{
   gridRotationDeg?: number;
   latticeAngleDeg?: number;
   rowStepRatio?: number;
+  nodeOffsets?: Readonly<Record<number, Point>>;
   mixSteps?: number;
 }>;
 
@@ -39,8 +40,50 @@ type NormalizedHamiltonPathOptions = Readonly<{
   gridRotationDeg: number;
   latticeAngleDeg: number;
   rowStepRatio: number;
+  nodeOffsets: Readonly<Record<number, Point>>;
   mixSteps: number;
 }>;
+
+function normalizeNodeOffsets(
+  input: HamiltonPathOptions["nodeOffsets"],
+  cellCount: number
+): Readonly<Record<number, Point>> {
+  if (!input || typeof input !== "object") {
+    return {};
+  }
+
+  const offsets: Record<number, Point> = {};
+
+  for (const [key, value] of Object.entries(input)) {
+    if (!/^\d+$/.test(key)) {
+      continue;
+    }
+    const index = Number.parseInt(key, 10);
+    if (!Number.isInteger(index) || index < 0 || index >= cellCount) {
+      continue;
+    }
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+
+    const candidate = value as Record<string, unknown>;
+    if (
+      typeof candidate.x !== "number" ||
+      !Number.isFinite(candidate.x) ||
+      typeof candidate.y !== "number" ||
+      !Number.isFinite(candidate.y)
+    ) {
+      continue;
+    }
+
+    offsets[index] = {
+      x: candidate.x,
+      y: candidate.y,
+    };
+  }
+
+  return offsets;
+}
 
 function normalizeOptions(options: HamiltonPathOptions): NormalizedHamiltonPathOptions {
   const rows = Math.max(1, Math.floor(options.rows));
@@ -67,6 +110,7 @@ function normalizeOptions(options: HamiltonPathOptions): NormalizedHamiltonPathO
     gridRotationDeg,
     latticeAngleDeg,
     rowStepRatio,
+    nodeOffsets: normalizeNodeOffsets(options.nodeOffsets, cellCount),
     mixSteps: Math.max(0, Math.floor(options.mixSteps ?? defaultMixSteps)),
   };
 }
@@ -551,6 +595,24 @@ function toPolyline(
   };
 }
 
+function applyNodeOffsets(
+  baseNodes: readonly Point[],
+  nodeOffsets: Readonly<Record<number, Point>>
+): readonly Point[] {
+  if (Object.keys(nodeOffsets).length === 0) {
+    return baseNodes;
+  }
+
+  return baseNodes.map((point, index) => {
+    const offset = nodeOffsets[index];
+    if (!offset) {
+      return point;
+    }
+
+    return addPoint(point, offset);
+  });
+}
+
 export function generateHamiltonPaths(
   bounds: Bounds,
   options: HamiltonPathOptions
@@ -599,7 +661,8 @@ export function generateHamiltonPaths(
     applyBackbite(path, positions, neighbors, rng);
   }
 
-  const centerline = toPolyline(path, fit.baseNodes);
+  const positionedNodes = applyNodeOffsets(fit.baseNodes, normalized.nodeOffsets);
+  const centerline = toPolyline(path, positionedNodes);
   const paths = offsets.map((offset) =>
     roundPolylineCorners(
       buildLanePolyline(centerline, offset, normalized.deflection),
@@ -611,7 +674,7 @@ export function generateHamiltonPaths(
   return {
     centerline,
     paths,
-    baseNodes: fit.baseNodes,
+    baseNodes: positionedNodes,
     rows: normalized.rows,
     cols: normalized.cols,
     cellSize: fit.cellSize,

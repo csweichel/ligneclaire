@@ -1,0 +1,14 @@
+{
+  "programId": "delaunay-paths",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "seed": 2417,
+    "columns": 7,
+    "rows": 10,
+    "jitter": 0.42
+  },
+  "programState": {},
+  "createdAt": "2026-05-09T00:00:00.000Z",
+  "updatedAt": "2026-05-09T00:00:00.000Z"
+}

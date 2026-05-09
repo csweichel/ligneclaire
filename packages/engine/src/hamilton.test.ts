@@ -78,6 +78,51 @@ describe("generateHamiltonPaths", () => {
     ).toBe(true);
   });
 
+  it("applies per-node offsets to the lattice and centerline", () => {
+    const base = generateHamiltonPaths(
+      {
+        minX: 0,
+        minY: 0,
+        maxX: 140,
+        maxY: 100,
+      },
+      {
+        rows: 3,
+        cols: 4,
+        seed: 23,
+        mixSteps: 0,
+      }
+    );
+    const adjusted = generateHamiltonPaths(
+      {
+        minX: 0,
+        minY: 0,
+        maxX: 140,
+        maxY: 100,
+      },
+      {
+        rows: 3,
+        cols: 4,
+        seed: 23,
+        mixSteps: 0,
+        nodeOffsets: {
+          0: { x: 6, y: -4 },
+          5: { x: -3, y: 5 },
+        },
+      }
+    );
+
+    expect(adjusted.baseNodes[0]).toEqual({
+      x: base.baseNodes[0]!.x + 6,
+      y: base.baseNodes[0]!.y - 4,
+    });
+    expect(adjusted.baseNodes[5]).toEqual({
+      x: base.baseNodes[5]!.x - 3,
+      y: base.baseNodes[5]!.y + 5,
+    });
+    expect(adjusted.centerline.points[0]).toEqual(adjusted.baseNodes[0]);
+  });
+
   it("draws one fewer line when rendering centerlines between strokes", () => {
     const bounds = {
       minX: 0,

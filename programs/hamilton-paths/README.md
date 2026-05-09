@@ -15,7 +15,8 @@
 - `cornerRadius`: amount of corner rounding applied to each stroke; each lane adjusts that radius by its offset
 - `deflection`: diagonal corner pull; `0` keeps the straight runs exactly horizontal or vertical
 - `drawCenterlines`: draws the centerlines between configured strokes, so it emits one fewer line than `strokeCount`
-- debug mode: draws the fitted base nodes so you can inspect the underlying lattice
+- editor mode: lets you drag individual lattice nodes or enter exact X/Y coordinates for local offsets
+- debug mode: draws the fitted base nodes after any manual overrides so you can inspect the underlying lattice
 
 ## Validation Cases
 

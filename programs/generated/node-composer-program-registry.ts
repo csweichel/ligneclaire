@@ -7,6 +7,8 @@ import type { ProgramDefinition } from "@ligneclaire/sdk";
 import { program as clipFieldProgram } from "../clip-field/index";
 import { program as continuousContourProgram } from "../continuous-contour/index";
 import { program as curveProgram } from "../curve/index";
+import { program as delaunayPathsProgram } from "../delaunay-paths/index";
+import { program as dragonCurveProgram } from "../dragon-curve/index";
 import { program as fieldProgram } from "../field/index";
 import { program as hamiltonPathsProgram } from "../hamilton-paths/index";
 import { program as helloWorldProgram } from "../hello-world/index";
@@ -16,7 +18,10 @@ import { program as hilbertThickGradientProgram } from "../hilbert-thick-gradien
 import { program as imageCirclesProgram } from "../image-circles/index";
 import { program as imageJiggleProgram } from "../image-jiggle/index";
 import { program as isometricRibbonsProgram } from "../isometric-ribbons/index";
+import { program as kochCurvesProgram } from "../koch-curves/index";
 import { program as logoProgram } from "../logo/index";
+import { program as mooreCurveProgram } from "../moore-curve/index";
+import { program as peanoCurveProgram } from "../peano-curve/index";
 import { program as referencePosterProgram } from "../reference-poster/index";
 import { program as sculptureScanProgram } from "../sculpture-scan/index";
 import { program as terrainSlicesProgram } from "../terrain-slices/index";
@@ -71,6 +76,35 @@ export const nodeComposerProgramRegistry = [
             "amplitude": 1,
             "showDiscrete": true
           }
+      }
+    ]
+  },
+  {
+    program: delaunayPathsProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "seed": 2417,
+            "columns": 7,
+            "rows": 10,
+            "jitter": 0.42
+          },
+        programState: {}
+      }
+    ]
+  },
+  {
+    program: dragonCurveProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "iterations": 12
+          },
+        programState: {}
       }
     ]
   },
@@ -254,6 +288,20 @@ export const nodeComposerProgramRegistry = [
     ]
   },
   {
+    program: kochCurvesProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "iterations": 4,
+            "snowflake": true
+          },
+        programState: {}
+      }
+    ]
+  },
+  {
     program: logoProgram,
     paramSets: [
       {
@@ -267,6 +315,32 @@ export const nodeComposerProgramRegistry = [
             "steps": 10,
             "continuousCurves": true
           }
+      }
+    ]
+  },
+  {
+    program: mooreCurveProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "order": 4
+          },
+        programState: {}
+      }
+    ]
+  },
+  {
+    program: peanoCurveProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "order": 3
+          },
+        programState: {}
       }
     ]
   },
