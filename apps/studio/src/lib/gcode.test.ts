@@ -40,4 +40,29 @@ describe("parseGcodePreview", () => {
     expect(preview.segments[0]?.to.x).toBeCloseTo(25.4, 6);
     expect(preview.segments[1]?.to.y).toBeCloseTo(25.4, 6);
   });
+
+  it("treats relative Z lifts and drops as pen state changes", () => {
+    const preview = parseGcodePreview(`
+      G21
+      G90
+      G91
+      G0 Z-15
+      G90
+      G0 X0 Y0
+      G91
+      G0 Z15
+      G90
+      G1 X10 Y5
+      G91
+      G0 Z-15
+      G90
+      G0 X20 Y5
+    `);
+
+    expect(preview.segments).toHaveLength(2);
+    expect(preview.drawingSegments).toBe(1);
+    expect(preview.travelSegments).toBe(1);
+    expect(preview.segments[0]?.drawing).toBe(true);
+    expect(preview.segments[1]?.drawing).toBe(false);
+  });
 });

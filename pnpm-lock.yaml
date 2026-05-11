@@ -23,6 +23,9 @@ importers:
       '@xyflow/react':
         specifier: 12.10.2
         version: 12.10.2(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      opentype.js:
+        specifier: 2.0.0
+        version: 2.0.0
     devDependencies:
       '@eslint/js':
         specifier: 10.0.1
@@ -1090,6 +1093,10 @@ packages:
 
   obug@2.1.1:
     resolution: {integrity: sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ==}
+
+  opentype.js@2.0.0:
+    resolution: {integrity: sha512-kCyjv6xdDY1W/jLWZ/L3QhhTlKUqDZMQ5+Jdlw12b3dXkKNpYBqqlMMj0YDQPShWFTMwgZI1hG14kN3XUDSg/A==}
+    hasBin: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -2198,6 +2205,8 @@ snapshots:
   natural-compare@1.4.0: {}
 
   obug@2.1.1: {}
+
+  opentype.js@2.0.0: {}
 
   optionator@0.9.4:
     dependencies:

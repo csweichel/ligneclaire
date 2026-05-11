@@ -3,6 +3,7 @@ import type { PlotterConfig } from "./plotters";
 import {
   buildOversizeHandlingCommands,
   buildPageRotationCommands,
+  createGcodeExportArgs,
   createGwriteProfile,
 } from "./exports";
 
@@ -26,6 +27,7 @@ describe("createGwriteProfile", () => {
 
     const profile = createGwriteProfile(config);
 
+    expect(profile).toContain('document_start = """G21\nG17\nG90\n"""');
     expect(profile).toContain('segment_first = """G0 X{x:.4f} Y{y:.4f}');
     expect(profile).toContain('document_end = """M5\nG0 X0.0000 Y0.0000\nM2');
   });
@@ -51,9 +53,63 @@ describe("createGwriteProfile", () => {
 
     const profile = createGwriteProfile(config);
 
+    expect(profile).toContain('document_start = """G21\nG17\nG90\n"""');
     expect(profile).toContain('segment_first = """G1 X{x:.4f} Y{y:.4f} F1200');
     expect(profile).toContain('M3 S400\nG4 P1\nG1 F1200');
     expect(profile).toContain('document_end = """M5\nG4 P1\nG1 X0.0000 Y0.0000 F1200\nM2');
+  });
+
+  it("includes an optional preamble block after standard machine setup", () => {
+    const config: PlotterConfig = {
+      id: "preamble-plotter",
+      label: "Preamble Plotter",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 2400,
+        preambleCommand: "G54\nG92 X0 Y0",
+        penUpCommand: "M5",
+        penDownCommand: "M3 S30",
+        verticalFlip: true,
+      },
+    };
+
+    const profile = createGwriteProfile(config);
+
+    expect(profile).toContain('document_start = """G21\nG17\nG90\nG54\nG92 X0 Y0\n"""');
+  });
+
+  it("supports a minimal raw XY/Z target without a final home move", () => {
+    const config: PlotterConfig = {
+      id: "vanilla",
+      label: "Vanilla G-code (raw XY/Z)",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 1200,
+        travelCommand: "G0",
+        travelFeedRateMmPerMin: 1200,
+        penUpCommand: "G91\nG0 Z-15\nG90",
+        penDownCommand: "G91\nG0 Z15\nG90",
+        verticalFlip: false,
+        optimizePaths: false,
+        penUpAtDocumentEnd: true,
+        returnHomeAtDocumentEnd: false,
+      },
+    };
+
+    const profile = createGwriteProfile(config);
+
+    expect(profile).toContain('document_start = """G21\nG17\nG90\n"""');
+    expect(profile).toContain('segment_first = """G0 X{x:.4f} Y{y:.4f}\nG91\nG0 Z15\nG90\nG1 F1200');
+    expect(profile).toContain('line_end = """G91\nG0 Z-15\nG90');
+    expect(profile).toContain('document_end = """G91\nG0 Z-15\nG90\nM2\n"""');
   });
 });
 
@@ -127,6 +183,52 @@ describe("buildOversizeHandlingCommands", () => {
       "0mm",
       "297mm",
       "210mm",
+    ]);
+  });
+});
+
+describe("createGcodeExportArgs", () => {
+  it("can skip vpype path optimization for raw targets", () => {
+    const config: PlotterConfig = {
+      id: "vanilla",
+      label: "Vanilla G-code (raw XY/Z)",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 1200,
+        penUpCommand: "G91\nG0 Z-15\nG90",
+        penDownCommand: "G91\nG0 Z15\nG90",
+        verticalFlip: false,
+        optimizePaths: false,
+        penUpAtDocumentEnd: true,
+      },
+    };
+
+    const args = createGcodeExportArgs(
+      {
+        deviceId: config.id,
+        oversizeHandling: "ignore",
+        programId: "waves",
+        rotationDeg: 0,
+      },
+      "/tmp/config.toml",
+      "/tmp/input.svg",
+      "/tmp/output.gcode",
+      config
+    );
+
+    expect(args).toEqual([
+      "--config",
+      "/tmp/config.toml",
+      "read",
+      "/tmp/input.svg",
+      "gwrite",
+      "--profile",
+      "vanilla",
+      "/tmp/output.gcode",
     ]);
   });
 });

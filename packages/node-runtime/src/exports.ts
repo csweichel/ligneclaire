@@ -122,6 +122,10 @@ function createMoveCommand(
   return parts.join(" ");
 }
 
+function joinGcodeBlocks(blocks: readonly string[]): string {
+  return `${blocks.map((block) => block.trim()).filter((block) => block.length > 0).join("\n")}\n`;
+}
+
 async function ensureVpypeAvailable(requireGcode: boolean): Promise<void> {
   const diagnostics = await getToolDiagnostics();
   if (!diagnostics.vpype.available) {
@@ -163,6 +167,22 @@ export function createGwriteProfile(config: PlotterConfig): string {
     travelFeedRateMmPerMin
   )}\n`;
   const escapeToml = (value: string): string => value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  const documentStart = joinGcodeBlocks([
+    unitCommand,
+    "G17",
+    "G90",
+    config.gcode.preambleCommand ?? "",
+  ]);
+  const segmentFirst = joinGcodeBlocks([
+    travelMove.trimEnd(),
+    config.gcode.penDownCommand,
+    `G1 F${config.gcode.feedRateMmPerMin}`,
+  ]);
+  const documentEnd = joinGcodeBlocks([
+    ...(config.gcode.penUpAtDocumentEnd === false ? [] : [config.gcode.penUpCommand]),
+    ...(config.gcode.returnHomeAtDocumentEnd === false ? [] : [returnHomeMove.trimEnd()]),
+    "M2",
+  ]);
 
   return [
     "[gwrite]",
@@ -170,12 +190,12 @@ export function createGwriteProfile(config: PlotterConfig): string {
     "",
     `[gwrite.${config.id}]`,
     `unit = "${config.gcode.unit}"`,
-    `document_start = """${escapeToml(`${unitCommand}\nG17\nG90\n${config.gcode.penUpCommand}\n`) }"""`,
+    `document_start = """${escapeToml(documentStart)}"""`,
     'line_start = ""',
-    `segment_first = """${escapeToml(`${travelMove}${config.gcode.penDownCommand}\nG1 F${config.gcode.feedRateMmPerMin}\n`) }"""`,
+    `segment_first = """${escapeToml(segmentFirst)}"""`,
     `segment = """${escapeToml(`G1 X{x:.4f} Y{y:.4f} F${config.gcode.feedRateMmPerMin}\n`) }"""`,
     `line_end = """${escapeToml(`${config.gcode.penUpCommand}\n`) }"""`,
-    `document_end = """${escapeToml(`${config.gcode.penUpCommand}\n${returnHomeMove}M2\n`) }"""`,
+    `document_end = """${escapeToml(documentEnd)}"""`,
     `vertical_flip = ${config.gcode.verticalFlip ? "true" : "false"}`,
     "",
   ].join("\n");
@@ -212,7 +232,7 @@ function normalizeDownloadName(
   return safeName.toLowerCase().endsWith(extension) ? safeName : `${safeName}${extension}`;
 }
 
-function createGcodeExportArgs(
+export function createGcodeExportArgs(
   request: Pick<
     ExportGcodeRequest | DownloadGcodeRequest,
     "deviceId" | "oversizeHandling" | "programId" | "rotationDeg"
@@ -222,6 +242,7 @@ function createGcodeExportArgs(
   outputPath: string,
   device: PlotterConfig
 ): string[] {
+  const pipeline = device.gcode.optimizePaths === false ? [] : [...optimizationPipeline];
   const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
   const pageOversizeCommands = buildOversizeHandlingCommands(
     request.oversizeHandling,
@@ -237,7 +258,7 @@ function createGcodeExportArgs(
     inputSvgPath,
     ...pageRotationCommands,
     ...pageOversizeCommands,
-    ...optimizationPipeline,
+    ...pipeline,
     "gwrite",
     "--profile",
     device.id,

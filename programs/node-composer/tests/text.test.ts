@@ -65,4 +65,23 @@ describe("node-composer text helper", () => {
     expect(first.paths).toEqual(second.paths);
     expect(first.paths.length).toBeGreaterThan(6);
   });
+
+  it("keeps glyphs upright in the plot coordinate system", () => {
+    const result = generateTextPaths({
+      center: { x: 0, y: 0 },
+      text: "F",
+      fontId: "inter",
+      fontSize: 30,
+      fontWeight: 400,
+    });
+    const points = result.paths.flatMap((path) => path.points);
+    const ys = points.map((point) => point.y);
+    const midY = (Math.min(...ys) + Math.max(...ys)) * 0.5;
+    const topPoints = points.filter((point) => point.y > midY);
+    const bottomPoints = points.filter((point) => point.y <= midY);
+    const topMaxX = Math.max(...topPoints.map((point) => point.x));
+    const bottomMaxX = Math.max(...bottomPoints.map((point) => point.x));
+
+    expect(topMaxX).toBeGreaterThan(bottomMaxX);
+  });
 });

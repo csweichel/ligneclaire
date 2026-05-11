@@ -142,9 +142,13 @@ export type PlotterGcodeConfig = Readonly<{
   feedRateMmPerMin: number;
   travelCommand?: "G0" | "G1";
   travelFeedRateMmPerMin?: number;
+  preambleCommand?: string;
   penUpCommand: string;
   penDownCommand: string;
   verticalFlip: boolean;
+  optimizePaths?: boolean;
+  penUpAtDocumentEnd?: boolean;
+  returnHomeAtDocumentEnd?: boolean;
 }>;
 
 export type PlotterSerialTransportConfig = Readonly<{

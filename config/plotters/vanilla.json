@@ -1,0 +1,21 @@
+{
+  "id": "vanilla",
+  "label": "Vanilla G-code (raw XY/Z)",
+  "page": {
+    "widthMm": 297,
+    "heightMm": 210
+  },
+  "gcode": {
+    "unit": "mm",
+    "feedRateMmPerMin": 800,
+    "travelCommand": "G0",
+    "travelFeedRateMmPerMin": 1200,
+    "preambleCommand": "$100=80\n$101=80",
+    "penUpCommand": "G91\nG0 Z50\nG90",
+    "penDownCommand": "G91\nG0 Z-50\nG90",
+    "verticalFlip": false,
+    "optimizePaths": false,
+    "penUpAtDocumentEnd": true,
+    "returnHomeAtDocumentEnd": false
+  }
+}

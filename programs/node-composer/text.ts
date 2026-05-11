@@ -177,6 +177,13 @@ function appendUniquePoint(target: Point[], point: Point): void {
   target.push(point);
 }
 
+function fromOpenTypePoint(x: number, y: number): Point {
+  return {
+    x,
+    y: -y,
+  };
+}
+
 function pathToPolylines(path: OpenTypePath): readonly Polyline[] {
   const contours: Polyline[] = [];
   let current: Point[] = [];
@@ -208,7 +215,7 @@ function pathToPolylines(path: OpenTypePath): readonly Polyline[] {
   for (const command of path.commands) {
     if (command.type === "M") {
       flush(false);
-      start = { x: command.x, y: command.y };
+      start = fromOpenTypePoint(command.x, command.y);
       cursor = start;
       current.push(start);
       continue;
@@ -219,46 +226,51 @@ function pathToPolylines(path: OpenTypePath): readonly Polyline[] {
     }
 
     if (command.type === "L") {
-      cursor = { x: command.x, y: command.y };
+      cursor = fromOpenTypePoint(command.x, command.y);
       appendUniquePoint(current, cursor);
       continue;
     }
 
     if (command.type === "Q") {
+      const control = fromOpenTypePoint(command.x1, command.y1);
+      const end = fromOpenTypePoint(command.x, command.y);
       const sampled = sampleQuadraticBezier(
         cursor,
-        { x: command.x1, y: command.y1 },
-        { x: command.x, y: command.y },
+        control,
+        end,
         sampleCount([
           cursor,
-          { x: command.x1, y: command.y1 },
-          { x: command.x, y: command.y },
+          control,
+          end,
         ])
       ).points;
       for (const point of sampled.slice(1)) {
         appendUniquePoint(current, point);
       }
-      cursor = { x: command.x, y: command.y };
+      cursor = end;
       continue;
     }
 
     if (command.type === "C") {
+      const control1 = fromOpenTypePoint(command.x1, command.y1);
+      const control2 = fromOpenTypePoint(command.x2, command.y2);
+      const end = fromOpenTypePoint(command.x, command.y);
       const sampled = sampleCubicBezier(
         cursor,
-        { x: command.x1, y: command.y1 },
-        { x: command.x2, y: command.y2 },
-        { x: command.x, y: command.y },
+        control1,
+        control2,
+        end,
         sampleCount([
           cursor,
-          { x: command.x1, y: command.y1 },
-          { x: command.x2, y: command.y2 },
-          { x: command.x, y: command.y },
+          control1,
+          control2,
+          end,
         ])
       ).points;
       for (const point of sampled.slice(1)) {
         appendUniquePoint(current, point);
       }
-      cursor = { x: command.x, y: command.y };
+      cursor = end;
       continue;
     }
 

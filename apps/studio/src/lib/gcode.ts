@@ -29,6 +29,7 @@ const commentPattern = /\([^)]*\)/g;
 type ParserState = Readonly<{
   x: number;
   y: number;
+  z: number;
   absolute: boolean;
   unitScale: number;
   drawing: boolean;
@@ -39,7 +40,7 @@ function stripComments(line: string): string {
   return withoutSemicolon.replace(commentPattern, "").trim();
 }
 
-function readAxisWord(line: string, axis: "X" | "Y"): number | null {
+function readAxisWord(line: string, axis: "X" | "Y" | "Z"): number | null {
   const match = new RegExp(`${axis}([-+]?\\d*\\.?\\d+)`, "i").exec(line);
   if (!match?.[1]) {
     return null;
@@ -75,6 +76,7 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
   let state: ParserState = {
     x: 0,
     y: 0,
+    z: 0,
     absolute: true,
     unitScale: 1,
     drawing: false,
@@ -135,8 +137,28 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
       state.absolute,
       state.unitScale
     );
+    const zWord = readAxisWord(upperLine, "Z");
+    const nextZ = nextAxisValue(
+      state.z,
+      zWord,
+      state.absolute,
+      state.unitScale
+    );
+    const nextDrawing =
+      /\bM3\b|\bM4\b/.test(upperLine)
+        ? true
+        : /\bM5\b/.test(upperLine)
+          ? false
+          : zWord !== null
+            ? nextZ >= 0
+            : state.drawing;
 
     if (nextX === state.x && nextY === state.y) {
+      state = {
+        ...state,
+        z: nextZ,
+        drawing: nextDrawing,
+      };
       continue;
     }
 
@@ -150,7 +172,7 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
         x: nextX,
         y: nextY,
       },
-      drawing: state.drawing,
+      drawing: nextDrawing,
     };
     segments.push(segment);
     includePoint(segment.from.x, segment.from.y);
@@ -160,6 +182,8 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
       ...state,
       x: nextX,
       y: nextY,
+      z: nextZ,
+      drawing: nextDrawing,
     };
   }
 
