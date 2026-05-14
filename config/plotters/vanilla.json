@@ -11,6 +11,23 @@
     "travelCommand": "G0",
     "travelFeedRateMmPerMin": 1200,
     "preambleCommand": "$100=80\n$101=80",
+    "heightMeshSampler": {
+      "columns": 2,
+      "rows": 2,
+      "travelCommand": "G1",
+      "moveFeedRateMmPerMin": 2000,
+      "probeFeedRateMmPerMin": 400,
+      "releaseFeedRateMmPerMin": 100,
+      "probeDepthMm": -25,
+      "releaseDistanceMm": 20,
+      "clearanceMm": 15,
+      "serpentine": true
+    },
+    "heightMeshCompensation": {
+      "enabled": true,
+      "interpolation": "bilinear",
+      "referenceMode": "max"
+    },
     "penUpCommand": "G91\nG0 Z50\nG90",
     "penDownCommand": "G91\nG0 Z-50\nG90",
     "verticalFlip": false,

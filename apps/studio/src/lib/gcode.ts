@@ -125,15 +125,18 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
       continue;
     }
 
+    const xWord = readAxisWord(upperLine, "X");
+    const yWord = readAxisWord(upperLine, "Y");
+    const hasXYMotion = xWord !== null || yWord !== null;
     const nextX = nextAxisValue(
       state.x,
-      readAxisWord(upperLine, "X"),
+      xWord,
       state.absolute,
       state.unitScale
     );
     const nextY = nextAxisValue(
       state.y,
-      readAxisWord(upperLine, "Y"),
+      yWord,
       state.absolute,
       state.unitScale
     );
@@ -149,7 +152,7 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
         ? true
         : /\bM5\b/.test(upperLine)
           ? false
-          : zWord !== null
+          : !hasXYMotion && zWord !== null
             ? nextZ >= 0
             : state.drawing;
 

@@ -1,7 +1,14 @@
 import {
+  buildHeightMeshSamplePoints,
+  createHeightMeshFile,
+  createHeightMeshSamplerGcode,
   normalizeParams,
+  parseHeightMeshFile,
+  parseHeightMeshProbeLine,
   resolveProgramState,
+  type HeightMeshProbeReading,
   type NormalizationIssue,
+  type HeightMeshFile,
   type ParameterSchema,
   type ProgramDefinition,
 } from "@ligneclaire/sdk";
@@ -24,6 +31,14 @@ import { programRegistry } from "../../../../programs/generated/program-registry
 import { apiDownload, apiGet, apiSend } from "../api";
 import { resolveGcodeRotationDeg } from "../lib/gcodeOrientation";
 import {
+  buildHeightMeshGridPreview,
+  estimateHeightMeshAckTimeoutMs,
+  buildHeightMeshSamplerConfig,
+  clampHeightMeshSettings,
+  deriveDefaultHeightMeshSettings,
+  downloadHeightMeshFile,
+} from "../lib/heightMesh";
+import {
   draftStorageKey,
   loadStudioSessionState,
   saveStudioSessionState,
@@ -34,6 +49,7 @@ import type {
   CurrentDocumentState,
   ExportSettings,
   ExportKind,
+  HeightMeshSettings,
   LocalProgram,
   StudioModel,
   StudioStatus,
@@ -63,6 +79,17 @@ function snapshotValue(value: unknown): string {
 
 function formatError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function splitGcodeJobLines(content: string | undefined): readonly string[] {
+  if (!content) {
+    return [];
+  }
+
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith(";"));
 }
 
 function createDefaultDocument(
@@ -203,6 +230,16 @@ export function useStudioData(): StudioModel {
   const [exportSettings, setExportSettings] = useState<ExportSettings>(
     () => persistenceRef.current.exportSettings ?? initialExportSettings
   );
+  const [heightMeshSettings, setHeightMeshSettings] = useState<HeightMeshSettings>(
+    () => deriveDefaultHeightMeshSettings(null)
+  );
+  const [heightMesh, setHeightMesh] = useState<HeightMeshFile | null>(null);
+  const [heightMeshStatus, setHeightMeshStatus] = useState<StudioModel["heightMesh"]["status"]>({
+    state: "idle",
+    totalSamples: 0,
+    capturedSamples: 0,
+    errorMessage: null,
+  });
 
   const localProgram = useMemo(
     () => (selectedProgramId ? localPrograms.get(selectedProgramId) : undefined),
@@ -220,6 +257,18 @@ export function useStudioData(): StudioModel {
         selectedPlotter
       ),
     [exportSettings.rotationDeg, programDetails?.canvas, selectedPlotter]
+  );
+  const activeHeightMeshSamplerConfig = useMemo(
+    () => buildHeightMeshSamplerConfig(selectedPlotter, heightMeshSettings),
+    [heightMeshSettings, selectedPlotter]
+  );
+  const heightMeshGrid = useMemo(
+    () => buildHeightMeshGridPreview(selectedPlotter, heightMeshSettings),
+    [heightMeshSettings, selectedPlotter]
+  );
+  const heightMeshDeviceMismatch = useMemo(
+    () => (heightMesh ? heightMesh.plotter.id !== exportSettings.deviceId : false),
+    [exportSettings.deviceId, heightMesh]
   );
   const dirty = current ? snapshotValue(current) !== savedSnapshot : false;
   const previewProgramState = useMemo(
@@ -243,6 +292,7 @@ export function useStudioData(): StudioModel {
   const transport = useGcodeTransport({
     current,
     deviceId: exportSettings.deviceId,
+    heightMesh,
     oversizeHandling: exportSettings.oversizeHandling,
     plotters,
     rotationDeg: resolvedExportRotationDeg,
@@ -351,10 +401,13 @@ export function useStudioData(): StudioModel {
         });
 
         if (programList.length > 0) {
+          const defaultProgramId =
+            programList.find((program) => program.id !== "node-composer")?.id ??
+            programList[0]!.id;
           setSelectedProgramId((existing) =>
             programList.some((program) => program.id === existing)
               ? existing
-              : programList[0]!.id
+              : defaultProgramId
           );
         }
       } catch (error) {
@@ -559,6 +612,29 @@ export function useStudioData(): StudioModel {
   ]);
 
   useEffect(() => {
+    setHeightMeshSettings((existing) =>
+      selectedPlotter
+        ? clampHeightMeshSettings(selectedPlotter, deriveDefaultHeightMeshSettings(selectedPlotter))
+        : existing
+    );
+    setHeightMeshStatus(
+      heightMesh
+        ? {
+            state: "complete",
+            totalSamples: heightMesh.samples.length,
+            capturedSamples: heightMesh.samples.length,
+            errorMessage: null,
+          }
+        : {
+            state: "idle",
+            totalSamples: 0,
+            capturedSamples: 0,
+            errorMessage: null,
+          }
+    );
+  }, [selectedPlotter?.id]);
+
+  useEffect(() => {
     if (!selectedProgramId) {
       return;
     }
@@ -672,6 +748,10 @@ export function useStudioData(): StudioModel {
     }));
   }
 
+  function setHeightMeshPlotterId(plotterId: string): void {
+    setExportDeviceId(plotterId);
+  }
+
   function setExportRotationDeg(rotationDeg: ExportSettings["rotationDeg"]): void {
     setExportSettings((existing) => ({
       ...existing,
@@ -686,6 +766,181 @@ export function useStudioData(): StudioModel {
       ...existing,
       oversizeHandling,
     }));
+  }
+
+  function updateHeightMeshSettings(patch: Partial<HeightMeshSettings>): void {
+    setHeightMeshSettings((existing) =>
+      selectedPlotter
+        ? clampHeightMeshSettings(selectedPlotter, {
+            ...existing,
+            ...patch,
+          })
+        : {
+            ...existing,
+            ...patch,
+          }
+    );
+  }
+
+  function clearHeightMesh(): void {
+    setHeightMesh(null);
+    setHeightMeshStatus({
+      state: "idle",
+      totalSamples: 0,
+      capturedSamples: 0,
+      errorMessage: null,
+    });
+    setStatus({
+      tone: "neutral",
+      message: "Height mesh cleared.",
+    });
+  }
+
+  function downloadHeightMesh(): void {
+    if (!heightMesh) {
+      return;
+    }
+
+    downloadHeightMeshFile(heightMesh);
+    setStatus({
+      tone: "success",
+      message: "Height mesh JSON downloaded.",
+    });
+  }
+
+  async function importHeightMeshFile(file: File): Promise<void> {
+    try {
+      const parsed = parseHeightMeshFile(JSON.parse(await file.text()));
+      if (!parsed) {
+        throw new Error("File is not a valid LigneClaire height mesh JSON.");
+      }
+
+      setHeightMesh(parsed);
+      setHeightMeshStatus({
+        state: "complete",
+        totalSamples: parsed.samples.length,
+        capturedSamples: parsed.samples.length,
+        errorMessage: null,
+      });
+      setStatus({
+        tone: "success",
+        message: `Loaded height mesh from ${file.name}.`,
+      });
+    } catch (error) {
+      const message = formatError(error, "Failed to import height mesh JSON.");
+      setHeightMeshStatus({
+        state: "failed",
+        totalSamples: 0,
+        capturedSamples: 0,
+        errorMessage: message,
+      });
+      setStatus({
+        tone: "error",
+        message,
+      });
+    }
+  }
+
+  async function sampleHeightMesh(): Promise<void> {
+    if (!selectedPlotter?.gcode || !activeHeightMeshSamplerConfig) {
+      setStatus({
+        tone: "error",
+        message: "Selected plotter does not define height mesh sampling defaults.",
+      });
+      return;
+    }
+
+    const expectedPoints = buildHeightMeshSamplePoints(
+      selectedPlotter.page,
+      activeHeightMeshSamplerConfig
+    );
+    const readings: HeightMeshProbeReading[] = [];
+    const samplingAckTimeoutMs = estimateHeightMeshAckTimeoutMs(
+      selectedPlotter,
+      activeHeightMeshSamplerConfig,
+      transport.settings.ackTimeoutMs
+    );
+    const lines = [
+      ...splitGcodeJobLines(selectedPlotter.gcode.preambleCommand),
+      ...splitGcodeJobLines(
+        createHeightMeshSamplerGcode(
+          selectedPlotter.page,
+          selectedPlotter.gcode.unit,
+          activeHeightMeshSamplerConfig
+        )
+      ),
+    ];
+
+    setHeightMeshStatus({
+      state: "sampling",
+      totalSamples: expectedPoints.length,
+      capturedSamples: 0,
+      errorMessage: null,
+    });
+
+    try {
+      if (transport.connectionState !== "connected") {
+        await transport.connect();
+      }
+
+      await transport.runSerialJob({
+        label: "Height mesh sampling",
+        ackTimeoutMs: samplingAckTimeoutMs,
+        lines,
+        onResponseLine: (line) => {
+          const reading = parseHeightMeshProbeLine(line);
+          if (!reading) {
+            return;
+          }
+
+          readings.push(reading);
+          setHeightMeshStatus((existing) => ({
+            ...existing,
+            capturedSamples: Math.min(expectedPoints.length, readings.length),
+          }));
+        },
+      });
+
+      if (readings.length !== expectedPoints.length) {
+        throw new Error(
+          `Expected ${expectedPoints.length} probe readings but received ${readings.length}.`
+        );
+      }
+
+      const nextHeightMesh = createHeightMeshFile(
+        selectedPlotter.page,
+        activeHeightMeshSamplerConfig,
+        readings,
+        {
+          plotterId: selectedPlotter.id,
+          plotterLabel: selectedPlotter.label,
+        }
+      );
+
+      setHeightMesh(nextHeightMesh);
+      setHeightMeshStatus({
+        state: "complete",
+        totalSamples: expectedPoints.length,
+        capturedSamples: expectedPoints.length,
+        errorMessage: null,
+      });
+      setStatus({
+        tone: "success",
+        message: `Sampled ${expectedPoints.length} height points.`,
+      });
+    } catch (error) {
+      const message = formatError(error, "Height mesh sampling failed.");
+      setHeightMeshStatus({
+        state: "failed",
+        totalSamples: expectedPoints.length,
+        capturedSamples: readings.length,
+        errorMessage: message,
+      });
+      setStatus({
+        tone: "error",
+        message,
+      });
+    }
   }
 
   async function saveCurrent(): Promise<void> {
@@ -933,6 +1188,7 @@ export function useStudioData(): StudioModel {
         deviceId: exportSettings.deviceId,
         rotationDeg: resolvedExportRotationDeg,
         oversizeHandling: exportSettings.oversizeHandling,
+        heightMesh: heightMesh ?? undefined,
         downloadName: createDownloadName(selectedProgramId, current.slug, ".gcode"),
       },
       "/api/export/gcode"
@@ -959,6 +1215,21 @@ export function useStudioData(): StudioModel {
     pendingExport,
     editorComponent,
     exportSettings,
+    heightMesh: {
+      activePlotterId: exportSettings.deviceId,
+      activeSamplerConfig: activeHeightMeshSamplerConfig,
+      deviceMismatch: heightMeshDeviceMismatch,
+      grid: heightMeshGrid,
+      mesh: heightMesh,
+      settings: heightMeshSettings,
+      status: heightMeshStatus,
+      clear: clearHeightMesh,
+      download: downloadHeightMesh,
+      importFile: importHeightMeshFile,
+      sample: sampleHeightMesh,
+      setActivePlotterId: setHeightMeshPlotterId,
+      updateSettings: updateHeightMeshSettings,
+    },
     transport,
     localProgram,
     selectProgram: setSelectedProgramId,

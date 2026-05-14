@@ -1,5 +1,5 @@
 import { clamp } from "@ligneclaire/sdk";
-import { useDeferredValue, useEffect, useRef, useState, type JSX } from "react";
+import { useDeferredValue, useEffect, useRef, useState, type ChangeEvent, type JSX } from "react";
 import {
   connectionForInput,
   nodeLabel,
@@ -14,6 +14,7 @@ import {
   type NodeConfigValue,
   type NodeFieldSpec,
 } from "./model";
+import { decodeSvgMaskData, loadSvgMaskFile, suggestSvgMaskSize } from "./svgMask";
 import { googleTextFonts, isGoogleTextFontId } from "./text-fonts";
 
 type NodeComposerInspectorProps = Readonly<{
@@ -502,6 +503,123 @@ function TextNodeFields({ selectedNode, onPatchConfig }: TextNodeFieldsProps): J
   );
 }
 
+type SvgMaskNodeFieldsProps = Readonly<{
+  selectedNode: ComposerNode;
+  onPatchConfig: (nodeId: string, patch: Readonly<Record<string, NodeConfigValue>>) => void;
+}>;
+
+function SvgMaskNodeFields({ selectedNode, onPatchConfig }: SvgMaskNodeFieldsProps): JSX.Element {
+  const maskSpec = nodeSpec("mask-svg");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const loadedMask = decodeSvgMaskData(String(selectedNode.config.svgMaskDataBase64 ?? ""));
+  const sourceName = String(selectedNode.config.svgMaskSourceName ?? "").trim();
+  const hasMaskData = loadedMask !== null;
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const loaded = await loadSvgMaskFile(file);
+      const nextPatch: Record<string, NodeConfigValue> = {
+        svgMaskDataBase64: loaded.encoded,
+        svgMaskSourceName: loaded.sourceName,
+      };
+
+      if (!hasMaskData) {
+        const suggestedSize = suggestSvgMaskSize(loaded.data);
+        nextPatch.width = suggestedSize.width;
+        nextPatch.height = suggestedSize.height;
+      }
+
+      onPatchConfig(selectedNode.id, nextPatch);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Failed to import the selected SVG.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="lc-node-composer__field-list">
+      <label className="lc-editor-overlay__field">
+        <span className="lc-editor-overlay__label">SVG Source</span>
+
+        <div className="lc-node-composer__asset-actions">
+          <button
+            className="studio-button studio-button--compact"
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              inputRef.current?.click();
+            }}
+          >
+            {loading ? "Loading..." : hasMaskData ? "Replace SVG" : "Choose SVG"}
+          </button>
+
+          {hasMaskData ? (
+            <button
+              className="studio-button studio-button--compact"
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setError(null);
+                onPatchConfig(selectedNode.id, {
+                  svgMaskDataBase64: "",
+                  svgMaskSourceName: "",
+                });
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+
+          <input
+            ref={inputRef}
+            accept=".svg,image/svg+xml"
+            className="lc-node-composer__asset-input"
+            type="file"
+            onChange={(event) => {
+              void handleFileChange(event);
+            }}
+          />
+        </div>
+
+        <span className="lc-node-composer__font-picker-current">
+          {hasMaskData
+            ? `Loaded: ${sourceName || "SVG mask"} (${loadedMask.columns} x ${loadedMask.rows} samples)`
+            : "No SVG mask loaded yet."}
+        </span>
+        {error ? (
+          <span className="lc-node-composer__font-picker-error">{error}</span>
+        ) : null}
+      </label>
+
+      {maskSpec.fields.map((field) => (
+        <FieldRow
+          key={field.key}
+          field={field}
+          value={selectedNode.config[field.key]}
+          onChange={(nextValue) => {
+            onPatchConfig(selectedNode.id, {
+              [field.key]: nextValue,
+            });
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function NodeComposerInspector({
   programState,
   selectedNode,
@@ -588,6 +706,11 @@ export function NodeComposerInspector({
           onPatchConfig={onPatchConfig}
           onSelectProgram={onSelectProgram}
           onSelectParamSet={onSelectParamSet}
+        />
+      ) : selectedNode.kind === "mask-svg" ? (
+        <SvgMaskNodeFields
+          selectedNode={selectedNode}
+          onPatchConfig={onPatchConfig}
         />
       ) : selectedNode.kind === "text" ? (
         <TextNodeFields

@@ -1,11 +1,16 @@
 import { ProgramEditorCanvas, ProgramEditorPanel } from "@ligneclaire/ui";
 import { contentBounds, type ProgramEditorProps } from "@ligneclaire/sdk";
-import { useEffectEvent, useMemo, useRef, useState, type JSX } from "react";
+import { useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type JSX } from "react";
+import { parseHamiltonGuideCsv } from "./csv";
 import {
   buildHamiltonEditableNodes,
+  clearHamiltonGuidePoints,
   clearHamiltonNodeOffset,
   clearHamiltonNodeOffsets,
+  importHamiltonGuidePoints,
   moveHamiltonNode,
+  resolveHamiltonGuideNodeOffsets,
+  setHamiltonGuideMode,
   selectHamiltonNode,
   type HamiltonPathsProgramState,
   type HamiltonPathsSchema,
@@ -35,14 +40,24 @@ export default function HamiltonPathsEditor({
   updateProgramState,
 }: Props): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvLoading, setCsvLoading] = useState(false);
   const nodes = useMemo(
     () => buildHamiltonEditableNodes(params, programState),
     [params, programState]
   );
   const selectedNode =
     nodes.find((node) => node.id === programState.selectedNodeId) ?? null;
-  const movedCount = Object.keys(programState.nodeOffsets).length;
+  const movedCount = nodes.filter((node) => node.moved).length;
+  const guidedCount = useMemo(
+    () =>
+      programState.guideMode === "csv"
+        ? Object.keys(resolveHamiltonGuideNodeOffsets(params, programState.csvGuidePoints)).length
+        : 0,
+    [params, programState.csvGuidePoints, programState.guideMode]
+  );
   const baseRadius = markerRadius(nodes.length);
   const bounds = contentBounds(canvas);
 
@@ -78,6 +93,29 @@ export default function HamiltonPathsEditor({
     );
   };
 
+  async function handleCsvChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setCsvLoading(true);
+    setCsvError(null);
+
+    try {
+      const guidePoints = parseHamiltonGuideCsv(await file.text());
+      updateProgramState((current) =>
+        importHamiltonGuidePoints(current, params, guidePoints, file.name)
+      );
+    } catch (error) {
+      setCsvError(error instanceof Error ? error.message : "Failed to import the CSV guide points.");
+    } finally {
+      setCsvLoading(false);
+    }
+  }
+
   return (
     <>
       <ProgramEditorPanel>
@@ -88,15 +126,107 @@ export default function HamiltonPathsEditor({
 
         <p className="lc-editor-overlay__copy">
           Click any lattice node to select it, then drag it on the sheet or enter exact X/Y
-          coordinates. Clearing a node removes its local offset and returns it to the generated
-          lattice.
+          coordinates. Clearing a node removes its local override and returns it to the active
+          lattice or CSV-guided position.
         </p>
+
+        <label className="lc-editor-overlay__field">
+          <span className="lc-editor-overlay__label">Guide Mode</span>
+          <select
+            className="studio-input studio-input--compact"
+            value={programState.guideMode}
+            onChange={(event) => {
+              setCsvError(null);
+              updateProgramState((current) =>
+                setHamiltonGuideMode(
+                  current,
+                  event.currentTarget.value === "csv" ? "csv" : "manual"
+                )
+              );
+            }}
+          >
+            <option value="manual">Manual</option>
+            <option value="csv">CSV Guides</option>
+          </select>
+        </label>
+
+        <label className="lc-editor-overlay__field">
+          <span className="lc-editor-overlay__label">CSV Guide Points</span>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              className="studio-button studio-button--compact"
+              type="button"
+              disabled={csvLoading}
+              onClick={() => {
+                csvInputRef.current?.click();
+              }}
+            >
+              {csvLoading
+                ? "Loading..."
+                : programState.csvGuidePoints.length > 0
+                  ? "Replace CSV"
+                  : "Load CSV"}
+            </button>
+
+            {programState.csvGuidePoints.length > 0 ? (
+              <button
+                className="studio-button studio-button--compact"
+                type="button"
+                disabled={csvLoading}
+                onClick={() => {
+                  setCsvError(null);
+                  updateProgramState((current) =>
+                    clearHamiltonGuidePoints(current, params)
+                  );
+                }}
+              >
+                Clear CSV
+              </button>
+            ) : null}
+
+            <input
+              ref={csvInputRef}
+              accept=".csv,text/csv"
+              style={{ display: "none" }}
+              type="file"
+              onChange={(event) => {
+                void handleCsvChange(event);
+              }}
+            />
+          </div>
+
+          <span className="lc-editor-overlay__value" style={{ display: "block", marginTop: 8 }}>
+            {programState.csvGuidePoints.length > 0
+              ? `${programState.csvGuideSourceName || "guide.csv"} · ${programState.csvGuidePoints.length} points loaded${programState.guideMode === "csv" ? ` · ${guidedCount} nodes assigned` : ""}`
+              : "CSV format: x,y in millimeters. Header rows with x/y are supported."}
+          </span>
+          {csvError ? (
+            <span
+              style={{
+                display: "block",
+                marginTop: 6,
+                color: "var(--studio-red)",
+                fontSize: "0.82rem",
+                lineHeight: 1.45,
+              }}
+            >
+              {csvError}
+            </span>
+          ) : null}
+        </label>
 
         <div className="lc-editor-overlay__field">
           <span className="lc-editor-overlay__label">
             Nodes
             <span className="lc-editor-overlay__value">
-              {nodes.length} total · {movedCount} moved
+              {nodes.length} total · {movedCount} adjusted
             </span>
           </span>
         </div>
@@ -127,13 +257,13 @@ export default function HamiltonPathsEditor({
 
           <button
             className="studio-button studio-button--compact"
-            disabled={movedCount === 0}
+            disabled={Object.keys(programState.nodeOffsets).length === 0}
             type="button"
             onClick={() => {
               updateProgramState((current) => clearHamiltonNodeOffsets(current));
             }}
           >
-            Reset All
+            Reset Overrides
           </button>
         </div>
 
@@ -207,6 +337,40 @@ export default function HamiltonPathsEditor({
             pointerEvents: "none",
           }}
         >
+          {programState.guideMode === "csv"
+            ? programState.csvGuidePoints.map((point, index) => {
+                const screenPoint = preview.canvasToScreen(point);
+                return (
+                  <g key={`guide-${index}`} opacity={0.9}>
+                    <circle
+                      cx={screenPoint.x}
+                      cy={screenPoint.y}
+                      fill="rgba(16, 185, 129, 0.12)"
+                      r={baseRadius + 4}
+                      stroke="rgba(5, 150, 105, 0.48)"
+                      strokeWidth={1.2}
+                    />
+                    <line
+                      x1={screenPoint.x - (baseRadius + 5)}
+                      x2={screenPoint.x + (baseRadius + 5)}
+                      y1={screenPoint.y}
+                      y2={screenPoint.y}
+                      stroke="rgba(5, 150, 105, 0.68)"
+                      strokeWidth={1.2}
+                    />
+                    <line
+                      x1={screenPoint.x}
+                      x2={screenPoint.x}
+                      y1={screenPoint.y - (baseRadius + 5)}
+                      y2={screenPoint.y + (baseRadius + 5)}
+                      stroke="rgba(5, 150, 105, 0.68)"
+                      strokeWidth={1.2}
+                    />
+                  </g>
+                );
+              })
+            : null}
+
           {nodes.map((node) => {
             const base = preview.canvasToScreen(node.base);
             const position = preview.canvasToScreen(node.position);

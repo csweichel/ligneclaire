@@ -118,9 +118,14 @@ export const hamiltonPathsParamSchema = {
 export type HamiltonPathsSchema = typeof hamiltonPathsParamSchema;
 export type HamiltonPathsParams = NormalizedParams<HamiltonPathsSchema>;
 export type HamiltonNodeOffsetMap = Readonly<Record<string, Point>>;
+export type HamiltonGuideMode = "manual" | "csv";
+export type HamiltonGuidePoint = Readonly<Point>;
 export type HamiltonPathsProgramState = Readonly<{
   nodeOffsets: HamiltonNodeOffsetMap;
   selectedNodeId: string | null;
+  guideMode: HamiltonGuideMode;
+  csvGuidePoints: readonly HamiltonGuidePoint[];
+  csvGuideSourceName: string;
 }>;
 export type HamiltonEditableNode = Readonly<{
   id: string;
@@ -233,6 +238,9 @@ export function defaultHamiltonProgramState(): HamiltonPathsProgramState {
   return {
     nodeOffsets: {},
     selectedNodeId: null,
+    guideMode: "manual",
+    csvGuidePoints: [],
+    csvGuideSourceName: "",
   };
 }
 
@@ -246,7 +254,7 @@ function renderNodeOffsets(
 ): Readonly<Record<number, Point>> {
   const offsets: Record<number, Point> = {};
 
-  for (const [id, offset] of Object.entries(programState.nodeOffsets)) {
+  for (const [id, offset] of Object.entries(resolveHamiltonNodeOffsets(params, programState))) {
     const index = nodeIndex(params, id);
     if (index === null) {
       continue;
@@ -256,6 +264,121 @@ function renderNodeOffsets(
   }
 
   return offsets;
+}
+
+function normalizeGuideMode(value: unknown): HamiltonGuideMode {
+  return value === "csv" ? "csv" : "manual";
+}
+
+function clampGuidePoint(point: Point): HamiltonGuidePoint {
+  return {
+    x: clamp(point.x, content.minX, content.maxX),
+    y: clamp(point.y, content.minY, content.maxY),
+  };
+}
+
+function normalizeGuidePoints(input: unknown): readonly HamiltonGuidePoint[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const points: HamiltonGuidePoint[] = [];
+
+  for (const value of input) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+
+    const candidate = value as Record<string, unknown>;
+    if (
+      typeof candidate.x !== "number" ||
+      !Number.isFinite(candidate.x) ||
+      typeof candidate.y !== "number" ||
+      !Number.isFinite(candidate.y)
+    ) {
+      continue;
+    }
+
+    points.push(
+      clampGuidePoint({
+        x: candidate.x,
+        y: candidate.y,
+      })
+    );
+  }
+
+  return points;
+}
+
+function normalizeGuideSourceName(input: unknown): string {
+  return typeof input === "string" ? input.trim().slice(0, 128) : "";
+}
+
+export function resolveHamiltonGuideNodeOffsets(
+  params: HamiltonPathsParams,
+  guidePoints: readonly HamiltonGuidePoint[]
+): HamiltonNodeOffsetMap {
+  if (guidePoints.length === 0) {
+    return {};
+  }
+
+  const baseLayout = buildHamiltonBaseLayout(params);
+  const availableIndices = new Set(baseLayout.baseNodes.map((_, index) => index));
+  const offsets: Record<string, Point> = {};
+
+  for (const guidePoint of guidePoints) {
+    let bestIndex: number | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (const index of availableIndices) {
+      const baseNode = baseLayout.baseNodes[index];
+      if (!baseNode) {
+        continue;
+      }
+
+      const distance = Math.hypot(baseNode.x - guidePoint.x, baseNode.y - guidePoint.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    }
+
+    if (bestIndex === null) {
+      break;
+    }
+
+    availableIndices.delete(bestIndex);
+
+    const baseNode = baseLayout.baseNodes[bestIndex];
+    if (!baseNode) {
+      continue;
+    }
+
+    const normalized = normalizeOffset(baseNode, subtractPoint(guidePoint, baseNode));
+    if (!normalized) {
+      continue;
+    }
+
+    offsets[hamiltonNodeId(Math.floor(bestIndex / params.columns), bestIndex % params.columns)] =
+      normalized;
+  }
+
+  return offsets;
+}
+
+function resolveHamiltonNodeOffsets(
+  params: HamiltonPathsParams,
+  programState: HamiltonPathsProgramState
+): HamiltonNodeOffsetMap {
+  const guideOffsets =
+    programState.guideMode === "csv"
+      ? resolveHamiltonGuideNodeOffsets(params, programState.csvGuidePoints)
+      : {};
+
+  return {
+    ...guideOffsets,
+    ...programState.nodeOffsets,
+  };
 }
 
 export function buildHamiltonResult(
@@ -273,12 +396,13 @@ export function buildHamiltonEditableNodes(
   programState: HamiltonPathsProgramState
 ): readonly HamiltonEditableNode[] {
   const baseLayout = buildHamiltonBaseLayout(params);
+  const resolvedOffsets = resolveHamiltonNodeOffsets(params, programState);
 
   return baseLayout.baseNodes.map((base, index) => {
     const row = Math.floor(index / params.columns);
     const col = index % params.columns;
     const id = hamiltonNodeId(row, col);
-    const offset = programState.nodeOffsets[id];
+    const offset = resolvedOffsets[id];
     const position = offset ? addPoint(base, offset) : base;
 
     return {
@@ -350,6 +474,9 @@ export function normalizeHamiltonProgramState(
 
   const candidate = input as Record<string, unknown>;
   const nodeOffsets = normalizeNodeOffsets(candidate.nodeOffsets, params);
+  const guideMode = normalizeGuideMode(candidate.guideMode);
+  const csvGuidePoints = normalizeGuidePoints(candidate.csvGuidePoints);
+  const csvGuideSourceName = normalizeGuideSourceName(candidate.csvGuideSourceName);
   const selectedNodeId =
     typeof candidate.selectedNodeId === "string" && nodeIndex(params, candidate.selectedNodeId) !== null
       ? candidate.selectedNodeId
@@ -358,6 +485,9 @@ export function normalizeHamiltonProgramState(
   return {
     nodeOffsets,
     selectedNodeId,
+    guideMode,
+    csvGuidePoints,
+    csvGuideSourceName,
   };
 }
 
@@ -365,10 +495,60 @@ export function selectHamiltonRenderProgramState(
   programState: HamiltonPathsProgramState
 ): Readonly<{
   nodeOffsets: HamiltonNodeOffsetMap;
+  guideMode: HamiltonGuideMode;
+  csvGuidePoints: readonly HamiltonGuidePoint[];
 }> {
   return {
     nodeOffsets: programState.nodeOffsets,
+    guideMode: programState.guideMode,
+    csvGuidePoints: programState.csvGuidePoints,
   };
+}
+
+export function setHamiltonGuideMode(
+  current: HamiltonPathsProgramState,
+  guideMode: HamiltonGuideMode
+): HamiltonPathsProgramState {
+  if (current.guideMode === guideMode) {
+    return current;
+  }
+
+  return {
+    ...current,
+    guideMode,
+  };
+}
+
+export function importHamiltonGuidePoints(
+  current: HamiltonPathsProgramState,
+  params: HamiltonPathsParams,
+  guidePoints: readonly Point[],
+  sourceName: string
+): HamiltonPathsProgramState {
+  return normalizeHamiltonProgramState(
+    {
+      ...current,
+      guideMode: "csv",
+      csvGuidePoints: guidePoints,
+      csvGuideSourceName: sourceName,
+    },
+    params
+  );
+}
+
+export function clearHamiltonGuidePoints(
+  current: HamiltonPathsProgramState,
+  params: HamiltonPathsParams
+): HamiltonPathsProgramState {
+  return normalizeHamiltonProgramState(
+    {
+      ...current,
+      guideMode: "manual",
+      csvGuidePoints: [],
+      csvGuideSourceName: "",
+    },
+    params
+  );
 }
 
 export function selectHamiltonNode(
@@ -400,6 +580,7 @@ export function moveHamiltonNode(
   }
 
   return {
+    ...current,
     nodeOffsets: nextOffsets,
     selectedNodeId: nodeId,
   };
@@ -441,6 +622,7 @@ export function clearHamiltonNodeOffset(
   delete nextOffsets[nodeId];
 
   return {
+    ...current,
     nodeOffsets: nextOffsets,
     selectedNodeId: nodeId,
   };
@@ -454,6 +636,7 @@ export function clearHamiltonNodeOffsets(
   }
 
   return {
+    ...current,
     nodeOffsets: {},
     selectedNodeId: null,
   };
@@ -478,7 +661,7 @@ export const program = defineProgram({
   id: "hamilton-paths",
   title: "Hamilton Paths",
   description:
-    "A seeded Hamiltonian walk across a configurable lattice, with draggable per-node adjustments and parallel strokes.",
+    "A seeded Hamiltonian walk across a configurable lattice, with draggable per-node adjustments, optional CSV guide points, and parallel strokes.",
   version: PROGRAM_VERSION,
   canvas,
   params: hamiltonPathsParamSchema,

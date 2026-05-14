@@ -65,4 +65,19 @@ describe("parseGcodePreview", () => {
     expect(preview.segments[0]?.drawing).toBe(true);
     expect(preview.segments[1]?.drawing).toBe(false);
   });
+
+  it("keeps mixed XYZ drawing moves marked as drawing segments", () => {
+    const preview = parseGcodePreview(`
+      G21
+      G90
+      M3 S400
+      G1 X10 Y0 Z-1 F1200
+      G1 X20 Y0 Z-2 F1200
+      M5
+    `);
+
+    expect(preview.segments).toHaveLength(2);
+    expect(preview.drawingSegments).toBe(2);
+    expect(preview.segments.every((segment) => segment.drawing)).toBe(true);
+  });
 });

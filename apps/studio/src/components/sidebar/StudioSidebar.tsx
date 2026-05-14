@@ -3,10 +3,20 @@ import type { StudioModel } from "../../types";
 import { DocumentActionBar } from "./DocumentActionBar";
 
 type StudioSidebarProps = Readonly<{
+  onSelectProgram?: (programId: string) => void;
+  showProgramSelector?: boolean;
   studio: StudioModel;
 }>;
 
-export function StudioSidebar({ studio }: StudioSidebarProps) {
+export function StudioSidebar({
+  onSelectProgram,
+  showProgramSelector = true,
+  studio,
+}: StudioSidebarProps) {
+  const listedPrograms = studio.programs.filter((program) => program.id !== "node-composer");
+  const selectedProgramId = listedPrograms.some((program) => program.id === studio.selectedProgramId)
+    ? studio.selectedProgramId
+    : (listedPrograms[0]?.id ?? "");
   const generatedParameterCount = studio.programDetails
     ? Object.keys(studio.programDetails.params).length
     : 0;
@@ -43,22 +53,26 @@ export function StudioSidebar({ studio }: StudioSidebarProps) {
   return (
     <aside className="studio-sidebar">
       <div className="studio-sidebar__header">
-        <label className="studio-field">
-          <span className="studio-field__label">Program</span>
-          <select
-            className="studio-input"
-            value={studio.selectedProgramId}
-            onChange={(event) => {
-              studio.selectProgram(event.currentTarget.value);
-            }}
-          >
-            {studio.programs.map((program) => (
-              <option key={program.id} value={program.id}>
-                {program.title}
-              </option>
-            ))}
-          </select>
-        </label>
+        {showProgramSelector && listedPrograms.length > 0 ? (
+          <label className="studio-field">
+            <span className="studio-field__label">Program</span>
+            <select
+              className="studio-input"
+              value={selectedProgramId}
+              onChange={(event) => {
+                const nextProgramId = event.currentTarget.value;
+                onSelectProgram?.(nextProgramId);
+                studio.selectProgram(nextProgramId);
+              }}
+            >
+              {listedPrograms.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <label className="studio-field">
           <span className="studio-field__label">Parameter set</span>

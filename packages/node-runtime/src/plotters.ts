@@ -39,6 +39,15 @@ export async function listPlotters(): Promise<readonly PlotterDeviceSummary[]> {
         id: config.id,
         label: config.label,
         page: config.page,
+        gcode: {
+          unit: config.gcode.unit,
+          feedRateMmPerMin: config.gcode.feedRateMmPerMin,
+          travelCommand: config.gcode.travelCommand,
+          travelFeedRateMmPerMin: config.gcode.travelFeedRateMmPerMin,
+          preambleCommand: config.gcode.preambleCommand,
+          heightMeshSampler: config.gcode.heightMeshSampler,
+          heightMeshCompensation: config.gcode.heightMeshCompensation,
+        },
         transport: config.transport,
       };
     })

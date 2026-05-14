@@ -1,4 +1,14 @@
-import type { NormalizationIssue, ParameterSchema, PlotMetrics, PlotValidationIssue, ValidationBudget, BudgetCheck } from "@ligneclaire/engine";
+import type {
+  BudgetCheck,
+  HeightMeshCompensationConfig,
+  HeightMeshFile,
+  HeightMeshSamplerConfig,
+  NormalizationIssue,
+  ParameterSchema,
+  PlotMetrics,
+  PlotValidationIssue,
+  ValidationBudget,
+} from "@ligneclaire/engine";
 import type { PersistedParamSet, ProgramValidationSpec } from "@ligneclaire/sdk";
 
 export type ProgramListItem = Readonly<{
@@ -77,6 +87,7 @@ export type DownloadGcodeRequest = RenderRequest &
     deviceId: string;
     oversizeHandling?: GcodeOversizeHandling;
     rotationDeg?: GcodeRotationDeg;
+    heightMesh?: HeightMeshFile;
     downloadName?: string;
   }>;
 
@@ -91,6 +102,7 @@ export type ExportGcodeRequest = RenderRequest &
     deviceId: string;
     oversizeHandling?: GcodeOversizeHandling;
     rotationDeg?: GcodeRotationDeg;
+    heightMesh?: HeightMeshFile;
     outPath: string;
   }>;
 
@@ -143,6 +155,8 @@ export type PlotterGcodeConfig = Readonly<{
   travelCommand?: "G0" | "G1";
   travelFeedRateMmPerMin?: number;
   preambleCommand?: string;
+  heightMeshSampler?: HeightMeshSamplerConfig;
+  heightMeshCompensation?: HeightMeshCompensationConfig;
   penUpCommand: string;
   penDownCommand: string;
   verticalFlip: boolean;
@@ -163,6 +177,7 @@ export type PlotterSerialTransportConfig = Readonly<{
   ackPattern?: string;
   errorPattern?: string;
   readyPattern?: string;
+  alarmResetCommand?: string;
   ackTimeoutMs?: number;
   lineDelayMs?: number;
   connectDelayMs?: number;
@@ -172,6 +187,16 @@ export type PlotterSerialTransportConfig = Readonly<{
 
 export type PlotterTransportConfig = PlotterSerialTransportConfig;
 
+export type PlotterGcodeSummary = Readonly<{
+  unit: "mm" | "in";
+  feedRateMmPerMin?: number;
+  travelCommand?: "G0" | "G1";
+  travelFeedRateMmPerMin?: number;
+  preambleCommand?: string;
+  heightMeshSampler?: HeightMeshSamplerConfig;
+  heightMeshCompensation?: HeightMeshCompensationConfig;
+}>;
+
 export type PlotterDeviceSummary = Readonly<{
   id: string;
   label: string;
@@ -179,6 +204,7 @@ export type PlotterDeviceSummary = Readonly<{
     widthMm: number;
     heightMm: number;
   }>;
+  gcode?: PlotterGcodeSummary;
   transport?: PlotterTransportConfig;
 }>;
 

@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     port: 5173,
+    watch: {
+      ignored: [
+        "**/vitest.config.*",
+        "**/vitest.workspace.*",
+        "**/vitest.setup.*",
+      ],
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:7345",

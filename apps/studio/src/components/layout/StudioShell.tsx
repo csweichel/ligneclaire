@@ -1,10 +1,10 @@
-import { useState } from "react";
-import type { StudioModel } from "../../types";
+import { useEffect, useState } from "react";
+import type { StudioModel, StudioPerspective } from "../../types";
 import { ExportSettingsModal } from "../export/ExportSettingsModal";
 import { StudioHeader } from "../header/StudioHeader";
+import { MachineControlPerspective } from "../machine/MachineControlPerspective";
 import { PreviewPane } from "../preview/PreviewPane";
 import { StudioSidebar } from "../sidebar/StudioSidebar";
-import { GcodeTransportModal } from "../transport/GcodeTransportModal";
 import { StudioWorkspace } from "../workspace/StudioWorkspace";
 
 type StudioShellProps = Readonly<{
@@ -13,50 +13,93 @@ type StudioShellProps = Readonly<{
 
 export function StudioShell({ studio }: StudioShellProps) {
   const [exportSettingsModalOpen, setExportSettingsModalOpen] = useState(false);
-  const [transportModalOpen, setTransportModalOpen] = useState(false);
+  const [perspective, setPerspective] = useState<StudioPerspective>(() =>
+    studio.selectedProgramId === "node-composer" ? "node-composer" : "programs"
+  );
+  const nodeComposerAvailable = studio.programs.some((program) => program.id === "node-composer");
+  const defaultProgramId =
+    studio.programs.find((program) => program.id !== "node-composer")?.id ?? null;
+
+  useEffect(() => {
+    if (
+      perspective === "node-composer" &&
+      nodeComposerAvailable &&
+      studio.selectedProgramId !== "node-composer"
+    ) {
+      void studio.selectProgram("node-composer");
+    }
+  }, [nodeComposerAvailable, perspective, studio.selectProgram, studio.selectedProgramId]);
+
+  useEffect(() => {
+    if (
+      perspective === "programs" &&
+      studio.selectedProgramId === "node-composer" &&
+      defaultProgramId
+    ) {
+      void studio.selectProgram(defaultProgramId);
+    }
+  }, [defaultProgramId, perspective, studio.selectProgram, studio.selectedProgramId]);
+
+  useEffect(() => {
+    if (
+      perspective === "machine-control" &&
+      studio.transport.settings.target !== "serial"
+    ) {
+      studio.transport.setTarget("serial");
+    }
+  }, [perspective, studio.transport.setTarget, studio.transport.settings.target]);
+
+  function selectPerspective(nextPerspective: StudioPerspective): void {
+    if (nextPerspective === "node-composer" && !nodeComposerAvailable) {
+      return;
+    }
+
+    setPerspective(nextPerspective);
+  }
+
+  function handleProgramSelection(programId: string): void {
+    setPerspective(programId === "node-composer" ? "node-composer" : "programs");
+  }
 
   return (
     <div className="studio-shell">
       <StudioHeader
+        perspective={perspective}
         studio={studio}
+        onSelectPerspective={selectPerspective}
         onOpenExportSettingsModal={() => {
           setExportSettingsModalOpen(true);
         }}
-        onOpenTransportModal={() => {
-          setTransportModalOpen(true);
-        }}
       />
 
-      <StudioWorkspace
-        editor={<StudioSidebar studio={studio} />}
-        preview={
-          <PreviewPane
-            current={studio.current}
-            editorComponent={studio.editorComponent}
-            isRendering={studio.isRendering}
-            programDetails={studio.programDetails}
-            setShowEditor={studio.setShowEditor}
-            setShowDebug={studio.setShowDebug}
-            showEditor={studio.showEditor}
-            showDebug={studio.showDebug}
-            svg={studio.svg}
-            updateParam={studio.updateParam}
-            updateProgramState={studio.updateProgramState}
-          />
-        }
-      />
-
-      {transportModalOpen ? (
-        <GcodeTransportModal
-          studio={studio}
-          onClose={() => {
-            setTransportModalOpen(false);
-          }}
-          onOpenExportSettingsModal={() => {
-            setExportSettingsModalOpen(true);
-          }}
+      {perspective === "machine-control" ? (
+        <MachineControlPerspective studio={studio} />
+      ) : (
+        <StudioWorkspace
+          editor={
+            <StudioSidebar
+              showProgramSelector={perspective !== "node-composer"}
+              studio={studio}
+              onSelectProgram={handleProgramSelection}
+            />
+          }
+          preview={
+            <PreviewPane
+              current={studio.current}
+              editorComponent={studio.editorComponent}
+              isRendering={studio.isRendering}
+              programDetails={studio.programDetails}
+              setShowEditor={studio.setShowEditor}
+              setShowDebug={studio.setShowDebug}
+              showEditor={studio.showEditor}
+              showDebug={studio.showDebug}
+              svg={studio.svg}
+              updateParam={studio.updateParam}
+              updateProgramState={studio.updateProgramState}
+            />
+          }
         />
-      ) : null}
+      )}
 
       {exportSettingsModalOpen ? (
         <ExportSettingsModal

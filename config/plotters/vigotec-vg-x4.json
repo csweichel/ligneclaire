@@ -26,6 +26,7 @@
     "ackPattern": "^(ok|OK)$",
     "errorPattern": "^(error|ERROR|alarm|ALARM)",
     "readyPattern": "^(Grbl|start)",
+    "alarmResetCommand": "$X",
     "ackTimeoutMs": 3000,
     "lineDelayMs": 0
   }

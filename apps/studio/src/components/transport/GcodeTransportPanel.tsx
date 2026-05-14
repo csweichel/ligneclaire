@@ -114,7 +114,7 @@ export function GcodeTransportPanel({
     (studio.transport.settings.target === "serial" &&
       studio.transport.connectionState !== "connected") ||
     studio.transport.jobState === "preparing" ||
-    studio.transport.jobState === "paused";
+    studio.transport.jobState === "paused" ||
     studio.transport.jobState === "sending";
   const progressPercent =
     studio.transport.progress.totalLines > 0
@@ -260,6 +260,23 @@ export function GcodeTransportPanel({
                       }}
                     >
                       Disconnect
+                    </button>
+
+                    <button
+                      className="studio-button"
+                      disabled={
+                        !studio.transport.canResetAlarm ||
+                        studio.transport.connectionState !== "connected" ||
+                        studio.transport.jobState === "preparing" ||
+                        studio.transport.jobState === "sending" ||
+                        studio.transport.jobState === "paused"
+                      }
+                      type="button"
+                      onClick={() => {
+                        void studio.transport.resetAlarm();
+                      }}
+                    >
+                      Reset Alarm
                     </button>
                   </div>
 
@@ -433,6 +450,19 @@ export function GcodeTransportPanel({
           </button>
         </div>
 
+        {studio.transport.lastError ? (
+          <div className="gcode-transport__error-card">
+            <span className="studio-field__label">Last Error</span>
+            <pre className="gcode-transport__error-text">{studio.transport.lastError}</pre>
+            {studio.transport.lastMachineError &&
+            studio.transport.lastMachineError !== studio.transport.lastError ? (
+              <pre className="gcode-transport__error-text">
+                {studio.transport.lastMachineError}
+              </pre>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="studio-sidebar__meta-grid">
           <span>Connection</span>
           <span>{connectionLabel(studio)}</span>
@@ -472,6 +502,10 @@ export function GcodeTransportPanel({
         <div className="studio-sidebar__meta-grid">
           <span>Last response</span>
           <span>{studio.transport.lastResponse ?? "--"}</span>
+        </div>
+        <div className="studio-sidebar__meta-grid">
+          <span>Last machine fault</span>
+          <span>{studio.transport.lastMachineError ?? "--"}</span>
         </div>
 
         {studio.transport.preparedStale ? (

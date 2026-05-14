@@ -17,6 +17,7 @@ import {
   selectNodeComposerRenderState,
   type NodeComposerProgramState,
 } from "../model";
+import { encodeSvgMaskData } from "../svgMask";
 import defaultSet from "../params/default.json";
 
 function pathBounds(paths: readonly Polyline[]) {
@@ -46,6 +47,32 @@ function segmentMidpoints(paths: readonly Polyline[]) {
       y: (path.points[index]!.y + point.y) * 0.5,
     }))
   );
+}
+
+function encodeFilledSvgMask(
+  columns: number,
+  rows: number,
+  isFilled: (column: number, row: number) => boolean
+): string {
+  const bits = new Uint8Array(Math.ceil((columns * rows) / 8));
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      if (!isFilled(column, row)) {
+        continue;
+      }
+
+      const index = row * columns + column;
+      const byteIndex = Math.floor(index / 8);
+      bits[byteIndex] = (bits[byteIndex] ?? 0) | (1 << (index % 8));
+    }
+  }
+
+  return encodeSvgMaskData({
+    columns,
+    rows,
+    bits,
+  });
 }
 
 describe("node-composer program", () => {
@@ -336,6 +363,103 @@ describe("node-composer program", () => {
     expect(document.layers[1]!.stroke).toBe(plotPalette.accent);
     expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
     expect(document.layers[1]!.paths.length).toBe(1);
+  });
+
+  it("clips paths using an uploaded svg mask payload", () => {
+    const encodedMask = encodeFilledSvgMask(6, 4, () => true);
+    const maskNode = {
+      id: "node-2",
+      kind: "mask-svg" as const,
+      position: { x: 330, y: 40 },
+      config: {
+        centerX: 105,
+        centerY: 148.5,
+        width: 120,
+        height: 120,
+        fitMode: "contain",
+        rotationDeg: 0,
+        svgMaskSourceName: "wide-block.svg",
+        svgMaskDataBase64: encodedMask,
+      },
+    };
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "line-grid",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 170,
+                height: 230,
+                spacing: 7,
+                angleDeg: 0,
+              },
+            },
+            maskNode,
+            {
+              id: "node-3",
+              kind: "clip-mask",
+              position: { x: 640, y: 110 },
+              config: {
+                mode: "clip",
+              },
+            },
+            {
+              id: "node-4",
+              kind: "output-layer",
+              position: { x: 960, y: 110 },
+              config: {
+                label: "SVG Mask",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-3", portId: "paths" },
+            },
+            {
+              from: { nodeId: "node-2", portId: "mask" },
+              to: { nodeId: "node-3", portId: "mask" },
+            },
+            {
+              from: { nodeId: "node-3", portId: "paths" },
+              to: { nodeId: "node-4", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-2",
+          nextNodeNumber: 5,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths.length).toBeGreaterThan(0);
+
+    const outputMidpoints = segmentMidpoints(document.layers[0]!.paths);
+    expect(outputMidpoints.length).toBeGreaterThan(0);
+    expect(outputMidpoints.every((point) => point.x >= 45 && point.x <= 165)).toBe(true);
+    expect(outputMidpoints.every((point) => point.y >= 108.5 && point.y <= 188.5)).toBe(true);
+
+    const guides = guidePathsForNode(maskNode);
+    expect(guides).toHaveLength(1);
+    const guideBounds = pathBounds(guides);
+    expect(guideBounds.minX).toBeCloseTo(45, 6);
+    expect(guideBounds.maxX).toBeCloseTo(165, 6);
+    expect(guideBounds.minY).toBeCloseTo(108.5, 6);
+    expect(guideBounds.maxY).toBeCloseTo(188.5, 6);
   });
 
   it("renders dashed line generator nodes with thickness support", () => {

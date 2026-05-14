@@ -97,6 +97,16 @@ export function ExportSettingsModal({
                 Add a plotter profile to enable G-code export and transport.
               </div>
             )}
+
+            {studio.heightMesh.mesh ? (
+              <div className="studio-sidebar__meta-grid">
+                <span>Height mesh</span>
+                <span>
+                  {studio.heightMesh.mesh.grid.columns} x {studio.heightMesh.mesh.grid.rows}
+                  {studio.heightMesh.deviceMismatch ? " (wrong plotter)" : ""}
+                </span>
+              </div>
+            ) : null}
           </section>
 
           <section className="export-settings__section">

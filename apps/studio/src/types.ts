@@ -9,6 +9,8 @@ import type {
 import type {
   GcodeOversizeHandling,
   GcodeRotationDeg,
+  HeightMeshFile,
+  HeightMeshSamplerConfig,
   ParamSetListResponse,
   PlotterDeviceSummary,
   ProgramDetails,
@@ -32,6 +34,8 @@ export type StudioStatus = Readonly<{
   tone: StudioStatusTone;
   message: string;
 }>;
+
+export type StudioPerspective = "programs" | "node-composer" | "machine-control";
 
 export type ExportKind = "raw-svg" | "optimized-svg" | "gcode";
 
@@ -95,6 +99,7 @@ export type GcodeTransportSettings = Readonly<{
   ackPattern: string;
   errorPattern: string;
   readyPattern: string;
+  alarmResetCommand: string;
   ackTimeoutMs: number;
   lineDelayMs: number;
   connectDelayMs: number;
@@ -111,6 +116,26 @@ export type GcodeTransportStatus = Readonly<{
   }>;
 }>;
 
+export type SerialTransportJobRequest = Readonly<{
+  label: string;
+  lines: readonly string[];
+  ackTimeoutMs?: number;
+  onResponseLine?: (line: string) => void;
+}>;
+
+export type SerialTransportJobResult = Readonly<{
+  label: string;
+  durationMs: number;
+  responseLines: readonly string[];
+}>;
+
+export type MachinePosition = Readonly<{
+  x: number;
+  y: number;
+  z: number;
+  source: "work" | "machine";
+}>;
+
 export type GcodeTransportModel = Readonly<{
   supported: boolean;
   settings: GcodeTransportSettings;
@@ -121,10 +146,17 @@ export type GcodeTransportModel = Readonly<{
   preparedStale: boolean;
   progress: GcodeTransportStatus["progress"];
   logs: readonly GcodeLogEntry[];
+  canResetAlarm: boolean;
+  lastError: string | null;
+  lastMachineError: string | null;
   lastResponse: string | null;
+  position: MachinePosition | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   prepare: () => Promise<GcodePreparedArtifact | null>;
+  resetAlarm: () => Promise<void>;
+  zeroCurrentPosition: () => Promise<void>;
+  runSerialJob: (request: SerialTransportJobRequest) => Promise<SerialTransportJobResult>;
   send: () => Promise<void>;
   pause: () => void;
   resume: () => void;
@@ -132,6 +164,40 @@ export type GcodeTransportModel = Readonly<{
   clearLogs: () => void;
   setTarget: (target: GcodeTransportTarget) => void;
   updateSettings: (patch: Partial<GcodeTransportSettings>) => void;
+}>;
+
+export type HeightMeshSettings = Readonly<{
+  widthMm: number;
+  heightMm: number;
+  sampleDistanceMm: number;
+}>;
+
+export type HeightMeshStatus = Readonly<{
+  state: "idle" | "sampling" | "complete" | "failed";
+  totalSamples: number;
+  capturedSamples: number;
+  errorMessage: string | null;
+}>;
+
+export type HeightMeshModel = Readonly<{
+  activePlotterId: string;
+  activeSamplerConfig: HeightMeshSamplerConfig | null;
+  deviceMismatch: boolean;
+  grid: Readonly<{
+    columns: number;
+    rows: number;
+    spacingXMm: number;
+    spacingYMm: number;
+  }> | null;
+  mesh: HeightMeshFile | null;
+  settings: HeightMeshSettings;
+  status: HeightMeshStatus;
+  clear: () => void;
+  download: () => void;
+  importFile: (file: File) => Promise<void>;
+  sample: () => Promise<void>;
+  setActivePlotterId: (plotterId: string) => void;
+  updateSettings: (patch: Partial<HeightMeshSettings>) => void;
 }>;
 
 export type AnyEditorProps = ProgramEditorProps<ParameterSchema, unknown>;
@@ -158,6 +224,7 @@ export type StudioModel = Readonly<{
   pendingExport: ExportKind | null;
   editorComponent: EditorComponent | null;
   exportSettings: ExportSettings;
+  heightMesh: HeightMeshModel;
   transport: GcodeTransportModel;
   localProgram: LocalProgram | undefined;
   selectProgram: (programId: string) => void;

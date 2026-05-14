@@ -6,6 +6,7 @@ export * from "./deform";
 export * from "./field";
 export * from "./geometry";
 export * from "./hamilton";
+export * from "./height-mesh";
 export * from "./image";
 export * from "./metrics";
 export * from "./noise";

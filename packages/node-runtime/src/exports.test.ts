@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { applyHeightMeshCompensation, createHeightMeshFile } from "./height-mesh";
 import type { PlotterConfig } from "./plotters";
 import {
   buildOversizeHandlingCommands,
@@ -82,6 +83,41 @@ describe("createGwriteProfile", () => {
     expect(profile).toContain('document_start = """G21\nG17\nG90\nG54\nG92 X0 Y0\n"""');
   });
 
+  it("keeps sampler defaults out of normal drawing exports", () => {
+    const config: PlotterConfig = {
+      id: "probe-plotter",
+      label: "Probe Plotter",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 1200,
+        preambleCommand: "G54",
+        heightMeshSampler: {
+          columns: 2,
+          rows: 1,
+          moveFeedRateMmPerMin: 1000,
+          probeFeedRateMmPerMin: 400,
+          releaseFeedRateMmPerMin: 100,
+          probeDepthMm: -25,
+          releaseDistanceMm: 10,
+          clearanceMm: 1,
+        },
+        penUpCommand: "M5",
+        penDownCommand: "M3 S30",
+        verticalFlip: true,
+      },
+    };
+
+    const profile = createGwriteProfile(config);
+
+    expect(profile).toContain('document_start = """G21\nG17\nG90\nG54');
+    expect(profile).not.toContain("; Height mesh sampler");
+    expect(profile).not.toContain("G38.2");
+  });
+
   it("supports a minimal raw XY/Z target without a final home move", () => {
     const config: PlotterConfig = {
       id: "vanilla",
@@ -110,6 +146,115 @@ describe("createGwriteProfile", () => {
     expect(profile).toContain('segment_first = """G0 X{x:.4f} Y{y:.4f}\nG91\nG0 Z15\nG90\nG1 F1200');
     expect(profile).toContain('line_end = """G91\nG0 Z-15\nG90');
     expect(profile).toContain('document_end = """G91\nG0 Z-15\nG90\nM2\n"""');
+  });
+});
+
+describe("applyHeightMeshCompensation", () => {
+  const plotter: PlotterConfig = {
+    id: "vanilla",
+    label: "Vanilla G-code (raw XY/Z)",
+    page: {
+      widthMm: 100,
+      heightMm: 100,
+    },
+    gcode: {
+      unit: "mm",
+      feedRateMmPerMin: 1200,
+      penUpCommand: "G91\nG0 Z50\nG90",
+      penDownCommand: "G91\nG0 Z-50\nG90",
+      heightMeshCompensation: {
+        enabled: true,
+        interpolation: "nearest",
+        referenceMode: "max",
+      },
+      verticalFlip: false,
+    },
+  };
+
+  function createMesh(zValues: readonly [number, number]) {
+    return createHeightMeshFile(
+      plotter.page,
+      {
+        columns: 2,
+        rows: 1,
+        originXMm: 0,
+        originYMm: 50,
+        widthMm: 100,
+        heightMm: 0,
+        moveFeedRateMmPerMin: 1000,
+        probeFeedRateMmPerMin: 400,
+        releaseFeedRateMmPerMin: 100,
+        probeDepthMm: -25,
+        releaseDistanceMm: 10,
+      },
+      [
+        {
+          xMm: 0,
+          yMm: 50,
+          zMm: zValues[0],
+          probeTriggered: true,
+          rawLine: `[PRB:0,50,${zValues[0]}:1]`,
+        },
+        {
+          xMm: 100,
+          yMm: 50,
+          zMm: zValues[1],
+          probeTriggered: true,
+          rawLine: `[PRB:100,50,${zValues[1]}:1]`,
+        },
+      ],
+      {
+        plotterId: plotter.id,
+        plotterLabel: plotter.label,
+      }
+    );
+  }
+
+  it("injects XY-following Z moves while the pen is down", () => {
+    const compensated = applyHeightMeshCompensation(
+      [
+        "G21",
+        "G90",
+        "G0 X0 Y50",
+        "G91",
+        "G0 Z-50",
+        "G90",
+        "G1 F1200",
+        "G1 X100 Y50 F1200",
+        "G91",
+        "G0 Z50",
+        "G90",
+        "M2",
+      ].join("\n"),
+      createMesh([0, -2]),
+      plotter
+    );
+
+    expect(compensated).toContain("G1 X100 Y50 F1200 Z-52");
+    expect(compensated).toContain("G1 Z-50 F1200\nG91\nG0 Z50\nG90");
+  });
+
+  it("offsets the start point immediately after the pen drops", () => {
+    const compensated = applyHeightMeshCompensation(
+      [
+        "G21",
+        "G90",
+        "G0 X0 Y50",
+        "G91",
+        "G0 Z-50",
+        "G90",
+        "G1 F1200",
+        "G1 X100 Y50 F1200",
+        "G91",
+        "G0 Z50",
+        "G90",
+        "M2",
+      ].join("\n"),
+      createMesh([-1, 0]),
+      plotter
+    );
+
+    expect(compensated).toContain("G91\nG0 Z-50\nG90\nG1 Z-51 F1200\nG1 F1200");
   });
 });
 

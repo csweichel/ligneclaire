@@ -1,5 +1,6 @@
 import type {
   GcodeOversizeHandling,
+  HeightMeshFile,
   PlotterDeviceSummary,
 } from "@ligneclaire/node-runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,12 +15,16 @@ import type {
   GcodeTransportSettings,
   GcodeTransportStatus,
   GcodeTransportTarget,
+  MachinePosition,
+  SerialTransportJobRequest,
+  SerialTransportJobResult,
   StudioStatus,
 } from "../types";
 
 type UseGcodeTransportArgs = Readonly<{
   current: CurrentDocumentState | null;
   deviceId: string;
+  heightMesh: HeightMeshFile | null;
   oversizeHandling: GcodeOversizeHandling;
   plotters: readonly PlotterDeviceSummary[];
   rotationDeg: ResolvedGcodeRotationDeg;
@@ -33,7 +38,12 @@ type SerialNavigator = Navigator & {
 
 type AckWaiter = Readonly<{
   reject: (reason?: unknown) => void;
-  resolve: (status: "ack" | "error" | "timeout") => void;
+  resolve: (result: AckResult) => void;
+}>;
+
+type AckResult = Readonly<{
+  status: "ack" | "error" | "timeout";
+  line?: string;
 }>;
 
 const encoder = new TextEncoder();
@@ -49,6 +59,7 @@ const genericTransportDefaults: GcodeTransportSettings = {
   ackPattern: "^(ok|OK)$",
   errorPattern: "^(error|ERROR|alarm|ALARM)",
   readyPattern: "^(Grbl|start)",
+  alarmResetCommand: "$X",
   ackTimeoutMs: 3000,
   lineDelayMs: 0,
   connectDelayMs: 250,
@@ -89,6 +100,13 @@ function lineEndingValue(lineEnding: GcodeTransportSettings["lineEnding"]): stri
   return lineEnding === "crlf" ? "\r\n" : "\n";
 }
 
+function commandLines(command: string): readonly string[] {
+  return command
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -105,6 +123,84 @@ function compileRegex(pattern: string): RegExp | null {
   } catch {
     return null;
   }
+}
+
+function parseCoordinateTriplet(value: string): Readonly<{
+  x: number;
+  y: number;
+  z: number;
+}> | null {
+  const values = value
+    .split(",")
+    .slice(0, 3)
+    .map((part) => Number(part.trim()));
+
+  if (values.length < 3 || !values.every(Number.isFinite)) {
+    return null;
+  }
+
+  return {
+    x: values[0]!,
+    y: values[1]!,
+    z: values[2]!,
+  };
+}
+
+function isStatusReport(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("<") && trimmed.endsWith(">");
+}
+
+function parseMachinePosition(line: string): MachinePosition | null {
+  if (!isStatusReport(line)) {
+    return null;
+  }
+
+  const parts = line.trim().slice(1, -1).split("|");
+  let machinePosition: ReturnType<typeof parseCoordinateTriplet> = null;
+  let workPosition: ReturnType<typeof parseCoordinateTriplet> = null;
+  let workOffset: ReturnType<typeof parseCoordinateTriplet> = null;
+
+  for (const part of parts.slice(1)) {
+    if (part.startsWith("WPos:")) {
+      workPosition = parseCoordinateTriplet(part.slice(5));
+      continue;
+    }
+
+    if (part.startsWith("MPos:")) {
+      machinePosition = parseCoordinateTriplet(part.slice(5));
+      continue;
+    }
+
+    if (part.startsWith("WCO:")) {
+      workOffset = parseCoordinateTriplet(part.slice(4));
+    }
+  }
+
+  if (workPosition) {
+    return {
+      ...workPosition,
+      source: "work",
+    };
+  }
+
+  if (machinePosition && workOffset) {
+    return {
+      x: machinePosition.x - workOffset.x,
+      y: machinePosition.y - workOffset.y,
+      z: machinePosition.z - workOffset.z,
+      source: "work",
+    };
+  }
+
+  if (machinePosition) {
+    return {
+      ...machinePosition,
+      source: "machine",
+    };
+  }
+
+  return null;
 }
 
 function nextTransportSettings(
@@ -128,6 +224,8 @@ function nextTransportSettings(
     ackPattern: serialDefaults?.ackPattern ?? genericTransportDefaults.ackPattern,
     errorPattern: serialDefaults?.errorPattern ?? genericTransportDefaults.errorPattern,
     readyPattern: serialDefaults?.readyPattern ?? genericTransportDefaults.readyPattern,
+    alarmResetCommand:
+      serialDefaults?.alarmResetCommand ?? genericTransportDefaults.alarmResetCommand,
     ackTimeoutMs: serialDefaults?.ackTimeoutMs ?? genericTransportDefaults.ackTimeoutMs,
     lineDelayMs: serialDefaults?.lineDelayMs ?? genericTransportDefaults.lineDelayMs,
     connectDelayMs: serialDefaults?.connectDelayMs ?? genericTransportDefaults.connectDelayMs,
@@ -137,6 +235,7 @@ function nextTransportSettings(
 export function useGcodeTransport({
   current,
   deviceId,
+  heightMesh,
   oversizeHandling,
   plotters,
   rotationDeg,
@@ -157,12 +256,17 @@ export function useGcodeTransport({
     errorLines: 0,
   });
   const [portLabel, setPortLabel] = useState<string | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [lastMachineError, setLastMachineError] = useState<string | null>(null);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
+  const [position, setPosition] = useState<MachinePosition | null>(null);
   const portRef = useRef<SerialPort | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const readLoopPromiseRef = useRef<Promise<void> | null>(null);
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
   const pendingAckRef = useRef<AckWaiter | null>(null);
+  const responseListenerRef = useRef<((line: string) => void) | null>(null);
+  const statusRequestInFlightRef = useRef(false);
   const cancelRequestedRef = useRef(false);
   const pauseRequestedRef = useRef(false);
   const jobStartedAtRef = useRef<number | null>(null);
@@ -181,9 +285,10 @@ export function useGcodeTransport({
             deviceId,
             rotationDeg,
             oversizeHandling,
+            heightMesh,
           })
         : null,
-    [current, deviceId, oversizeHandling, rotationDeg, selectedProgramId]
+    [current, deviceId, heightMesh, oversizeHandling, rotationDeg, selectedProgramId]
   );
 
   useEffect(() => {
@@ -203,6 +308,7 @@ export function useGcodeTransport({
         portRef.current = null;
         setConnectionState("disconnected");
         setPortLabel(null);
+        setPosition(null);
         appendLog("error", "Serial device disconnected.");
       }
     };
@@ -231,9 +337,47 @@ export function useGcodeTransport({
     ]);
   }
 
+  function rememberError(message: string, machineLine?: string | null): void {
+    setLastError(message);
+    if (machineLine) {
+      setLastMachineError(machineLine);
+    }
+  }
+
+  function clearErrorState(): void {
+    setLastError(null);
+    setLastMachineError(null);
+  }
+
+  async function requestStatus(): Promise<void> {
+    if (
+      !portRef.current ||
+      !writerRef.current ||
+      connectionState !== "connected" ||
+      statusRequestInFlightRef.current ||
+      jobState === "preparing" ||
+      jobState === "sending" ||
+      jobState === "paused"
+    ) {
+      return;
+    }
+
+    statusRequestInFlightRef.current = true;
+    try {
+      await writerRef.current.write(encoder.encode("?"));
+    } catch {
+      // Ignore polling failures and let normal transport errors surface elsewhere.
+    } finally {
+      statusRequestInFlightRef.current = false;
+    }
+  }
+
   async function cleanupPort(): Promise<void> {
     pendingAckRef.current?.reject(new Error("Connection closed."));
     pendingAckRef.current = null;
+    responseListenerRef.current = null;
+    statusRequestInFlightRef.current = false;
+    setPosition(null);
 
     const reader = readerRef.current;
     try {
@@ -288,6 +432,7 @@ export function useGcodeTransport({
         await cleanupPort();
       }
 
+      clearErrorState();
       setConnectionState("connecting");
       appendLog("system", "Requesting serial device access...");
       const filters: USBDeviceFilter[] =
@@ -343,12 +488,25 @@ export function useGcodeTransport({
           buffer = chunks.pop() ?? "";
 
           for (const line of chunks.map((chunk) => chunk.trim()).filter(Boolean)) {
+            const parsedPosition = parseMachinePosition(line);
+            if (parsedPosition || isStatusReport(line)) {
+              if (parsedPosition) {
+                setPosition(parsedPosition);
+              }
+              continue;
+            }
+
             setLastResponse(line);
             appendLog("rx", line);
+            responseListenerRef.current?.(line);
 
             if (errorPattern?.test(line)) {
+              rememberError(line, line);
               if (pendingAckRef.current) {
-                pendingAckRef.current.resolve("error");
+                pendingAckRef.current.resolve({
+                  status: "error",
+                  line,
+                });
                 pendingAckRef.current = null;
                 setProgress((existing) => ({
                   ...existing,
@@ -360,7 +518,10 @@ export function useGcodeTransport({
 
             if (ackPattern?.test(line)) {
               if (pendingAckRef.current) {
-                pendingAckRef.current.resolve("ack");
+                pendingAckRef.current.resolve({
+                  status: "ack",
+                  line,
+                });
                 pendingAckRef.current = null;
                 setProgress((existing) => ({
                   ...existing,
@@ -376,9 +537,12 @@ export function useGcodeTransport({
           }
         }
       })().catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "Serial reader stopped unexpectedly.";
+        rememberError(message);
         appendLog(
           "error",
-          error instanceof Error ? error.message : "Serial reader stopped unexpectedly."
+          message
         );
       });
 
@@ -392,19 +556,35 @@ export function useGcodeTransport({
         tone: "success",
         message: "Serial device connected.",
       });
+      void requestStatus();
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to connect serial device.";
       await cleanupPort();
       setConnectionState("disconnected");
+      rememberError(message);
       setStatus({
         tone: "error",
-        message: error instanceof Error ? error.message : "Failed to connect serial device.",
+        message,
       });
-      appendLog(
-        "error",
-        error instanceof Error ? error.message : "Failed to connect serial device."
-      );
+      appendLog("error", message);
     }
   }
+
+  useEffect(() => {
+    if (connectionState !== "connected") {
+      return;
+    }
+
+    void requestStatus();
+    const interval = window.setInterval(() => {
+      void requestStatus();
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [connectionState, jobState]);
 
   async function disconnect(): Promise<void> {
     cancelRequestedRef.current = true;
@@ -438,6 +618,7 @@ export function useGcodeTransport({
         deviceId,
         rotationDeg,
         oversizeHandling,
+        heightMesh,
         downloadName: `${selectedProgramId}-${current.slug}.gcode`,
       });
       const artifact: GcodePreparedArtifact = {
@@ -466,15 +647,15 @@ export function useGcodeTransport({
       appendLog("system", `Prepared ${artifact.fileName} with ${artifact.lines.length} lines.`);
       return artifact;
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to generate G-code.";
       setJobState("failed");
+      rememberError(message);
       setStatus({
         tone: "error",
-        message: error instanceof Error ? error.message : "Failed to generate G-code.",
+        message,
       });
-      appendLog(
-        "error",
-        error instanceof Error ? error.message : "Failed to generate G-code."
-      );
+      appendLog("error", message);
       return null;
     }
   }
@@ -485,11 +666,13 @@ export function useGcodeTransport({
     }
   }
 
-  async function waitForAck(timeoutMs: number): Promise<"ack" | "error" | "timeout"> {
+  async function waitForAck(timeoutMs: number): Promise<AckResult> {
     return await new Promise((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         pendingAckRef.current = null;
-        resolve("timeout");
+        resolve({
+          status: "timeout",
+        });
       }, timeoutMs);
 
       pendingAckRef.current = {
@@ -505,7 +688,10 @@ export function useGcodeTransport({
     });
   }
 
-  async function sendSerial(artifact: GcodePreparedArtifact): Promise<void> {
+  async function sendSerialLines(
+    lines: readonly string[],
+    ackTimeoutMs = settings.ackTimeoutMs
+  ): Promise<void> {
     if (!writerRef.current || !portRef.current) {
       throw new Error("Connect a serial device first.");
     }
@@ -514,14 +700,14 @@ export function useGcodeTransport({
     const ending = lineEndingValue(settings.lineEnding);
     const responseMode = settings.responseMode;
 
-    for (let index = 0; index < artifact.lines.length; index += 1) {
+    for (let index = 0; index < lines.length; index += 1) {
       if (cancelRequestedRef.current) {
         throw new Error("Transmission cancelled.");
       }
 
       await waitForResume();
 
-      const line = artifact.lines[index]!;
+      const line = lines[index]!;
       await writer.write(encoder.encode(`${line}${ending}`));
       setProgress((existing) => ({
         ...existing,
@@ -530,13 +716,19 @@ export function useGcodeTransport({
       appendLog("tx", line);
 
       if (responseMode === "ack") {
-        const ackStatus = await waitForAck(settings.ackTimeoutMs);
-        if (ackStatus === "error") {
-          throw new Error(`Device reported an error on line ${index + 1}.`);
+        const ackResult = await waitForAck(ackTimeoutMs);
+        if (ackResult.status === "error") {
+          const message = ackResult.line
+            ? `Machine error on line ${index + 1}: ${ackResult.line}`
+            : `Machine error on line ${index + 1}.`;
+          rememberError(message, ackResult.line ?? null);
+          throw new Error(message);
         }
-        if (ackStatus === "timeout") {
+        if (ackResult.status === "timeout") {
+          const message = `No acknowledgement received for line ${index + 1}.`;
+          rememberError(message);
           appendLog("error", `Timed out waiting for acknowledgement on line ${index + 1}.`);
-          throw new Error(`No acknowledgement received for line ${index + 1}.`);
+          throw new Error(message);
         }
       } else if (settings.lineDelayMs > 0) {
         await pause(settings.lineDelayMs);
@@ -544,8 +736,8 @@ export function useGcodeTransport({
     }
   }
 
-  async function sendVirtual(artifact: GcodePreparedArtifact): Promise<void> {
-    for (let index = 0; index < artifact.lines.length; index += 1) {
+  async function sendVirtualLines(lines: readonly string[]): Promise<void> {
+    for (let index = 0; index < lines.length; index += 1) {
       if (cancelRequestedRef.current) {
         throw new Error("Transmission cancelled.");
       }
@@ -557,8 +749,133 @@ export function useGcodeTransport({
         sentLines: index + 1,
         acknowledgedLines: index + 1,
       }));
-      appendLog("tx", artifact.lines[index]!);
+      appendLog("tx", lines[index]!);
       await pause(Math.max(4, settings.lineDelayMs));
+    }
+  }
+
+  async function runSerialJob(
+    request: SerialTransportJobRequest
+  ): Promise<SerialTransportJobResult> {
+    if (!portRef.current || !writerRef.current) {
+      throw new Error("Connect a serial device before starting a serial job.");
+    }
+
+    if (
+      jobState === "preparing" ||
+      jobState === "sending" ||
+      jobState === "paused"
+    ) {
+      throw new Error("Finish the current transport job before starting another one.");
+    }
+
+    const responseLines: string[] = [];
+    cancelRequestedRef.current = false;
+    pauseRequestedRef.current = false;
+    jobStartedAtRef.current = Date.now();
+    clearErrorState();
+    responseListenerRef.current = (line) => {
+      responseLines.push(line);
+      request.onResponseLine?.(line);
+    };
+    setProgress({
+      totalLines: request.lines.length,
+      sentLines: 0,
+      acknowledgedLines: 0,
+      errorLines: 0,
+    });
+    setJobState("sending");
+    setStatus({
+      tone: "neutral",
+      message: `${request.label} in progress...`,
+    });
+    appendLog("system", `Starting ${request.label}.`);
+    if (
+      settings.responseMode === "ack" &&
+      request.ackTimeoutMs !== undefined &&
+      request.ackTimeoutMs !== settings.ackTimeoutMs
+    ) {
+      appendLog("system", `Using ${request.ackTimeoutMs} ms ACK timeout for ${request.label}.`);
+    }
+
+    try {
+      await sendSerialLines(request.lines, request.ackTimeoutMs);
+      setJobState("complete");
+      clearErrorState();
+      setStatus({
+        tone: "success",
+        message: `${request.label} complete.`,
+      });
+      appendLog(
+        "system",
+        `${request.label} complete in ${Date.now() - (jobStartedAtRef.current ?? Date.now())} ms.`
+      );
+      return {
+        label: request.label,
+        durationMs: Date.now() - (jobStartedAtRef.current ?? Date.now()),
+        responseLines,
+      };
+    } catch (error) {
+      if (cancelRequestedRef.current) {
+        setJobState("cancelled");
+        setStatus({
+          tone: "neutral",
+          message: `${request.label} cancelled.`,
+        });
+        appendLog("system", `${request.label} cancelled.`);
+      } else {
+        setJobState("failed");
+        rememberError(
+          error instanceof Error ? error.message : `${request.label} failed.`
+        );
+        setStatus({
+          tone: "error",
+          message: error instanceof Error ? error.message : `${request.label} failed.`,
+        });
+        appendLog(
+          "error",
+          error instanceof Error ? error.message : `${request.label} failed.`
+        );
+      }
+      throw error;
+    } finally {
+      responseListenerRef.current = null;
+      void requestStatus();
+    }
+  }
+
+  async function resetAlarm(): Promise<void> {
+    const lines = commandLines(settings.alarmResetCommand);
+    if (lines.length === 0) {
+      const message = "This transport does not define an alarm reset command.";
+      rememberError(message);
+      setStatus({
+        tone: "error",
+        message,
+      });
+      appendLog("error", message);
+      return;
+    }
+
+    try {
+      await runSerialJob({
+        label: "Alarm reset",
+        lines,
+      });
+    } catch {
+      // runSerialJob already recorded the device response and status.
+    }
+  }
+
+  async function zeroCurrentPosition(): Promise<void> {
+    try {
+      await runSerialJob({
+        label: "Zero current position",
+        lines: ["G92 X0 Y0 Z0"],
+      });
+      void requestStatus();
+    } catch {
+      // runSerialJob already recorded the device response and status.
     }
   }
 
@@ -573,9 +890,11 @@ export function useGcodeTransport({
     }
 
     if (settings.target === "serial" && connectionState !== "connected") {
+      const message = "Connect a serial device before sending G-code.";
+      rememberError(message);
       setStatus({
         tone: "error",
-        message: "Connect a serial device before sending G-code.",
+        message,
       });
       return;
     }
@@ -583,6 +902,7 @@ export function useGcodeTransport({
     cancelRequestedRef.current = false;
     pauseRequestedRef.current = false;
     jobStartedAtRef.current = Date.now();
+    clearErrorState();
     setProgress({
       totalLines: artifact.lines.length,
       sentLines: 0,
@@ -599,12 +919,13 @@ export function useGcodeTransport({
 
     try {
       if (settings.target === "virtual") {
-        await sendVirtual(artifact);
+        await sendVirtualLines(artifact.lines);
       } else {
-        await sendSerial(artifact);
+        await sendSerialLines(artifact.lines);
       }
 
       setJobState("complete");
+      clearErrorState();
       setStatus({
         tone: "success",
         message: `Sent ${artifact.fileName}.`,
@@ -620,6 +941,9 @@ export function useGcodeTransport({
         appendLog("system", "Transmission cancelled.");
       } else {
         setJobState("failed");
+        rememberError(
+          error instanceof Error ? error.message : "G-code transmission failed."
+        );
         setStatus({
           tone: "error",
           message: error instanceof Error ? error.message : "G-code transmission failed.",
@@ -681,10 +1005,17 @@ export function useGcodeTransport({
       preparedArtifact.snapshot !== currentSnapshot,
     progress,
     logs,
+    canResetAlarm: commandLines(settings.alarmResetCommand).length > 0,
+    lastError,
+    lastMachineError,
     lastResponse,
+    position,
     connect,
     disconnect,
     prepare,
+    resetAlarm,
+    zeroCurrentPosition,
+    runSerialJob,
     send,
     pause: pauseJob,
     resume: resumeJob,

@@ -1,10 +1,14 @@
 import { calculateDocumentMetrics, contentBounds, normalizeParams, resolveProgramState } from "@ligneclaire/sdk";
 import { describe, expect, it } from "vitest";
 import { expectDeterministicProgramRender } from "../../test-helpers";
+import { parseHamiltonGuideCsv } from "../csv";
 import {
+  buildHamiltonResult,
   buildHamiltonEditableNodes,
   hamiltonNodeId,
+  normalizeHamiltonProgramState,
   program,
+  resolveHamiltonGuideNodeOffsets,
   selectHamiltonRenderProgramState,
 } from "../index";
 import defaultSet from "../params/default.json";
@@ -175,6 +179,67 @@ describe("hamilton-paths program", () => {
     });
     expect(selectHamiltonRenderProgramState(programState)).toEqual({
       nodeOffsets: programState.nodeOffsets,
+      guideMode: "manual",
+      csvGuidePoints: [],
+    });
+  });
+
+  it("parses csv guide points with an x/y header row", () => {
+    expect(
+      parseHamiltonGuideCsv(`
+        x,y
+        40.5,72
+        88,140.25
+      `)
+    ).toEqual([
+      { x: 40.5, y: 72 },
+      { x: 88, y: 140.25 },
+    ]);
+  });
+
+  it("maps csv guide points onto nearby lattice nodes and routes through them", () => {
+    const normalized = normalizeParams(program.params, defaultSet.params);
+    const bounds = contentBounds(program.canvas);
+    const guidePoints = [
+      { x: bounds.minX + 18, y: bounds.minY + 34 },
+      { x: bounds.maxX - 28, y: bounds.maxY - 30 },
+      { x: bounds.minX + 64, y: bounds.maxY - 48 },
+    ] as const;
+    const programState = normalizeHamiltonProgramState(
+      {
+        guideMode: "csv",
+        csvGuideSourceName: "guide.csv",
+        csvGuidePoints: guidePoints,
+      },
+      normalized.params
+    );
+    const guideOffsets = resolveHamiltonGuideNodeOffsets(normalized.params, programState.csvGuidePoints);
+    const nodes = buildHamiltonEditableNodes(normalized.params, programState);
+    const result = buildHamiltonResult(normalized.params, programState);
+
+    expect(Object.keys(guideOffsets)).toHaveLength(guidePoints.length);
+    expect(
+      guidePoints.every((guidePoint) =>
+        nodes.some(
+          (node) =>
+            Math.abs(node.position.x - guidePoint.x) < 1e-6 &&
+            Math.abs(node.position.y - guidePoint.y) < 1e-6
+        )
+      )
+    ).toBe(true);
+    expect(
+      guidePoints.every((guidePoint) =>
+        result.centerline.points.some(
+          (point) =>
+            Math.abs(point.x - guidePoint.x) < 1e-6 &&
+            Math.abs(point.y - guidePoint.y) < 1e-6
+        )
+      )
+    ).toBe(true);
+    expect(selectHamiltonRenderProgramState(programState)).toEqual({
+      nodeOffsets: {},
+      guideMode: "csv",
+      csvGuidePoints: programState.csvGuidePoints,
     });
   });
 });

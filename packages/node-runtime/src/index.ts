@@ -2,6 +2,7 @@ export * from "./api-types";
 export * from "./errors";
 export * from "./exports";
 export * from "./google-fonts";
+export * from "./height-mesh";
 export * from "./param-store";
 export * from "./paths";
 export * from "./plotters";

@@ -35,6 +35,14 @@ import {
 import { goPenSampleGrid } from "@ligneclaire/sdk";
 import { nodeComposerProgramRegistry } from "../generated/node-composer-program-registry";
 import { generateTextPaths } from "./text";
+import {
+  decodeSvgMaskData,
+  pointInSvgMask,
+  svgMaskFrameBounds,
+  svgMaskFramePath,
+  type SvgMaskFitMode,
+  type SvgMaskPlacement,
+} from "./svgMask";
 
 export const canvas = {
   widthMm: 210,
@@ -87,6 +95,7 @@ type BuiltInNodeKind =
   | "mask-circle"
   | "mask-rect"
   | "mask-polygon"
+  | "mask-svg"
   | "mask-boolean"
   | "clip-mask"
   | "path-transform"
@@ -388,6 +397,11 @@ const booleanMaskOptions = [
 const clipModeOptions = [
   { label: "Clip", value: "clip" },
   { label: "Exclude", value: "exclude" },
+] as const satisfies readonly ChoiceFieldOption[];
+
+const fitModeOptions = [
+  { label: "Contain", value: "contain" },
+  { label: "Stretch", value: "stretch" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
 const lineStyleOptions = [
@@ -1283,6 +1297,37 @@ const builtInNodeSpecs = {
       }),
     ],
   },
+  "mask-svg": {
+    kind: "mask-svg",
+    title: "SVG Mask",
+    summary: "Load an SVG silhouette and reuse it as a clip or mask input.",
+    category: "masks",
+    inputs: [],
+    outputs: [{ id: "mask", label: "Mask", kind: "mask" }],
+    fields: [
+      ...regionFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+        width: 120,
+        height: 120,
+      }),
+      choiceField({
+        key: "fitMode",
+        label: "Fit",
+        defaultValue: "contain",
+        options: fitModeOptions,
+      }),
+      floatField({
+        key: "rotationDeg",
+        label: "Rotation",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 1,
+        unit: "deg",
+      }),
+    ],
+  },
   "mask-boolean": {
     kind: "mask-boolean",
     title: "Mask Boolean",
@@ -1557,6 +1602,19 @@ function normalizeConfigForSpec(kind: NodeKind, input: unknown): NodeConfig {
     }
   }
 
+  if (kind === "mask-svg") {
+    const svgMaskSourceName = readString(candidate.svgMaskSourceName, "").trim();
+    const svgMaskDataBase64 = readString(candidate.svgMaskDataBase64, "").trim();
+
+    if (svgMaskSourceName.length > 0) {
+      normalized.svgMaskSourceName = svgMaskSourceName.slice(0, 128);
+    }
+
+    if (decodeSvgMaskData(svgMaskDataBase64)) {
+      normalized.svgMaskDataBase64 = svgMaskDataBase64;
+    }
+  }
+
   if (kind === "output-layer") {
     const label = String(normalized.label ?? "").trim();
     normalized.label = label.length > 0 ? label.slice(0, 48) : "Layer";
@@ -1815,6 +1873,43 @@ function makeRegionBounds(config: NodeConfig): Bounds {
     minY: centerY - height * 0.5,
     maxY: centerY + height * 0.5,
   };
+}
+
+function svgMaskFitMode(config: NodeConfig): SvgMaskFitMode {
+  return String(config.fitMode ?? "contain") === "stretch" ? "stretch" : "contain";
+}
+
+function svgMaskPlacement(config: NodeConfig): SvgMaskPlacement {
+  return {
+    center: {
+      x: Number(config.centerX ?? contentCenter.x),
+      y: Number(config.centerY ?? contentCenter.y),
+    },
+    width: Number(config.width ?? 120),
+    height: Number(config.height ?? 120),
+    rotationDeg: Number(config.rotationDeg ?? 0),
+    fitMode: svgMaskFitMode(config),
+  };
+}
+
+function svgMaskData(config: NodeConfig) {
+  return decodeSvgMaskData(String(config.svgMaskDataBase64 ?? ""));
+}
+
+function svgMaskFromConfig(config: NodeConfig): MaskShape | null {
+  const data = svgMaskData(config);
+  if (!data) {
+    return null;
+  }
+
+  const placement = svgMaskPlacement(config);
+  const guide = svgMaskFramePath(data, placement);
+
+  return makeMask(
+    svgMaskFrameBounds(data, placement),
+    (point) => pointInSvgMask(point, data, placement),
+    [guide]
+  );
 }
 
 function polygonBounds(polygon: Polygon): Bounds {
@@ -3134,6 +3229,18 @@ function evaluateNodeOutputs(
     };
   }
 
+  if (node.kind === "mask-svg") {
+    const mask = svgMaskFromConfig(node.config);
+    return mask
+      ? {
+          mask: {
+            kind: "mask",
+            mask,
+          },
+        }
+      : {};
+  }
+
   if (node.kind === "mask-boolean") {
     const left = resolveNodeInput(node, "a", "mask", context, evaluateNode);
     const right = resolveNodeInput(node, "b", "mask", context, evaluateNode);
@@ -3865,6 +3972,11 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
         )
       ),
     ];
+  }
+
+  if (node.kind === "mask-svg") {
+    const data = svgMaskData(node.config);
+    return data ? [svgMaskFramePath(data, svgMaskPlacement(node.config))] : [];
   }
 
   return [];

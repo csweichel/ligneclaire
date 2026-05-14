@@ -13,6 +13,7 @@ import type {
   GcodeRotationDeg,
 } from "./api-types";
 import { ensureDirectory, resolveExportPath, workspaceRoot, workspaceRelative } from "./paths";
+import { applyHeightMeshCompensation, parseHeightMeshFile } from "./height-mesh";
 import { loadPlotterConfig, type PlotterConfig } from "./plotters";
 import { runProcess } from "./process";
 import { getProgramDetails } from "./registry";
@@ -201,6 +202,45 @@ export function createGwriteProfile(config: PlotterConfig): string {
   ].join("\n");
 }
 
+function applyRequestedHeightMesh(
+  gcode: string,
+  request: Pick<DownloadGcodeRequest | ExportGcodeRequest, "heightMesh">,
+  device: PlotterConfig
+): string {
+  if (!request.heightMesh) {
+    return gcode;
+  }
+
+  const mesh = parseHeightMeshFile(request.heightMesh);
+  if (!mesh) {
+    throw new RuntimeError("INVALID_HEIGHT_MESH", "Height mesh JSON is invalid.", {
+      status: 400,
+    });
+  }
+
+  if (mesh.plotter.id !== device.id) {
+    throw new RuntimeError(
+      "HEIGHT_MESH_DEVICE_MISMATCH",
+      `Height mesh was captured for "${mesh.plotter.id}" but "${device.id}" is selected for export.`,
+      {
+        status: 400,
+      }
+    );
+  }
+
+  if (!device.gcode.heightMeshCompensation || device.gcode.heightMeshCompensation.enabled === false) {
+    throw new RuntimeError(
+      "HEIGHT_MESH_UNSUPPORTED",
+      `Plotter "${device.id}" does not support height-mesh compensated export.`,
+      {
+        status: 400,
+      }
+    );
+  }
+
+  return applyHeightMeshCompensation(gcode, mesh, device);
+}
+
 async function runVpypePipeline(inputSvgPath: string, extraArgs: readonly string[]): Promise<void> {
   const args = ["read", inputSvgPath, ...optimizationPipeline, ...extraArgs];
   const result = await runProcess("vpype", args, { cwd: workspaceRoot });
@@ -337,6 +377,13 @@ export async function exportGcode(request: ExportGcodeRequest): Promise<ExportRe
         }
       );
     }
+
+    const compensatedContent = applyRequestedHeightMesh(
+      await readFile(targetPath, "utf8"),
+      request,
+      device
+    );
+    await writeFile(targetPath, compensatedContent, "utf8");
   } finally {
     await rm(tempDir, { force: true, recursive: true });
   }
@@ -429,10 +476,16 @@ export async function exportGcodeDownload(
       );
     }
 
+    const compensatedContent = applyRequestedHeightMesh(
+      await readFile(outputGcodePath, "utf8"),
+      request,
+      device
+    );
+
     return {
       fileName,
       contentType: "text/plain; charset=utf-8",
-      content: await readFile(outputGcodePath, "utf8"),
+      content: compensatedContent,
     };
   } finally {
     await rm(tempDir, { force: true, recursive: true });
