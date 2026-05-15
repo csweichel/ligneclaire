@@ -77,12 +77,14 @@ export function StudioShell({ studio }: StudioShellProps) {
       ) : (
         <StudioWorkspace
           editor={
-            <StudioSidebar
-              showDocumentControls={perspective !== "node-composer"}
-              showProgramSelector={perspective !== "node-composer"}
-              studio={studio}
-              onSelectProgram={handleProgramSelection}
-            />
+            perspective === "node-composer" ? null : (
+              <StudioSidebar
+                showDocumentControls
+                showProgramSelector
+                studio={studio}
+                onSelectProgram={handleProgramSelection}
+              />
+            )
           }
           preview={
             <PreviewPane

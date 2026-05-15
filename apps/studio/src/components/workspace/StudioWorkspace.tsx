@@ -3,7 +3,7 @@ import { cn } from "@ligneclaire/ui";
 
 type StudioWorkspaceProps = Readonly<{
   preview: ReactNode;
-  editor: ReactNode;
+  editor?: ReactNode;
 }>;
 
 export function StudioWorkspace({
@@ -13,6 +13,7 @@ export function StudioWorkspace({
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [splitRatio, setSplitRatio] = useState(0.6);
   const [dragging, setDragging] = useState(false);
+  const hasEditor = editor !== null && editor !== undefined;
   const [stacked, setStacked] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -61,50 +62,54 @@ export function StudioWorkspace({
       ref={workspaceRef}
       className="grid min-h-0 min-w-0 w-full flex-1 gap-0"
       style={{
-        gridTemplateColumns: stacked
+        gridTemplateColumns: stacked || !hasEditor
           ? "1fr"
           : `minmax(${minPreviewWidth}px, ${splitRatio}fr) ${separatorWidth}px minmax(${minEditorWidth}px, ${1 - splitRatio}fr)`,
       }}
     >
       <div className="min-h-0 min-w-0 overflow-hidden">{preview}</div>
 
-      <div
-        className={cn(
-          "group relative cursor-col-resize rounded-full bg-gradient-to-b from-transparent via-slate-300 to-transparent",
-          stacked && "hidden",
-          dragging && "via-indigo-500"
-        )}
-        role="separator"
-        tabIndex={-1}
-        onLostPointerCapture={() => {
-          setDragging(false);
-        }}
-        onPointerDown={(event) => {
-          setDragging(true);
-          event.currentTarget.setPointerCapture(event.pointerId);
-          updateSplit(event.clientX);
-        }}
-        onPointerMove={(event) => {
-          if (!dragging) {
-            return;
-          }
-
-          updateSplit(event.clientX);
-        }}
-        onPointerUp={() => {
-          setDragging(false);
-        }}
-        >
+      {hasEditor ? (
+        <>
           <div
-            aria-hidden="true"
             className={cn(
-              "absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400/70 transition group-hover:bg-indigo-500/70",
-            dragging && "bg-indigo-500"
-          )}
-        />
-      </div>
+              "group relative cursor-col-resize rounded-full bg-gradient-to-b from-transparent via-slate-300 to-transparent",
+              stacked && "hidden",
+              dragging && "via-indigo-500"
+            )}
+            role="separator"
+            tabIndex={-1}
+            onLostPointerCapture={() => {
+              setDragging(false);
+            }}
+            onPointerDown={(event) => {
+              setDragging(true);
+              event.currentTarget.setPointerCapture(event.pointerId);
+              updateSplit(event.clientX);
+            }}
+            onPointerMove={(event) => {
+              if (!dragging) {
+                return;
+              }
 
-      <div className="min-h-0 min-w-0 overflow-hidden">{editor}</div>
+              updateSplit(event.clientX);
+            }}
+            onPointerUp={() => {
+              setDragging(false);
+            }}
+          >
+            <div
+              aria-hidden="true"
+              className={cn(
+                "absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400/70 transition group-hover:bg-indigo-500/70",
+                dragging && "bg-indigo-500"
+              )}
+            />
+          </div>
+
+          <div className="min-h-0 min-w-0 overflow-hidden">{editor}</div>
+        </>
+      ) : null}
     </div>
   );
 }
