@@ -24,6 +24,7 @@ import { program as mooreCurveProgram } from "../moore-curve/index";
 import { program as peanoCurveProgram } from "../peano-curve/index";
 import { program as referencePosterProgram } from "../reference-poster/index";
 import { program as sculptureScanProgram } from "../sculpture-scan/index";
+import { program as svgConcentricOutlineProgram } from "../svg-concentric-outline/index";
 import { program as terrainSlicesProgram } from "../terrain-slices/index";
 import { program as tilepathGridProgram } from "../tilepath-grid/index";
 import { program as trochoidProgram } from "../trochoid/index";
@@ -383,11 +384,44 @@ export const nodeComposerProgramRegistry = [
     ]
   },
   {
+    program: svgConcentricOutlineProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "copies": 36,
+            "shrinkFactor": 0.94,
+            "shrinkStepMm": 0,
+            "sizeMm": 150
+          }
+      }
+    ]
+  },
+  {
     program: terrainSlicesProgram,
     paramSets: [
       {
         slug: "default",
         name: "Default",
+        params: {
+            "seed": 760699,
+            "contourLevels": 17,
+            "planeSize": 80,
+            "terrainOffsetX": -9,
+            "terrainOffsetY": -5,
+            "mountainScale": 0.46,
+            "height": 11,
+            "roughness": 0.95,
+            "waterLevel": 0,
+            "hatchSpacing": 0.96,
+            "waterSpacing": 1.5
+          },
+        programState: {}
+      },
+      {
+        slug: "default-copy",
+        name: "Default Copy",
         params: {
             "seed": 760699,
             "contourLevels": 17,

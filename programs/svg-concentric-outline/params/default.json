@@ -1,0 +1,9 @@
+{
+  "name": "Default",
+  "params": {
+    "copies": 36,
+    "shrinkFactor": 0.94,
+    "shrinkStepMm": 0,
+    "sizeMm": 150
+  }
+}
