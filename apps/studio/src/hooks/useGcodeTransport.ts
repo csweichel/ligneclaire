@@ -4,7 +4,7 @@ import type {
   PlotterDeviceSummary,
   PlotterPenMotionConfig,
 } from "@ligneclaire/node-runtime";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetchTextArtifact } from "../api";
 import type { ResolvedGcodeRotationDeg } from "../lib/gcodeOrientation";
 import { parseGcodePreview } from "../lib/gcode";
@@ -62,6 +62,9 @@ type ParsedMachineStatus = Readonly<{
 }>;
 
 const encoder = new TextEncoder();
+const MAX_TRANSPORT_LOG_LINES = 200;
+const TRANSPORT_UI_FLUSH_FRAME_MS = 16;
+
 const genericTransportDefaults: GcodeTransportSettings = {
   target: "serial",
   baudRate: 115200,
@@ -95,6 +98,7 @@ function snapshotValue(value: unknown): string {
 function nowLabel(): string {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
+    hour12: false,
     minute: "2-digit",
     second: "2-digit",
   });
@@ -288,6 +292,12 @@ export function useGcodeTransport({
   selectedProgramId,
   setStatus,
 }: UseGcodeTransportArgs): GcodeTransportModel {
+  const initialProgress: GcodeTransportStatus["progress"] = {
+    totalLines: 0,
+    sentLines: 0,
+    acknowledgedLines: 0,
+    errorLines: 0,
+  };
   const [settings, setSettings] = useState<GcodeTransportSettings>(genericTransportDefaults);
   const [connectionState, setConnectionState] = useState<GcodeTransportStatus["connectionState"]>(
     supportsSerial() ? "disconnected" : "unsupported"
@@ -295,12 +305,7 @@ export function useGcodeTransport({
   const [jobState, setJobState] = useState<GcodeTransportStatus["jobState"]>("idle");
   const [logs, setLogs] = useState<readonly GcodeLogEntry[]>([]);
   const [preparedArtifact, setPreparedArtifact] = useState<GcodePreparedArtifact | null>(null);
-  const [progress, setProgress] = useState<GcodeTransportStatus["progress"]>({
-    totalLines: 0,
-    sentLines: 0,
-    acknowledgedLines: 0,
-    errorLines: 0,
-  });
+  const [progress, setProgress] = useState<GcodeTransportStatus["progress"]>(initialProgress);
   const [portLabel, setPortLabel] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastMachineError, setLastMachineError] = useState<string | null>(null);
@@ -318,6 +323,11 @@ export function useGcodeTransport({
   const cancelRequestedRef = useRef(false);
   const pauseRequestedRef = useRef(false);
   const jobStartedAtRef = useRef<number | null>(null);
+  const logSequenceRef = useRef(0);
+  const logBufferRef = useRef<GcodeLogEntry[]>([]);
+  const progressRef = useRef<GcodeTransportStatus["progress"]>(initialProgress);
+  const lastResponseRef = useRef<string | null>(null);
+  const uiFlushTimeoutRef = useRef<number | null>(null);
 
   const selectedPlotter = useMemo(
     () => plotters.find((plotter) => plotter.id === deviceId),
@@ -380,20 +390,84 @@ export function useGcodeTransport({
 
   useEffect(() => {
     return () => {
+      if (uiFlushTimeoutRef.current !== null) {
+        window.clearTimeout(uiFlushTimeoutRef.current);
+        uiFlushTimeoutRef.current = null;
+      }
       void cleanupPort();
     };
   }, []);
 
+  function flushTransportUiState(sync = false): void {
+    if (uiFlushTimeoutRef.current !== null) {
+      window.clearTimeout(uiFlushTimeoutRef.current);
+      uiFlushTimeoutRef.current = null;
+    }
+
+    const nextLogs = [...logBufferRef.current];
+    const nextProgress = { ...progressRef.current };
+    const nextLastResponse = lastResponseRef.current;
+    const apply = () => {
+      setLogs(nextLogs);
+      setProgress(nextProgress);
+      setLastResponse(nextLastResponse);
+    };
+
+    if (sync) {
+      apply();
+      return;
+    }
+
+    startTransition(apply);
+  }
+
+  function scheduleTransportUiFlush(): void {
+    if (uiFlushTimeoutRef.current !== null) {
+      return;
+    }
+
+    uiFlushTimeoutRef.current = window.setTimeout(() => {
+      flushTransportUiState();
+    }, TRANSPORT_UI_FLUSH_FRAME_MS);
+  }
+
   function appendLog(level: GcodeLogEntry["level"], message: string): void {
-    setLogs((existing) => [
-      ...existing.slice(-199),
-      {
-        id: `${Date.now()}-${existing.length}`,
-        level,
-        message,
-        timeLabel: nowLabel(),
-      },
-    ]);
+    logSequenceRef.current += 1;
+    logBufferRef.current.push({
+      id: `log-${logSequenceRef.current}`,
+      level,
+      message,
+      timeLabel: nowLabel(),
+    });
+    if (logBufferRef.current.length > MAX_TRANSPORT_LOG_LINES) {
+      logBufferRef.current.splice(0, logBufferRef.current.length - MAX_TRANSPORT_LOG_LINES);
+    }
+    scheduleTransportUiFlush();
+  }
+
+  function replaceProgress(nextProgress: GcodeTransportStatus["progress"], sync = false): void {
+    progressRef.current = nextProgress;
+    if (sync) {
+      flushTransportUiState(true);
+      return;
+    }
+    scheduleTransportUiFlush();
+  }
+
+  function updateProgress(
+    updater: (existing: GcodeTransportStatus["progress"]) => GcodeTransportStatus["progress"]
+  ): void {
+    progressRef.current = updater(progressRef.current);
+    scheduleTransportUiFlush();
+  }
+
+  function setLastResponseValue(value: string | null, sync = false): void {
+    lastResponseRef.current = value;
+    if (sync) {
+      flushTransportUiState(true);
+      return;
+    }
+    scheduleTransportUiFlush();
   }
 
   function rememberError(message: string, machineLine?: string | null): void {
@@ -574,7 +648,7 @@ export function useGcodeTransport({
               continue;
             }
 
-            setLastResponse(line);
+            setLastResponseValue(line);
             appendLog("rx", line);
             responseListenerRef.current?.(line);
 
@@ -586,7 +660,7 @@ export function useGcodeTransport({
                   line,
                 });
                 pendingAckRef.current = null;
-                setProgress((existing) => ({
+                updateProgress((existing) => ({
                   ...existing,
                   errorLines: existing.errorLines + 1,
                 }));
@@ -601,7 +675,7 @@ export function useGcodeTransport({
                   line,
                 });
                 pendingAckRef.current = null;
-                setProgress((existing) => ({
+                updateProgress((existing) => ({
                   ...existing,
                   acknowledgedLines: existing.acknowledgedLines + 1,
                 }));
@@ -671,6 +745,7 @@ export function useGcodeTransport({
     setConnectionState(supportsSerial() ? "disconnected" : "unsupported");
     setPortLabel(null);
     setJobState("idle");
+    setLastResponseValue(null);
     setStatus({
       tone: "neutral",
       message: "Serial device disconnected.",
@@ -713,7 +788,7 @@ export function useGcodeTransport({
         generatedAt: new Date().toISOString(),
       };
       setPreparedArtifact(artifact);
-      setProgress({
+      replaceProgress({
         totalLines: artifact.lines.length,
         sentLines: 0,
         acknowledgedLines: 0,
@@ -791,7 +866,7 @@ export function useGcodeTransport({
       const line = lines[index]!;
       onSendLine?.(line, index);
       await writer.write(encoder.encode(`${line}${ending}`));
-      setProgress((existing) => ({
+      updateProgress((existing) => ({
         ...existing,
         sentLines: index + 1,
       }));
@@ -826,7 +901,7 @@ export function useGcodeTransport({
 
       await waitForResume();
 
-      setProgress((existing) => ({
+      updateProgress((existing) => ({
         ...existing,
         sentLines: index + 1,
         acknowledgedLines: index + 1,
@@ -860,7 +935,7 @@ export function useGcodeTransport({
       responseLines.push(line);
       request.onResponseLine?.(line);
     };
-    setProgress({
+    replaceProgress({
       totalLines: request.lines.length,
       sentLines: 0,
       acknowledgedLines: 0,
@@ -1033,7 +1108,7 @@ export function useGcodeTransport({
     pauseRequestedRef.current = false;
     jobStartedAtRef.current = Date.now();
     clearErrorState();
-    setProgress({
+    replaceProgress({
       totalLines: artifact.lines.length,
       sentLines: 0,
       acknowledgedLines: 0,
@@ -1105,7 +1180,8 @@ export function useGcodeTransport({
   }
 
   function clearLogs(): void {
-    setLogs([]);
+    logBufferRef.current = [];
+    flushTransportUiState(true);
   }
 
   function setTarget(target: GcodeTransportTarget): void {

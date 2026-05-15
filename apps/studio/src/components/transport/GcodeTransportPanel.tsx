@@ -205,9 +205,9 @@ export function GcodeTransportPanel({
               studio.transport.logs.map((entry) => (
                 <div
                   key={entry.id}
-                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-lc-console-border px-3 py-2 font-lc-mono text-xs leading-6 text-lc-console-text first:border-t-0"
+                  className="grid grid-cols-[96px_54px_minmax(0,1fr)] gap-3 border-t border-lc-console-border px-3 py-2 font-lc-mono text-xs leading-6 text-lc-console-text first:border-t-0"
                 >
-                  <span>{entry.timeLabel}</span>
+                  <span className="whitespace-nowrap">{entry.timeLabel}</span>
                   <span
                     className={cn(
                       "font-semibold",

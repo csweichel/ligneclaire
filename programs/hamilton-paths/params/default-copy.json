@@ -4,18 +4,24 @@
   "name": "Default Copy",
   "params": {
     "seed": 668449,
-    "columns": 6,
+    "columns": 8,
     "rows": 12,
     "gridRotationDeg": 0,
     "latticeAngleDeg": 90,
     "rowStepRatio": 1,
-    "strokeCount": 6,
+    "strokeCount": 5,
     "strokeSpacing": 4.3,
     "cornerRadius": 17.4,
     "deflection": 0,
     "drawCenterlines": false
   },
-  "programState": {},
+  "programState": {
+    "nodeOffsets": {},
+    "selectedNodeId": null,
+    "guideMode": "manual",
+    "csvGuidePoints": [],
+    "csvGuideSourceName": ""
+  },
   "createdAt": "2026-05-09T11:23:44.453Z",
-  "updatedAt": "2026-05-09T11:23:44.453Z"
+  "updatedAt": "2026-05-15T15:51:40.489Z"
 }

@@ -408,6 +408,57 @@ describe("buildOversizeHandlingCommands", () => {
 });
 
 describe("createGcodeExportArgs", () => {
+  it("simplifies curved SVG geometry during import before gcode writing", () => {
+    const config: PlotterConfig = {
+      id: "axidraw-a4",
+      label: "AxiDraw A4",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 2400,
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "M5",
+          penDownCommand: "M3 S30",
+        },
+        verticalFlip: true,
+      },
+    };
+
+    const args = createGcodeExportArgs(
+      {
+        deviceId: config.id,
+        oversizeHandling: "ignore",
+        programId: "waves",
+        rotationDeg: 0,
+      },
+      "/tmp/config.toml",
+      "/tmp/input.svg",
+      "/tmp/output.gcode",
+      config
+    );
+
+    expect(args).toEqual([
+      "--config",
+      "/tmp/config.toml",
+      "read",
+      "--quantization",
+      "0.1mm",
+      "--simplify",
+      "/tmp/input.svg",
+      "linemerge",
+      "reloop",
+      "linesort",
+      "gwrite",
+      "--profile",
+      "axidraw-a4",
+      "/tmp/output.gcode",
+    ]);
+  });
+
   it("can skip vpype path optimization for raw targets", () => {
     const config: PlotterConfig = {
       id: "vanilla",

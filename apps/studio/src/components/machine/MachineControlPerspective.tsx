@@ -3,7 +3,6 @@ import { Button, Input, Popover, PopoverContent, PopoverTrigger, Select, cn } fr
 import { findSelectedPlotter } from "../../lib/exportSettings";
 import type { StudioModel } from "../../types";
 import {
-  CodeBlock,
   EmptyState,
   Field,
   InfoRow,
@@ -72,7 +71,7 @@ function formatSignedDistance(value: number): string {
 }
 
 function formatPositionValue(value: number | undefined): string {
-  return Number.isFinite(value) ? value!.toFixed(2) : "--";
+  return Number.isFinite(value) ? value!.toFixed(4) : "--";
 }
 
 function formatPositionTitle(value: number | undefined): string {
@@ -84,12 +83,14 @@ export function MachineControlPerspective({
 }: MachineControlPerspectiveProps) {
   const meshFileInputRef = useRef<HTMLInputElement | null>(null);
   const stepMenuRef = useRef<HTMLDivElement | null>(null);
+  const terminalLogRef = useRef<HTMLDivElement | null>(null);
   const [manualJobPending, setManualJobPending] = useState(false);
   const [machineSectionExpanded, setMachineSectionExpanded] = useState(
     studio.transport.connectionState !== "connected"
   );
   const [rawCommand, setRawCommand] = useState("");
   const [stepMenuOpen, setStepMenuOpen] = useState(false);
+  const [terminalExpanded, setTerminalExpanded] = useState(true);
   const [jogSteps, setJogSteps] = useState<JogSteps>({
     x: defaultJogStepsMm.x,
     y: defaultJogStepsMm.y,
@@ -286,6 +287,14 @@ export function MachineControlPerspective({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [canJog, jogSteps.x, jogSteps.y, jogSteps.z, plotter]);
+
+  useEffect(() => {
+    if (!terminalExpanded || !terminalLogRef.current) {
+      return;
+    }
+
+    terminalLogRef.current.scrollTop = terminalLogRef.current.scrollHeight;
+  }, [terminalExpanded, studio.transport.logs.length]);
 
   return (
     <section className="grid h-full min-h-0 gap-5 bg-lc-app p-5 xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -862,99 +871,104 @@ export function MachineControlPerspective({
         </PanelCard>
 
         <PanelCard
-          className="min-h-0"
-          contentClassName="grid h-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)]"
+          className="min-h-0 overflow-hidden"
+          contentClassName={cn(
+            "grid h-full min-h-0 gap-0 p-0",
+            terminalExpanded ? "grid-rows-[auto_minmax(0,1fr)_auto]" : "grid-rows-[auto]"
+          )}
         >
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
-              Console
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                studio.transport.clearLogs();
-              }}
-            >
-              Clear
-            </Button>
-          </div>
-
-          <form
-            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void sendRawCommand();
+          <button
+            aria-expanded={terminalExpanded}
+            className="flex h-11 items-center justify-between gap-3 border-b border-lc-border bg-lc-panel-subtle px-5 text-left"
+            type="button"
+            onClick={() => {
+              setTerminalExpanded((current) => !current);
             }}
           >
-            <Input
-              disabled={!canRunManualCommand}
-              placeholder="Send raw G-code, e.g. G0 X0 Y0"
-              type="text"
-              value={rawCommand}
-              onChange={(event) => {
-                setRawCommand(event.currentTarget.value);
-              }}
-            />
-            <Button
-              disabled={!canRunManualCommand || rawCommand.trim().length === 0}
-              type="submit"
-              variant="outline"
-            >
-              Send
-            </Button>
-          </form>
+            <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.22em] text-lc-text-secondary">
+              Terminal Output
+            </span>
+            <span className="font-lc-mono text-base leading-none text-lc-text-secondary" aria-hidden>
+              {terminalExpanded ? "▾" : "▸"}
+            </span>
+          </button>
 
-          {studio.transport.lastError ? (
-            <div className="grid gap-2">
-              <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
-                Last Error
-              </span>
-              <CodeBlock>{studio.transport.lastError}</CodeBlock>
-              {studio.transport.lastMachineError &&
-              studio.transport.lastMachineError !== studio.transport.lastError ? (
-                <CodeBlock>{studio.transport.lastMachineError}</CodeBlock>
-              ) : null}
-            </div>
-          ) : null}
+          {terminalExpanded ? (
+            <>
+              <div
+                ref={terminalLogRef}
+                className="min-h-0 overflow-auto bg-lc-console px-5 py-3"
+              >
+                {studio.transport.logs.length > 0 ? (
+                  <div className="grid content-start gap-1">
+                    {studio.transport.logs.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="grid grid-cols-[96px_72px_minmax(0,1fr)] items-baseline gap-3 font-lc-mono text-[15px] leading-7 text-lc-console-text"
+                      >
+                        <span className="whitespace-nowrap text-lc-console-text/55">
+                          {entry.timeLabel}
+                        </span>
+                        <span
+                          className={cn(
+                            "font-semibold uppercase tracking-[0.04em]",
+                            entry.level === "system" && "text-lc-console-tx",
+                            entry.level === "error" && "text-lc-console-error",
+                            entry.level === "rx" && "text-lc-console-rx",
+                            entry.level === "tx" && "text-lc-console-tx"
+                          )}
+                        >
+                          {entry.level}
+                        </span>
+                        <span
+                          className={cn(
+                            "min-w-0 break-words",
+                            entry.level === "error" && "text-lc-console-error"
+                          )}
+                        >
+                          {entry.message}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="font-lc-mono text-[15px] leading-7 text-lc-console-text/55">
+                    No terminal output yet. Connect the machine or send a command.
+                  </div>
+                )}
+              </div>
 
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-            <InfoRow label="Last response" value={studio.transport.lastResponse ?? "--"} />
-            <InfoRow label="Last fault" value={studio.transport.lastMachineError ?? "--"} />
-            <InfoRow
-              label="Acknowledged"
-              value={String(studio.transport.progress.acknowledgedLines)}
-            />
-            <InfoRow label="Errors" value={String(studio.transport.progress.errorLines)} />
-          </div>
-
-          <div className="min-h-0 overflow-auto rounded-lc-control border border-lc-console-border bg-lc-console">
-            {studio.transport.logs.length > 0 ? (
-              studio.transport.logs.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-lc-console-border px-3 py-2 font-lc-mono text-xs leading-6 text-lc-console-text first:border-t-0"
+              <form
+                className="grid h-12 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-lc-border bg-lc-panel px-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void sendRawCommand();
+                }}
+              >
+                <span className="font-lc-mono text-sm text-lc-text-secondary" aria-hidden>
+                  &gt;_
+                </span>
+                <input
+                  disabled={!canRunManualCommand}
+                  placeholder="Send raw G-code, e.g. G0 X0 Y0"
+                  spellCheck={false}
+                  type="text"
+                  value={rawCommand}
+                  className="min-w-0 border-0 bg-transparent p-0 font-lc-mono text-[15px] text-lc-text outline-none placeholder:text-lc-text-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                  onChange={(event) => {
+                    setRawCommand(event.currentTarget.value);
+                  }}
+                />
+                <button
+                  className="font-lc-mono text-sm font-semibold uppercase tracking-[0.12em] text-lc-primary disabled:cursor-not-allowed disabled:text-lc-text-muted"
+                  disabled={!canRunManualCommand || rawCommand.trim().length === 0}
+                  type="submit"
                 >
-                  <span>{entry.timeLabel}</span>
-                  <span
-                    className={cn(
-                      "font-semibold",
-                      entry.level === "error" && "text-lc-console-error",
-                      entry.level === "rx" && "text-lc-console-rx",
-                      entry.level === "tx" && "text-lc-console-tx"
-                    )}
-                  >
-                    {entry.level.toUpperCase()}
-                  </span>
-                  <span>{entry.message}</span>
-                </div>
-              ))
-            ) : (
-              <EmptyState className="m-3">
-                Connect the machine, jog, sample, or send G-code to populate the console.
-              </EmptyState>
-            )}
-          </div>
+                  Send
+                </button>
+              </form>
+            </>
+          ) : null}
         </PanelCard>
       </div>
     </section>
@@ -967,17 +981,44 @@ type PositionAxisCardProps = Readonly<{
   value: string;
 }>;
 
+function splitPositionDisplayValue(value: string): Readonly<{
+  integer: string;
+  fractional: string | null;
+}> {
+  if (value === "--") {
+    return {
+      integer: value,
+      fractional: null,
+    };
+  }
+
+  const [integer, fractional] = value.split(".");
+  return {
+    integer: integer ?? value,
+    fractional: fractional ? `.${fractional}` : null,
+  };
+}
+
 function PositionAxisCard({ axis, title, value }: PositionAxisCardProps) {
+  const display = splitPositionDisplayValue(value);
+
   return (
-    <div className="grid gap-2 rounded-lc-control border border-lc-console-border bg-lc-console px-3 py-3">
+    <div className="grid min-w-0 gap-2 rounded-lc-control border border-lc-console-border bg-lc-console px-3 py-3">
       <small className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-console-tx">
         {axis}
       </small>
       <span
-        className="overflow-hidden text-right font-lc-mono text-[24px] font-bold leading-8 tracking-[-0.02em] tabular-nums text-lc-console-text md:text-[30px] md:leading-9 xl:text-[36px] xl:leading-11"
+        className="inline-grid grid-flow-col auto-cols-max items-end justify-end gap-1 whitespace-nowrap text-right font-lc-mono tabular-nums text-lc-console-text"
         title={title}
       >
-        {value}
+        <span className="shrink-0 text-[22px] font-bold leading-none tracking-[-0.04em] md:text-[26px] xl:text-[30px]">
+          {display.integer}
+        </span>
+        {display.fractional ? (
+          <span className="shrink-0 pb-[0.12em] text-[12px] font-semibold leading-none tracking-[-0.02em] md:text-[14px] xl:text-[16px]">
+            {display.fractional}
+          </span>
+        ) : null}
       </span>
     </div>
   );

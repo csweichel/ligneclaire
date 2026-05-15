@@ -22,7 +22,9 @@ import { getProgramDetails } from "./registry";
 import { renderProgram } from "./render";
 import { getToolDiagnostics } from "./tools";
 
-const optimizationPipeline = ["linemerge", "linesimplify", "reloop", "linesort"] as const;
+const svgOptimizationPipeline = ["linemerge", "linesimplify", "reloop", "linesort"] as const;
+const gcodeOptimizationPipeline = ["linemerge", "reloop", "linesort"] as const;
+const gcodeReadSimplifyArgs = ["--quantization", "0.1mm", "--simplify"] as const;
 
 type PageSize = Readonly<{
   widthMm: number;
@@ -248,7 +250,7 @@ function applyRequestedHeightMesh(
 }
 
 async function runVpypePipeline(inputSvgPath: string, extraArgs: readonly string[]): Promise<void> {
-  const args = ["read", inputSvgPath, ...optimizationPipeline, ...extraArgs];
+  const args = ["read", inputSvgPath, ...svgOptimizationPipeline, ...extraArgs];
   const result = await runProcess("vpype", args, { cwd: workspaceRoot });
   if (result.code !== 0) {
     throw new RuntimeError("VPYPE_FAILED", result.stderr || result.stdout || "vpype export failed.", {
@@ -288,7 +290,13 @@ export function createGcodeExportArgs(
   outputPath: string,
   device: PlotterConfig
 ): string[] {
-  const pipeline = device.gcode.optimizePaths === false ? [] : [...optimizationPipeline];
+  const optimizePaths = device.gcode.optimizePaths !== false;
+  // vpype flattens curves during `read`, so G-code exports simplify them at import time
+  // instead of applying a second generic segment simplification later in the pipeline.
+  const readArgs = optimizePaths
+    ? ["read", ...gcodeReadSimplifyArgs, inputSvgPath]
+    : ["read", inputSvgPath];
+  const pipeline = optimizePaths ? [...gcodeOptimizationPipeline] : [];
   const pageRotationCommands = buildPageRotationCommands(request.rotationDeg);
   const pageOversizeCommands = buildOversizeHandlingCommands(
     request.oversizeHandling,
@@ -300,8 +308,7 @@ export function createGcodeExportArgs(
   return [
     "--config",
     configPath,
-    "read",
-    inputSvgPath,
+    ...readArgs,
     ...pageRotationCommands,
     ...pageOversizeCommands,
     ...pipeline,
