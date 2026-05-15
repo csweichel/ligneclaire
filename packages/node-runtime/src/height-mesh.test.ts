@@ -79,6 +79,59 @@ describe("parseHeightMeshProbeLine", () => {
       rawLine: "[PRB:10.5,20,-3.25:1]",
     });
   });
+
+  it("keeps non-triggered release responses distinguishable", () => {
+    expect(parseHeightMeshProbeLine("[PRB:10.5,20,-2.75:0]")).toEqual({
+      xMm: 10.5,
+      yMm: 20,
+      zMm: -2.75,
+      probeTriggered: false,
+      rawLine: "[PRB:10.5,20,-2.75:0]",
+    });
+  });
+});
+
+describe("createHeightMeshFile", () => {
+  it("ignores non-triggered release responses when building the mesh", () => {
+    const mesh = createHeightMeshFile(
+      {
+        widthMm: 100,
+        heightMm: 100,
+      },
+      {
+        columns: 2,
+        rows: 1,
+        originXMm: 0,
+        originYMm: 50,
+        widthMm: 100,
+        heightMm: 0,
+        moveFeedRateMmPerMin: 1000,
+        probeFeedRateMmPerMin: 400,
+        releaseFeedRateMmPerMin: 100,
+        probeDepthMm: -25,
+        releaseDistanceMm: 10,
+      },
+      [
+        { xMm: 0, yMm: 50, zMm: -1, probeTriggered: true, rawLine: "[PRB:0,50,-1:1]" },
+        { xMm: 0, yMm: 50, zMm: 2, probeTriggered: false, rawLine: "[PRB:0,50,2:0]" },
+        { xMm: 100, yMm: 50, zMm: -3, probeTriggered: true, rawLine: "[PRB:100,50,-3:1]" },
+        {
+          xMm: 100,
+          yMm: 50,
+          zMm: 4,
+          probeTriggered: false,
+          rawLine: "[PRB:100,50,4:0]",
+        },
+      ],
+      {
+        plotterId: "vanilla",
+      }
+    );
+
+    expect(mesh.samples).toHaveLength(2);
+    expect(mesh.samples.map((sample) => sample.zMm)).toEqual([-1, -3]);
+    expect(mesh.samples.every((sample) => sample.probeTriggered)).toBe(true);
+  });
 });
 
 describe("sampleHeightMeshZ", () => {

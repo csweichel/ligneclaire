@@ -63,7 +63,11 @@ function formatSignedDistance(value: number): string {
 }
 
 function formatPositionValue(value: number | undefined): string {
-  return Number.isFinite(value) ? value!.toFixed(3) : "--";
+  return Number.isFinite(value) ? value!.toFixed(2) : "--";
+}
+
+function formatPositionTitle(value: number | undefined): string {
+  return Number.isFinite(value) ? value!.toFixed(4) : "--";
 }
 
 export function MachineControlPerspective({
@@ -177,14 +181,7 @@ export function MachineControlPerspective({
   }
 
   async function zeroAxes(axes: readonly ("X" | "Y" | "Z")[]): Promise<void> {
-    if (axes.length === 0) {
-      return;
-    }
-
-    await runManualJob(
-      `Zero ${axes.join("")}`,
-      [`G92 ${axes.map((axis) => `${axis}0`).join(" ")}`]
-    );
+    await studio.transport.zeroCurrentAxes(axes);
   }
 
   async function sendRawCommand(): Promise<void> {
@@ -421,15 +418,21 @@ export function MachineControlPerspective({
               <div className="machine-control__position-readout">
                 <div className="machine-control__position-axis">
                   <small>X</small>
-                  <span>{formatPositionValue(studio.transport.position?.x)}</span>
+                  <span title={formatPositionTitle(studio.transport.position?.x)}>
+                    {formatPositionValue(studio.transport.position?.x)}
+                  </span>
                 </div>
                 <div className="machine-control__position-axis">
                   <small>Y</small>
-                  <span>{formatPositionValue(studio.transport.position?.y)}</span>
+                  <span title={formatPositionTitle(studio.transport.position?.y)}>
+                    {formatPositionValue(studio.transport.position?.y)}
+                  </span>
                 </div>
                 <div className="machine-control__position-axis">
                   <small>Z</small>
-                  <span>{formatPositionValue(studio.transport.position?.z)}</span>
+                  <span title={formatPositionTitle(studio.transport.position?.z)}>
+                    {formatPositionValue(studio.transport.position?.z)}
+                  </span>
                 </div>
               </div>
             </div>

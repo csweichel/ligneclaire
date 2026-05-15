@@ -32,6 +32,7 @@ import { apiDownload, apiGet, apiSend } from "../api";
 import { resolveGcodeRotationDeg } from "../lib/gcodeOrientation";
 import {
   buildHeightMeshGridPreview,
+  coalesceHeightMeshProbeReadings,
   estimateHeightMeshAckTimeoutMs,
   buildHeightMeshSamplerConfig,
   clampHeightMeshSettings,
@@ -855,6 +856,7 @@ export function useStudioData(): StudioModel {
       activeHeightMeshSamplerConfig
     );
     const readings: HeightMeshProbeReading[] = [];
+    let activeProbeCommand: "sample" | "release" | null = null;
     const samplingAckTimeoutMs = estimateHeightMeshAckTimeoutMs(
       selectedPlotter,
       activeHeightMeshSamplerConfig,
@@ -887,13 +889,33 @@ export function useStudioData(): StudioModel {
         label: "Height mesh sampling",
         ackTimeoutMs: samplingAckTimeoutMs,
         lines,
+        onSendLine: (line) => {
+          const normalizedLine = line.trim().toUpperCase();
+          if (/\bG38\.2\b/.test(normalizedLine)) {
+            activeProbeCommand = "sample";
+            return;
+          }
+
+          if (/\bG38\.4\b/.test(normalizedLine)) {
+            activeProbeCommand = "release";
+            return;
+          }
+        },
         onResponseLine: (line) => {
           const reading = parseHeightMeshProbeLine(line);
           if (!reading) {
             return;
           }
 
+          if (activeProbeCommand !== "sample") {
+            if (activeProbeCommand === "release") {
+              activeProbeCommand = null;
+            }
+            return;
+          }
+
           readings.push(reading);
+          activeProbeCommand = null;
           setHeightMeshStatus((existing) => ({
             ...existing,
             capturedSamples: Math.min(expectedPoints.length, readings.length),
@@ -901,16 +923,21 @@ export function useStudioData(): StudioModel {
         },
       });
 
-      if (readings.length !== expectedPoints.length) {
+      const effectiveReadings = coalesceHeightMeshProbeReadings(
+        readings,
+        expectedPoints.length
+      );
+
+      if (effectiveReadings.length !== expectedPoints.length) {
         throw new Error(
-          `Expected ${expectedPoints.length} probe readings but received ${readings.length}.`
+          `Expected ${expectedPoints.length} probe readings but received ${effectiveReadings.length}.`
         );
       }
 
       const nextHeightMesh = createHeightMeshFile(
         selectedPlotter.page,
         activeHeightMeshSamplerConfig,
-        readings,
+        effectiveReadings,
         {
           plotterId: selectedPlotter.id,
           plotterLabel: selectedPlotter.label,

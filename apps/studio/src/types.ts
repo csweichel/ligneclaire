@@ -120,6 +120,7 @@ export type SerialTransportJobRequest = Readonly<{
   label: string;
   lines: readonly string[];
   ackTimeoutMs?: number;
+  onSendLine?: (line: string, index: number) => void;
   onResponseLine?: (line: string) => void;
 }>;
 
@@ -155,6 +156,7 @@ export type GcodeTransportModel = Readonly<{
   disconnect: () => Promise<void>;
   prepare: () => Promise<GcodePreparedArtifact | null>;
   resetAlarm: () => Promise<void>;
+  zeroCurrentAxes: (axes: readonly ("X" | "Y" | "Z")[]) => Promise<void>;
   zeroCurrentPosition: () => Promise<void>;
   runSerialJob: (request: SerialTransportJobRequest) => Promise<SerialTransportJobResult>;
   send: () => Promise<void>;

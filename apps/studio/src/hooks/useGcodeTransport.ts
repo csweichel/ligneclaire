@@ -46,6 +46,18 @@ type AckResult = Readonly<{
   line?: string;
 }>;
 
+type CoordinateTriplet = Readonly<{
+  x: number;
+  y: number;
+  z: number;
+}>;
+
+type ParsedMachineStatus = Readonly<{
+  machinePosition: CoordinateTriplet | null;
+  workOffset: CoordinateTriplet | null;
+  workPosition: CoordinateTriplet | null;
+}>;
+
 const encoder = new TextEncoder();
 const genericTransportDefaults: GcodeTransportSettings = {
   target: "serial",
@@ -151,7 +163,7 @@ function isStatusReport(line: string): boolean {
   return trimmed.startsWith("<") && trimmed.endsWith(">");
 }
 
-function parseMachinePosition(line: string): MachinePosition | null {
+function parseMachineStatus(line: string): ParsedMachineStatus | null {
   if (!isStatusReport(line)) {
     return null;
   }
@@ -177,25 +189,55 @@ function parseMachinePosition(line: string): MachinePosition | null {
     }
   }
 
-  if (workPosition) {
+  return {
+    machinePosition,
+    workPosition,
+    workOffset,
+  };
+}
+
+function deriveWorkOffset(
+  status: ParsedMachineStatus
+): CoordinateTriplet | null {
+  if (status.workOffset) {
+    return status.workOffset;
+  }
+
+  if (status.machinePosition && status.workPosition) {
     return {
-      ...workPosition,
+      x: status.machinePosition.x - status.workPosition.x,
+      y: status.machinePosition.y - status.workPosition.y,
+      z: status.machinePosition.z - status.workPosition.z,
+    };
+  }
+
+  return null;
+}
+
+function deriveDisplayedPosition(
+  status: ParsedMachineStatus,
+  localWorkOffset: CoordinateTriplet | null
+): MachinePosition | null {
+  if (status.workPosition) {
+    return {
+      ...status.workPosition,
       source: "work",
     };
   }
 
-  if (machinePosition && workOffset) {
-    return {
-      x: machinePosition.x - workOffset.x,
-      y: machinePosition.y - workOffset.y,
-      z: machinePosition.z - workOffset.z,
-      source: "work",
-    };
-  }
+  if (status.machinePosition) {
+    const effectiveWorkOffset = status.workOffset ?? localWorkOffset;
+    if (effectiveWorkOffset) {
+      return {
+        x: status.machinePosition.x - effectiveWorkOffset.x,
+        y: status.machinePosition.y - effectiveWorkOffset.y,
+        z: status.machinePosition.z - effectiveWorkOffset.z,
+        source: "work",
+      };
+    }
 
-  if (machinePosition) {
     return {
-      ...machinePosition,
+      ...status.machinePosition,
       source: "machine",
     };
   }
@@ -267,6 +309,8 @@ export function useGcodeTransport({
   const pendingAckRef = useRef<AckWaiter | null>(null);
   const responseListenerRef = useRef<((line: string) => void) | null>(null);
   const statusRequestInFlightRef = useRef(false);
+  const machinePositionRef = useRef<CoordinateTriplet | null>(null);
+  const localWorkOffsetRef = useRef<CoordinateTriplet | null>(null);
   const cancelRequestedRef = useRef(false);
   const pauseRequestedRef = useRef(false);
   const jobStartedAtRef = useRef<number | null>(null);
@@ -309,6 +353,8 @@ export function useGcodeTransport({
         setConnectionState("disconnected");
         setPortLabel(null);
         setPosition(null);
+        machinePositionRef.current = null;
+        localWorkOffsetRef.current = null;
         appendLog("error", "Serial device disconnected.");
       }
     };
@@ -378,6 +424,8 @@ export function useGcodeTransport({
     responseListenerRef.current = null;
     statusRequestInFlightRef.current = false;
     setPosition(null);
+    machinePositionRef.current = null;
+    localWorkOffsetRef.current = null;
 
     const reader = readerRef.current;
     try {
@@ -433,6 +481,8 @@ export function useGcodeTransport({
       }
 
       clearErrorState();
+      machinePositionRef.current = null;
+      localWorkOffsetRef.current = null;
       setConnectionState("connecting");
       appendLog("system", "Requesting serial device access...");
       const filters: USBDeviceFilter[] =
@@ -488,10 +538,25 @@ export function useGcodeTransport({
           buffer = chunks.pop() ?? "";
 
           for (const line of chunks.map((chunk) => chunk.trim()).filter(Boolean)) {
-            const parsedPosition = parseMachinePosition(line);
-            if (parsedPosition || isStatusReport(line)) {
-              if (parsedPosition) {
-                setPosition(parsedPosition);
+            const parsedStatus = parseMachineStatus(line);
+            if (parsedStatus || isStatusReport(line)) {
+              if (parsedStatus?.machinePosition) {
+                machinePositionRef.current = parsedStatus.machinePosition;
+              }
+
+              if (parsedStatus) {
+                const reportedWorkOffset = deriveWorkOffset(parsedStatus);
+                if (reportedWorkOffset) {
+                  localWorkOffsetRef.current = reportedWorkOffset;
+                }
+
+                const nextDisplayedPosition = deriveDisplayedPosition(
+                  parsedStatus,
+                  localWorkOffsetRef.current
+                );
+                if (nextDisplayedPosition) {
+                  setPosition(nextDisplayedPosition);
+                }
               }
               continue;
             }
@@ -690,7 +755,8 @@ export function useGcodeTransport({
 
   async function sendSerialLines(
     lines: readonly string[],
-    ackTimeoutMs = settings.ackTimeoutMs
+    ackTimeoutMs = settings.ackTimeoutMs,
+    onSendLine?: (line: string, index: number) => void
   ): Promise<void> {
     if (!writerRef.current || !portRef.current) {
       throw new Error("Connect a serial device first.");
@@ -708,6 +774,7 @@ export function useGcodeTransport({
       await waitForResume();
 
       const line = lines[index]!;
+      onSendLine?.(line, index);
       await writer.write(encoder.encode(`${line}${ending}`));
       setProgress((existing) => ({
         ...existing,
@@ -799,7 +866,7 @@ export function useGcodeTransport({
     }
 
     try {
-      await sendSerialLines(request.lines, request.ackTimeoutMs);
+      await sendSerialLines(request.lines, request.ackTimeoutMs, request.onSendLine);
       setJobState("complete");
       clearErrorState();
       setStatus({
@@ -867,16 +934,64 @@ export function useGcodeTransport({
     }
   }
 
-  async function zeroCurrentPosition(): Promise<void> {
+  function applyLocalWorkZero(
+    axes: readonly ("X" | "Y" | "Z")[]
+  ): void {
+    if (axes.length === 0 || !machinePositionRef.current) {
+      return;
+    }
+
+    const currentMachinePosition = machinePositionRef.current;
+    const nextWorkOffset = {
+      x: localWorkOffsetRef.current?.x ?? 0,
+      y: localWorkOffsetRef.current?.y ?? 0,
+      z: localWorkOffsetRef.current?.z ?? 0,
+    };
+
+    for (const axis of axes) {
+      switch (axis) {
+        case "X":
+          nextWorkOffset.x = currentMachinePosition.x;
+          break;
+        case "Y":
+          nextWorkOffset.y = currentMachinePosition.y;
+          break;
+        case "Z":
+          nextWorkOffset.z = currentMachinePosition.z;
+          break;
+      }
+    }
+
+    localWorkOffsetRef.current = nextWorkOffset;
+    setPosition({
+      x: currentMachinePosition.x - nextWorkOffset.x,
+      y: currentMachinePosition.y - nextWorkOffset.y,
+      z: currentMachinePosition.z - nextWorkOffset.z,
+      source: "work",
+    });
+  }
+
+  async function zeroCurrentAxes(
+    axes: readonly ("X" | "Y" | "Z")[]
+  ): Promise<void> {
+    if (axes.length === 0) {
+      return;
+    }
+
     try {
       await runSerialJob({
-        label: "Zero current position",
-        lines: ["G92 X0 Y0 Z0"],
+        label: `Zero ${axes.join("")}`,
+        lines: [`G92 ${axes.map((axis) => `${axis}0`).join(" ")}`],
       });
+      applyLocalWorkZero(axes);
       void requestStatus();
     } catch {
       // runSerialJob already recorded the device response and status.
     }
+  }
+
+  async function zeroCurrentPosition(): Promise<void> {
+    await zeroCurrentAxes(["X", "Y", "Z"]);
   }
 
   async function send(): Promise<void> {
@@ -1014,6 +1129,7 @@ export function useGcodeTransport({
     disconnect,
     prepare,
     resetAlarm,
+    zeroCurrentAxes,
     zeroCurrentPosition,
     runSerialJob,
     send,

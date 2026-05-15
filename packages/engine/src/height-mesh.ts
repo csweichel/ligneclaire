@@ -363,14 +363,15 @@ export function createHeightMeshFile(
 ): HeightMeshFile {
   const normalized = normalizeHeightMeshSamplerConfig(page, config);
   const points = buildHeightMeshSamplePoints(page, normalized);
-  if (points.length !== readings.length) {
+  const effectiveReadings = readings.filter((reading) => reading.probeTriggered);
+  if (points.length !== effectiveReadings.length) {
     throw new Error(
-      `Height mesh expected ${points.length} probe readings but received ${readings.length}.`
+      `Height mesh expected ${points.length} probe readings but received ${effectiveReadings.length}.`
     );
   }
 
   const samples = points.map((point, index) => {
-    const reading = readings[index]!;
+    const reading = effectiveReadings[index]!;
     return {
       ...point,
       zMm: reading.zMm,

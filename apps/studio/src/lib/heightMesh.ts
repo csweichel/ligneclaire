@@ -1,6 +1,10 @@
 import { buildHeightMeshSamplePoints, resolveHeightMeshGrid } from "@ligneclaire/engine";
 import type { PlotterDeviceSummary } from "@ligneclaire/node-runtime";
-import type { HeightMeshFile, HeightMeshSamplerConfig } from "@ligneclaire/engine";
+import type {
+  HeightMeshFile,
+  HeightMeshProbeReading,
+  HeightMeshSamplerConfig,
+} from "@ligneclaire/engine";
 import type { HeightMeshSettings } from "../types";
 
 const defaultSampleDistanceMm = 25;
@@ -176,6 +180,28 @@ export function estimateHeightMeshAckTimeoutMs(
       longestMoveDurationMs * 1.5 + 1000
     )
   );
+}
+
+export function coalesceHeightMeshProbeReadings(
+  readings: readonly HeightMeshProbeReading[],
+  expectedCount: number
+): readonly HeightMeshProbeReading[] {
+  if (readings.length !== expectedCount * 2) {
+    return readings;
+  }
+
+  const collapsed: HeightMeshProbeReading[] = [];
+  for (let index = 0; index < readings.length; index += 2) {
+    const first = readings[index];
+    const second = readings[index + 1];
+    if (!first || !second) {
+      return readings;
+    }
+
+    collapsed.push(first.zMm <= second.zMm ? first : second);
+  }
+
+  return collapsed;
 }
 
 export function createHeightMeshDownloadName(mesh: HeightMeshFile): string {

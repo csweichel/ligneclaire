@@ -1437,7 +1437,7 @@ body {
 
 .machine-control__jog-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   gap: 12px;
   align-items: start;
   width: 100%;
@@ -1486,11 +1486,13 @@ body {
 .machine-control__position-axis span {
   color: var(--studio-ink);
   font-family: "SFMono-Regular", "SFMono", "Cascadia Code", "Roboto Mono", monospace;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: right;
 }
 
 .machine-control__jog-toolbar-actions {
