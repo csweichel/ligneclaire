@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import { Button, Input, Popover, PopoverContent, PopoverTrigger, Select, cn } from "@ligneclaire/ui";
 import { findSelectedPlotter } from "../../lib/exportSettings";
 import type { StudioModel } from "../../types";
+import {
+  CodeBlock,
+  EmptyState,
+  Field,
+  InfoRow,
+  Notice,
+  PanelCard,
+} from "../common/StudioPrimitives";
 import { GcodeVirtualPreview } from "../transport/GcodeVirtualPreview";
 
 type MachineControlPerspectiveProps = Readonly<{
@@ -279,58 +288,54 @@ export function MachineControlPerspective({
   }, [canJog, jogSteps.x, jogSteps.y, jogSteps.z, plotter]);
 
   return (
-    <section className="machine-control">
-      <aside className="machine-control__sidebar">
-        <section className="machine-control__card">
-          <div className="machine-control__machine-header">
-            <div className="machine-control__machine-summary">
-              <span className="machine-control__machine-name">
+    <section className="grid h-full min-h-0 gap-5 rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(246,247,251,0.92)_100%)] p-4 shadow-[0_28px_72px_-52px_rgba(15,23,42,0.45)] xl:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="grid min-h-0 content-start gap-4 overflow-auto">
+        <PanelCard>
+          <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <span className="text-base font-semibold text-slate-950">
                 {plotter?.label ?? "No plotter selected"}
               </span>
-              <span className="machine-control__machine-status">{connectionLabel(studio)}</span>
+              <span className="text-sm font-medium text-slate-500">{connectionLabel(studio)}</span>
             </div>
             {studio.transport.connectionState === "connected" ? (
-              <button
-                className="studio-button studio-button--compact"
-                type="button"
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => {
                   setMachineSectionExpanded((current) => !current);
                 }}
               >
                 {machineSectionCollapsed ? "Show" : "Hide"}
-              </button>
+              </Button>
             ) : null}
           </div>
 
           {machineSectionCollapsed ? (
-            <div className="machine-control__button-grid machine-control__button-grid--machine-compact">
-              <button
-                className="studio-button"
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
                 disabled={!canDisconnect}
-                type="button"
+                variant="outline"
                 onClick={() => {
                   void studio.transport.disconnect();
                 }}
               >
                 Disconnect
-              </button>
-              <button
-                className="studio-button"
+              </Button>
+              <Button
                 disabled={!studio.transport.canResetAlarm || !canDisconnect}
-                type="button"
+                variant="outline"
                 onClick={() => {
                   void studio.transport.resetAlarm();
                 }}
               >
                 Reset Alarm
-              </button>
+              </Button>
             </div>
           ) : (
             <>
-              <label className="studio-field">
-                <span className="studio-field__label">Selector</span>
-                <select
-                  className="studio-input"
+              <Field label="Selector">
+                <Select
                   disabled={studio.plotters.length === 0}
                   value={studio.exportSettings.deviceId}
                   onChange={(event) => {
@@ -346,117 +351,96 @@ export function MachineControlPerspective({
                   ) : (
                     <option value="">No plotter profiles</option>
                   )}
-                </select>
-              </label>
+                </Select>
+              </Field>
 
               {studio.transport.supported ? (
-                <div className="machine-control__button-grid machine-control__button-grid--triple">
-                  <button
-                    className="studio-button"
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Button
                     disabled={!canConnect}
-                    type="button"
+                    variant="outline"
                     onClick={() => {
                       void studio.transport.connect();
                     }}
                   >
                     Connect
-                  </button>
-                  <button
-                    className="studio-button"
+                  </Button>
+                  <Button
                     disabled={!canDisconnect}
-                    type="button"
+                    variant="outline"
                     onClick={() => {
                       void studio.transport.disconnect();
                     }}
                   >
                     Disconnect
-                  </button>
-                  <button
-                    className="studio-button"
+                  </Button>
+                  <Button
                     disabled={!studio.transport.canResetAlarm || !canDisconnect}
-                    type="button"
+                    variant="outline"
                     onClick={() => {
                       void studio.transport.resetAlarm();
                     }}
                   >
                     Reset Alarm
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <div className="studio-empty-state">
+                <EmptyState>
                   This browser does not expose the Web Serial API. Use a Chromium-based browser to
                   connect the plotter directly.
-                </div>
+                </EmptyState>
               )}
 
-              <div className="machine-control__meta-grid">
-                <span>Connection</span>
-                <span>{connectionLabel(studio)}</span>
-              </div>
-              <div className="machine-control__meta-grid">
-                <span>Port</span>
-                <span>{studio.transport.portLabel ?? "--"}</span>
-              </div>
-              <div className="machine-control__meta-grid">
-                <span>Job</span>
-                <span>{jobLabel(studio)}</span>
-              </div>
-              <div className="machine-control__meta-grid">
-                <span>Page</span>
-                <span>
-                  {plotter ? `${plotter.page.widthMm} x ${plotter.page.heightMm} mm` : "--"}
-                </span>
+              <div className="grid gap-2">
+                <InfoRow label="Connection" value={connectionLabel(studio)} />
+                <InfoRow label="Port" value={studio.transport.portLabel ?? "--"} />
+                <InfoRow label="Job" value={jobLabel(studio)} />
+                <InfoRow
+                  label="Page"
+                  value={plotter ? `${plotter.page.widthMm} x ${plotter.page.heightMm} mm` : "--"}
+                />
               </div>
             </>
           )}
-        </section>
+        </PanelCard>
 
-        <section className="machine-control__card machine-control__card--jog">
-          <div className="machine-control__jog-toolbar">
-            <div className="machine-control__position-block">
-              <span className="machine-control__position-source">{positionSourceLabel}</span>
-              <div className="machine-control__position-readout">
-                <div className="machine-control__position-axis">
-                  <small>X</small>
-                  <span title={formatPositionTitle(studio.transport.position?.x)}>
-                    {formatPositionValue(studio.transport.position?.x)}
-                  </span>
-                </div>
-                <div className="machine-control__position-axis">
-                  <small>Y</small>
-                  <span title={formatPositionTitle(studio.transport.position?.y)}>
-                    {formatPositionValue(studio.transport.position?.y)}
-                  </span>
-                </div>
-                <div className="machine-control__position-axis">
-                  <small>Z</small>
-                  <span title={formatPositionTitle(studio.transport.position?.z)}>
-                    {formatPositionValue(studio.transport.position?.z)}
-                  </span>
-                </div>
+        <PanelCard>
+          <div className="grid gap-4">
+            <div className="grid gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {positionSourceLabel}
+              </span>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <PositionAxisCard
+                  axis="X"
+                  title={formatPositionTitle(studio.transport.position?.x)}
+                  value={formatPositionValue(studio.transport.position?.x)}
+                />
+                <PositionAxisCard
+                  axis="Y"
+                  title={formatPositionTitle(studio.transport.position?.y)}
+                  value={formatPositionValue(studio.transport.position?.y)}
+                />
+                <PositionAxisCard
+                  axis="Z"
+                  title={formatPositionTitle(studio.transport.position?.z)}
+                  value={formatPositionValue(studio.transport.position?.z)}
+                />
               </div>
             </div>
 
-            <div className="machine-control__jog-toolbar-actions">
-              <div ref={stepMenuRef} className="studio-action-menu">
-                <button
-                  aria-expanded={stepMenuOpen}
-                  aria-haspopup="dialog"
-                  className="studio-button studio-button--compact studio-action-menu__trigger"
-                  type="button"
-                  onClick={() => {
-                    setStepMenuOpen((current) => !current);
-                  }}
-                >
-                  More
-                </button>
-
-                {stepMenuOpen ? (
-                  <div className="studio-action-menu__panel machine-control__steps-panel" role="dialog">
-                    <label className="studio-field machine-control__steps-field">
-                      <span className="studio-field__label">X step</span>
-                      <input
-                        className="studio-input studio-input--compact"
+            <div className="flex justify-end">
+              <Popover open={stepMenuOpen} onOpenChange={setStepMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    More
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="grid gap-3">
+                  <div ref={stepMenuRef} className="grid gap-3">
+                    <Field label="X step">
+                      <Input
+                        className="h-9"
                         min={0.1}
                         step={0.1}
                         type="number"
@@ -468,11 +452,10 @@ export function MachineControlPerspective({
                           }));
                         }}
                       />
-                    </label>
-                    <label className="studio-field machine-control__steps-field">
-                      <span className="studio-field__label">Y step</span>
-                      <input
-                        className="studio-input studio-input--compact"
+                    </Field>
+                    <Field label="Y step">
+                      <Input
+                        className="h-9"
                         min={0.1}
                         step={0.1}
                         type="number"
@@ -484,11 +467,10 @@ export function MachineControlPerspective({
                           }));
                         }}
                       />
-                    </label>
-                    <label className="studio-field machine-control__steps-field">
-                      <span className="studio-field__label">Z step</span>
-                      <input
-                        className="studio-input studio-input--compact"
+                    </Field>
+                    <Field label="Z step">
+                      <Input
+                        className="h-9"
                         min={0.1}
                         step={0.1}
                         type="number"
@@ -500,160 +482,144 @@ export function MachineControlPerspective({
                           }));
                         }}
                       />
-                    </label>
+                    </Field>
 
-                    <div className="machine-control__overflow-actions">
-                      <button
-                        className="studio-button studio-button--compact"
+                    <div className="grid gap-2">
+                      <Button
                         disabled={!canRunManualCommand}
-                        type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => {
                           setStepMenuOpen(false);
                           void moveToZero();
                         }}
                       >
                         Move to zero
-                      </button>
-                      <button
-                        className="studio-button studio-button--compact"
+                      </Button>
+                      <Button
                         disabled={!canZeroPosition}
-                        type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => {
                           setStepMenuOpen(false);
                           void studio.transport.zeroCurrentPosition();
                         }}
                       >
                         Zero XYZ
-                      </button>
+                      </Button>
                     </div>
 
-                    <div className="machine-control__overflow-axis-actions">
-                      <button
-                        className="studio-button studio-button--compact"
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
                         disabled={!canZeroPosition}
-                        type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => {
                           setStepMenuOpen(false);
                           void zeroAxes(["X"]);
                         }}
                       >
                         Zero X
-                      </button>
-                      <button
-                        className="studio-button studio-button--compact"
+                      </Button>
+                      <Button
                         disabled={!canZeroPosition}
-                        type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => {
                           setStepMenuOpen(false);
                           void zeroAxes(["Y"]);
                         }}
                       >
                         Zero Y
-                      </button>
-                      <button
-                        className="studio-button studio-button--compact"
+                      </Button>
+                      <Button
                         disabled={!canZeroPosition}
-                        type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => {
                           setStepMenuOpen(false);
                           void zeroAxes(["Z"]);
                         }}
                       >
                         Zero Z
-                      </button>
+                      </Button>
                     </div>
                   </div>
-                ) : null}
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
-          <div className="machine-control__jog-layout">
-            <div className="machine-control__jog-pad">
+          <div className="grid gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <div />
-              <button
-                className="machine-control__jog-button"
+              <JogPadButton
                 disabled={!canJog}
-                type="button"
+                label="+Y"
+                shortcut="↑"
                 onClick={() => {
                   void jog("Y", jogSteps.y);
                 }}
-              >
-                <span>+Y</span>
-                <small aria-hidden="true">↑</small>
-              </button>
+              />
               <div />
-              <button
-                className="machine-control__jog-button"
+              <JogPadButton
                 disabled={!canJog}
-                type="button"
+                label="-X"
+                shortcut="←"
                 onClick={() => {
                   void jog("X", -jogSteps.x);
                 }}
-              >
-                <span>-X</span>
-                <small aria-hidden="true">←</small>
-              </button>
-              <button
-                className="machine-control__jog-button"
+              />
+              <JogPadButton
                 disabled={!canJog}
-                type="button"
+                label="-Y"
+                shortcut="↓"
                 onClick={() => {
                   void jog("Y", -jogSteps.y);
                 }}
-              >
-                <span>-Y</span>
-                <small aria-hidden="true">↓</small>
-              </button>
-              <button
-                className="machine-control__jog-button"
+              />
+              <JogPadButton
                 disabled={!canJog}
-                type="button"
+                label="+X"
+                shortcut="→"
                 onClick={() => {
                   void jog("X", jogSteps.x);
                 }}
-              >
-                <span>+X</span>
-                <small aria-hidden="true">→</small>
-              </button>
+              />
             </div>
 
-            <div className="machine-control__jog-z">
-              <button
-                className="machine-control__jog-button machine-control__jog-button--z"
+            <div className="grid gap-2 sm:grid-cols-2">
+              <JogPadButton
+                className="h-16"
                 disabled={!canJog}
-                type="button"
+                label="+Z"
+                shortcut="PgUp"
                 onClick={() => {
                   void jog("Z", jogSteps.z);
                 }}
-              >
-                <span>+Z</span>
-                <small aria-hidden="true">PgUp</small>
-              </button>
-              <button
-                className="machine-control__jog-button machine-control__jog-button--z"
+              />
+              <JogPadButton
+                className="h-16"
                 disabled={!canJog}
-                type="button"
+                label="-Z"
+                shortcut="PgDn"
                 onClick={() => {
                   void jog("Z", -jogSteps.z);
                 }}
-              >
-                <span>-Z</span>
-                <small aria-hidden="true">PgDn</small>
-              </button>
+              />
             </div>
           </div>
-        </section>
+        </PanelCard>
 
-        <section className="machine-control__card">
-          <div className="machine-control__card-header">
-            <span className="machine-control__card-tag">Mesh sampler</span>
+        <PanelCard>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Mesh sampler
           </div>
 
           <input
             ref={meshFileInputRef}
             accept=".json,application/json"
-            className="machine-control__file-input"
+            className="hidden"
             type="file"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0];
@@ -666,33 +632,30 @@ export function MachineControlPerspective({
             }}
           />
 
-          <div className="machine-control__button-grid">
-            <button
-              className="studio-button"
-              type="button"
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="outline"
               onClick={() => {
                 meshFileInputRef.current?.click();
               }}
             >
               Load
-            </button>
-            <button
-              className="studio-button"
+            </Button>
+            <Button
               disabled={!studio.heightMesh.mesh}
-              type="button"
+              variant="outline"
               onClick={() => {
                 studio.heightMesh.download();
               }}
             >
               Save
-            </button>
+            </Button>
           </div>
 
-          <div className="machine-control__dimension-grid">
-            <label className="studio-field">
-              <span className="studio-field__label">Width</span>
-              <input
-                className="studio-input studio-input--compact"
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+            <Field label="Width">
+              <Input
+                className="h-9"
                 min={1}
                 step={1}
                 type="number"
@@ -703,12 +666,11 @@ export function MachineControlPerspective({
                   });
                 }}
               />
-            </label>
-            <span className="machine-control__dimension-separator">x</span>
-            <label className="studio-field">
-              <span className="studio-field__label">Height</span>
-              <input
-                className="studio-input studio-input--compact"
+            </Field>
+            <span className="pb-3 text-slate-400">x</span>
+            <Field label="Height">
+              <Input
+                className="h-9"
                 min={1}
                 step={1}
                 type="number"
@@ -719,14 +681,13 @@ export function MachineControlPerspective({
                   });
                 }}
               />
-            </label>
+            </Field>
           </div>
 
-          <div className="machine-control__button-grid">
-            <label className="studio-field">
-              <span className="studio-field__label">Sampling dist</span>
-              <input
-                className="studio-input studio-input--compact"
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <Field label="Sampling dist">
+              <Input
+                className="h-9"
                 min={0.5}
                 step={0.5}
                 type="number"
@@ -737,137 +698,131 @@ export function MachineControlPerspective({
                   });
                 }}
               />
-            </label>
+            </Field>
 
-            <button
-              className="studio-button studio-button--primary"
+            <Button
               disabled={!canSample}
-              type="button"
+              variant="default"
               onClick={() => {
                 void studio.heightMesh.sample();
               }}
             >
               {studio.heightMesh.status.state === "sampling" ? "Sampling..." : "Sample"}
-            </button>
+            </Button>
           </div>
 
-          {studio.heightMesh.grid ? (
-            <>
-              <div className="machine-control__meta-grid">
-                <span>Probe grid</span>
-                <span>
-                  {studio.heightMesh.grid.columns} x {studio.heightMesh.grid.rows}
-                </span>
-              </div>
-              <div className="machine-control__meta-grid">
-                <span>Actual spacing</span>
-                <span>
-                  {studio.heightMesh.grid.spacingXMm.toFixed(2)} x{" "}
-                  {studio.heightMesh.grid.spacingYMm.toFixed(2)} mm
-                </span>
-              </div>
-            </>
-          ) : null}
+          <div className="grid gap-2">
+            {studio.heightMesh.grid ? (
+              <>
+                <InfoRow
+                  label="Probe grid"
+                  value={`${studio.heightMesh.grid.columns} x ${studio.heightMesh.grid.rows}`}
+                />
+                <InfoRow
+                  label="Actual spacing"
+                  value={`${studio.heightMesh.grid.spacingXMm.toFixed(2)} x ${studio.heightMesh.grid.spacingYMm.toFixed(2)} mm`}
+                />
+              </>
+            ) : null}
 
-          {studio.heightMesh.mesh ? (
-            <div className="machine-control__meta-grid">
-              <span>Current mesh</span>
-              <span>
-                {studio.heightMesh.mesh.grid.columns} x {studio.heightMesh.mesh.grid.rows}
-                {studio.heightMesh.deviceMismatch ? " wrong plotter" : ""}
-              </span>
-            </div>
-          ) : null}
+            {studio.heightMesh.mesh ? (
+              <InfoRow
+                label="Current mesh"
+                value={`${studio.heightMesh.mesh.grid.columns} x ${studio.heightMesh.mesh.grid.rows}${studio.heightMesh.deviceMismatch ? " wrong plotter" : ""}`}
+              />
+            ) : null}
+          </div>
 
           {!plotter?.gcode?.heightMeshSampler ? (
-            <div className="studio-sidebar__issue">
+            <Notice tone="warning">
               This machine profile does not define probing defaults yet, so mesh sampling is
               unavailable.
-            </div>
+            </Notice>
           ) : null}
 
           {studio.heightMesh.status.errorMessage ? (
-            <div className="studio-sidebar__issue">{studio.heightMesh.status.errorMessage}</div>
+            <Notice tone="destructive">{studio.heightMesh.status.errorMessage}</Notice>
           ) : null}
-        </section>
+        </PanelCard>
       </aside>
 
-      <div className="machine-control__main">
-        <div className="machine-control__toolbar">
-          <button
-            className="studio-button machine-control__toolbar-button"
+      <div className="grid min-h-0 gap-4 xl:grid-rows-[auto_minmax(0,1fr)_minmax(260px,0.42fr)]">
+        <div className="flex flex-wrap gap-3">
+          <Button
+            className="h-12 min-w-[156px]"
             disabled={!canPrepare || busy}
-            type="button"
+            variant="outline"
             onClick={() => {
               void studio.transport.prepare();
             }}
           >
             {studio.transport.jobState === "preparing" ? "Loading..." : "Load GCode"}
-          </button>
+          </Button>
 
-          <button
-            className="studio-button machine-control__toolbar-button"
+          <Button
+            className="h-12 min-w-[156px]"
             disabled={!canPrepare || studio.pendingExport !== null}
-            type="button"
+            variant="outline"
             onClick={() => {
               void studio.exportGcode();
             }}
           >
             {studio.pendingExport === "gcode" ? "Saving..." : "Save GCode"}
-          </button>
+          </Button>
         </div>
 
-        <section className="machine-control__panel machine-control__panel--preview">
-          <div className="machine-control__panel-header">
-            <span className="machine-control__card-tag">Preview</span>
-            <div className="machine-control__panel-actions">
-              <button
-                className="studio-button studio-button--primary"
+        <PanelCard
+          className="min-h-0"
+          contentClassName="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto]"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <span className="inline-flex min-h-8 items-center rounded-full border border-slate-200/80 bg-slate-50/90 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+              Preview
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Button
                 disabled={sendDisabled}
-                type="button"
+                variant="default"
                 onClick={() => {
                   void studio.transport.send();
                 }}
               >
                 Send
-              </button>
-              <button
-                className="studio-button"
+              </Button>
+              <Button
                 disabled={studio.transport.jobState !== "sending"}
-                type="button"
+                variant="outline"
                 onClick={() => {
                   studio.transport.pause();
                 }}
               >
                 Pause
-              </button>
-              <button
-                className="studio-button"
+              </Button>
+              <Button
                 disabled={studio.transport.jobState !== "paused"}
-                type="button"
+                variant="outline"
                 onClick={() => {
                   studio.transport.resume();
                 }}
               >
                 Resume
-              </button>
-              <button
-                className="studio-button studio-button--danger"
+              </Button>
+              <Button
                 disabled={
                   studio.transport.jobState !== "sending" &&
                   studio.transport.jobState !== "paused"
                 }
-                type="button"
+                variant="destructive"
                 onClick={() => {
                   studio.transport.cancel();
                 }}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="machine-control__preview-stage">
+          <div className="min-h-0 overflow-hidden rounded-[24px] border border-slate-200/80 bg-[var(--studio-paper)]">
             <GcodeVirtualPreview
               activeLineNumber={studio.transport.progress.sentLines}
               artifact={studio.transport.preparedArtifact}
@@ -876,63 +831,61 @@ export function MachineControlPerspective({
             />
           </div>
 
-          <div className="machine-control__status-grid">
-            <div className="machine-control__meta-grid">
-              <span>Prepared file</span>
-              <span>{studio.transport.preparedArtifact?.fileName ?? "--"}</span>
-            </div>
-            <div className="machine-control__meta-grid">
-              <span>Segments</span>
-              <span>
-                {studio.transport.preparedArtifact
+          <div className="grid gap-2 md:grid-cols-2">
+            <InfoRow
+              label="Prepared file"
+              value={studio.transport.preparedArtifact?.fileName ?? "--"}
+            />
+            <InfoRow
+              label="Segments"
+              value={
+                studio.transport.preparedArtifact
                   ? `${studio.transport.preparedArtifact.preview.drawingSegments} draw / ${studio.transport.preparedArtifact.preview.travelSegments} travel`
-                  : "--"}
-              </span>
-            </div>
-            <div className="machine-control__meta-grid">
-              <span>Progress</span>
-              <span>
-                {studio.transport.progress.sentLines}/{studio.transport.progress.totalLines} lines
-              </span>
-            </div>
-            <div className="machine-control__meta-grid">
-              <span>Status</span>
-              <span>{studio.status.message}</span>
-            </div>
+                  : "--"
+              }
+            />
+            <InfoRow
+              label="Progress"
+              value={`${studio.transport.progress.sentLines}/${studio.transport.progress.totalLines} lines`}
+            />
+            <InfoRow label="Status" value={studio.status.message} />
           </div>
 
           {studio.transport.preparedStale ? (
-            <div className="studio-sidebar__issue">
+            <Notice tone="warning">
               The prepared G-code is stale. Load GCode again before sending if parameters or the
               selected machine changed.
-            </div>
+            </Notice>
           ) : null}
-        </section>
+        </PanelCard>
 
-        <section className="machine-control__panel machine-control__panel--console">
-          <div className="machine-control__panel-header">
-            <div className="machine-control__panel-actions">
-              <button
-                className="studio-button"
-                type="button"
-                onClick={() => {
-                  studio.transport.clearLogs();
-                }}
-              >
-                Clear
-              </button>
-            </div>
+        <PanelCard
+          className="min-h-0"
+          contentClassName="grid h-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Console
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                studio.transport.clearLogs();
+              }}
+            >
+              Clear
+            </Button>
           </div>
 
           <form
-            className="machine-control__raw-command"
+            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
             onSubmit={(event) => {
               event.preventDefault();
               void sendRawCommand();
             }}
           >
-            <input
-              className="studio-input machine-control__raw-command-input"
+            <Input
               disabled={!canRunManualCommand}
               placeholder="Send raw G-code, e.g. G0 X0 Y0"
               type="text"
@@ -941,67 +894,120 @@ export function MachineControlPerspective({
                 setRawCommand(event.currentTarget.value);
               }}
             />
-            <button
-              className="studio-button"
+            <Button
               disabled={!canRunManualCommand || rawCommand.trim().length === 0}
               type="submit"
+              variant="outline"
             >
               Send
-            </button>
+            </Button>
           </form>
 
           {studio.transport.lastError ? (
-            <div className="gcode-transport__error-card">
-              <span className="studio-field__label">Last Error</span>
-              <pre className="gcode-transport__error-text">{studio.transport.lastError}</pre>
+            <div className="grid gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Last Error
+              </span>
+              <CodeBlock>{studio.transport.lastError}</CodeBlock>
               {studio.transport.lastMachineError &&
               studio.transport.lastMachineError !== studio.transport.lastError ? (
-                <pre className="gcode-transport__error-text">
-                  {studio.transport.lastMachineError}
-                </pre>
+                <CodeBlock>{studio.transport.lastMachineError}</CodeBlock>
               ) : null}
             </div>
           ) : null}
 
-          <div className="machine-control__status-grid machine-control__status-grid--console">
-            <div className="machine-control__meta-grid">
-              <span>Last response</span>
-              <span>{studio.transport.lastResponse ?? "--"}</span>
-            </div>
-            <div className="machine-control__meta-grid">
-              <span>Last fault</span>
-              <span>{studio.transport.lastMachineError ?? "--"}</span>
-            </div>
-            <div className="machine-control__meta-grid">
-              <span>Acknowledged</span>
-              <span>{studio.transport.progress.acknowledgedLines}</span>
-            </div>
-            <div className="machine-control__meta-grid">
-              <span>Errors</span>
-              <span>{studio.transport.progress.errorLines}</span>
-            </div>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <InfoRow label="Last response" value={studio.transport.lastResponse ?? "--"} />
+            <InfoRow label="Last fault" value={studio.transport.lastMachineError ?? "--"} />
+            <InfoRow
+              label="Acknowledged"
+              value={String(studio.transport.progress.acknowledgedLines)}
+            />
+            <InfoRow label="Errors" value={String(studio.transport.progress.errorLines)} />
           </div>
 
-          <div className="gcode-transport__log-list machine-control__console-log">
+          <div className="min-h-0 overflow-auto rounded-[20px] border border-slate-200/80 bg-white/90">
             {studio.transport.logs.length > 0 ? (
               studio.transport.logs.map((entry) => (
                 <div
                   key={entry.id}
-                  className={`gcode-transport__log-entry gcode-transport__log-entry--${entry.level}`}
+                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-slate-200/80 px-3 py-2 font-['SFMono-Regular','SFMono','Cascadia_Code','Roboto_Mono',monospace] text-xs leading-6 first:border-t-0"
                 >
                   <span>{entry.timeLabel}</span>
-                  <span>{entry.level.toUpperCase()}</span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      entry.level === "error" && "text-rose-600",
+                      entry.level === "rx" && "text-indigo-600",
+                      entry.level === "tx" && "text-emerald-600"
+                    )}
+                  >
+                    {entry.level.toUpperCase()}
+                  </span>
                   <span>{entry.message}</span>
                 </div>
               ))
             ) : (
-              <div className="studio-empty-state">
+              <EmptyState className="m-3">
                 Connect the machine, jog, sample, or send G-code to populate the console.
-              </div>
+              </EmptyState>
             )}
           </div>
-        </section>
+        </PanelCard>
       </div>
     </section>
+  );
+}
+
+type PositionAxisCardProps = Readonly<{
+  axis: string;
+  title: string;
+  value: string;
+}>;
+
+function PositionAxisCard({ axis, title, value }: PositionAxisCardProps) {
+  return (
+    <div className="grid gap-1 rounded-[18px] border border-slate-200/80 bg-slate-50/80 px-3 py-3">
+      <small className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {axis}
+      </small>
+      <span
+        className="overflow-hidden text-right font-['SFMono-Regular','SFMono','Cascadia_Code','Roboto_Mono',monospace] text-sm font-semibold tabular-nums text-slate-900"
+        title={title}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+type JogPadButtonProps = Readonly<{
+  className?: string;
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+  shortcut: string;
+}>;
+
+function JogPadButton({
+  className,
+  disabled,
+  label,
+  onClick,
+  shortcut,
+}: JogPadButtonProps) {
+  return (
+    <Button
+      className={cn(
+        "h-[72px] w-full flex-col rounded-[18px] border-slate-300/80 bg-white/95 text-slate-900 hover:bg-white",
+        className
+      )}
+      disabled={disabled}
+      variant="outline"
+      onClick={onClick}
+    >
+      <span className="text-base font-semibold">{label}</span>
+      <small className="text-xs font-medium text-slate-500">{shortcut}</small>
+    </Button>
   );
 }

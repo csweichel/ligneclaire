@@ -1,4 +1,6 @@
+import { Button, Select, cn } from "@ligneclaire/ui";
 import type { ExportKind, StudioModel, StudioPerspective } from "../../types";
+import { InlineField } from "../common/StudioPrimitives";
 import { StatusBadge } from "../common/StatusBadge";
 
 const studioLogoUrl = new URL("../../../../../Logo.png", import.meta.url).href;
@@ -77,54 +79,72 @@ export function StudioHeader({
   }
 
   return (
-    <header className="studio-topbar">
-      <div className="studio-topbar__brand">
-        <h1 className="studio-topbar__title">
-          <span className="studio-visually-hidden">LigneClaire</span>
-          <img className="studio-topbar__logo" src={studioLogoUrl} alt="" />
+    <header className="flex flex-col gap-4 rounded-[28px] border border-slate-200/80 bg-white/88 px-5 py-4 shadow-[0_28px_72px_-52px_rgba(15,23,42,0.45)] backdrop-blur-xl xl:flex-row xl:items-center xl:justify-between">
+      <div className="min-w-0">
+        <h1 className="m-0 leading-none">
+          <span className="sr-only">LigneClaire</span>
+          <img
+            className="block h-14 w-auto max-w-[min(240px,42vw)]"
+            src={studioLogoUrl}
+            alt=""
+          />
         </h1>
       </div>
 
-      <nav aria-label="Perspectives" className="studio-topbar__perspectives">
-        <button
+      <nav
+        aria-label="Perspectives"
+        className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-slate-200/80 bg-slate-50/90 p-1 shadow-inner shadow-slate-200/40"
+      >
+        <Button
           aria-pressed={perspective === "programs"}
-          className={`studio-topbar__perspective${perspective === "programs" ? " studio-topbar__perspective--active" : ""}`}
-          type="button"
+          className={cn(
+            "min-w-[8.5rem] rounded-full",
+            perspective === "programs" && "shadow-sm"
+          )}
+          size="sm"
+          variant={perspective === "programs" ? "default" : "ghost"}
           onClick={() => {
             onSelectPerspective("programs");
           }}
         >
           Programs
-        </button>
-        <button
+        </Button>
+        <Button
           aria-pressed={perspective === "node-composer"}
-          className={`studio-topbar__perspective${perspective === "node-composer" ? " studio-topbar__perspective--active" : ""}`}
+          className={cn(
+            "min-w-[9.5rem] rounded-full",
+            perspective === "node-composer" && "shadow-sm"
+          )}
           disabled={!nodeComposerAvailable}
-          type="button"
+          size="sm"
+          variant={perspective === "node-composer" ? "default" : "ghost"}
           onClick={() => {
             onSelectPerspective("node-composer");
           }}
         >
           Node Composer
-        </button>
-        <button
+        </Button>
+        <Button
           aria-pressed={perspective === "machine-control"}
-          className={`studio-topbar__perspective${perspective === "machine-control" ? " studio-topbar__perspective--active" : ""}`}
-          type="button"
+          className={cn(
+            "min-w-[9.5rem] rounded-full",
+            perspective === "machine-control" && "shadow-sm"
+          )}
+          size="sm"
+          variant={perspective === "machine-control" ? "default" : "ghost"}
           onClick={() => {
             onSelectPerspective("machine-control");
           }}
         >
           Machine Control
-        </button>
+        </Button>
       </nav>
 
-      <div className="studio-topbar__controls">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
         {perspective !== "machine-control" ? (
-          <label className="studio-inline-field">
-            <span className="studio-inline-field__label">Export</span>
-            <select
-              className="studio-input studio-input--compact"
+          <InlineField className="min-w-[13rem]" label="Export">
+            <Select
+              className="h-9 rounded-full bg-white"
               disabled={exportSelectDisabled}
               value=""
               onChange={(event) => {
@@ -153,8 +173,8 @@ export function StudioHeader({
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </InlineField>
         ) : null}
 
         <StatusBadge

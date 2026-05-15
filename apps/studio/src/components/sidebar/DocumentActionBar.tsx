@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { cx } from "../../lib/cx";
+import { useState } from "react";
+import { Button, Popover, PopoverContent, PopoverTrigger, cn } from "@ligneclaire/ui";
 
 type DocumentActionBarProps = Readonly<{
   duplicateDisabled: boolean;
@@ -25,105 +25,69 @@ export function DocumentActionBar({
   saveDisabled,
 }: DocumentActionBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const hasMenuActions = !resetDisabled || !deleteDisabled;
 
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: PointerEvent): void {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    }
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuOpen]);
-
   return (
-    <div className="studio-document-actions">
-      <div className="studio-document-actions__row">
-        <button
-          className="studio-button studio-button--primary"
+    <div className="grid gap-2">
+      <div className="flex flex-wrap gap-2 max-sm:flex-col">
+        <Button
+          className="flex-1"
           disabled={saveDisabled}
-          type="button"
+          variant="default"
           onClick={onSave}
         >
           Save
-        </button>
+        </Button>
 
-        <button
-          className="studio-button"
+        <Button
+          className="flex-1"
           disabled={duplicateDisabled}
-          type="button"
           onClick={onDuplicate}
         >
           Duplicate
-        </button>
+        </Button>
 
-        <div ref={menuRef} className="studio-action-menu">
-          <button
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            className="studio-button studio-action-menu__trigger"
-            disabled={!hasMenuActions}
-            type="button"
-            onClick={() => {
-              setMenuOpen((current) => !current);
-            }}
-          >
-            More
-          </button>
+        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              aria-expanded={menuOpen}
+              aria-haspopup="dialog"
+              className="flex-1"
+              disabled={!hasMenuActions}
+              variant="outline"
+            >
+              More
+            </Button>
+          </PopoverTrigger>
 
-          {menuOpen ? (
-            <div className="studio-action-menu__panel" role="menu">
-              <button
-                className="studio-action-menu__item"
-                disabled={resetDisabled}
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onReset();
-                }}
-              >
-                Reset to defaults
-              </button>
-              <button
-                className={cx(
-                  "studio-action-menu__item",
-                  !deleteDisabled && "studio-action-menu__item--danger"
-                )}
-                disabled={deleteDisabled}
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete();
-                }}
-              >
-                Delete parameter set
-              </button>
-            </div>
-          ) : null}
-        </div>
+          <PopoverContent align="end" className="grid gap-2 p-2">
+            <Button
+              className="justify-start"
+              disabled={resetDisabled}
+              variant="ghost"
+              onClick={() => {
+                setMenuOpen(false);
+                onReset();
+              }}
+            >
+              Reset to defaults
+            </Button>
+            <Button
+              className={cn("justify-start", !deleteDisabled && "text-rose-700")}
+              disabled={deleteDisabled}
+              variant="ghost"
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete();
+              }}
+            >
+              Delete parameter set
+            </Button>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {note ? <p className="studio-document-actions__note">{note}</p> : null}
+      {note ? <p className="text-sm leading-6 text-slate-500">{note}</p> : null}
     </div>
   );
 }

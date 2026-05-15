@@ -6,6 +6,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "./lib/utils";
 
 type EditorSurfaceRoots = Readonly<{
   canvasRoot: Element | DocumentFragment | null;
@@ -30,11 +31,6 @@ const defaultRoots: EditorSurfaceRoots = {
 };
 
 const editorSurfaceContext = createContext<EditorSurfaceRoots>(defaultRoots);
-
-function joinClassNames(...values: Array<string | undefined>): string | undefined {
-  const className = values.filter(Boolean).join(" ");
-  return className.length > 0 ? className : undefined;
-}
 
 export function ProgramEditorSurfacesProvider({
   canvasRoot,
@@ -62,7 +58,7 @@ export const ProgramEditorCanvas = forwardRef<HTMLDivElement, SurfaceElementProp
       <div
         {...props}
         ref={ref}
-        className={joinClassNames("lc-editor-root", className)}
+        className={cn("pointer-events-none absolute inset-0", className)}
       >
         {children}
       </div>
@@ -81,7 +77,10 @@ export function ProgramEditorPanel({
   const element = (
     <section
       {...props}
-      className={joinClassNames("lc-editor-panel", className)}
+      className={cn(
+        "flex min-h-full flex-col gap-4 px-5 py-5 text-slate-900",
+        className
+      )}
     >
       {children}
     </section>
@@ -102,7 +101,10 @@ export function ProgramEditorWorkspace({
       {...props}
       data-editor-workspace="true"
       data-tab-label={tabLabel}
-      className={joinClassNames("lc-editor-workspace", className)}
+      className={cn(
+        "grid h-full min-h-0 w-full overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/75 p-4 shadow-inner shadow-slate-200/40 backdrop-blur-sm",
+        className
+      )}
     >
       {children}
     </section>

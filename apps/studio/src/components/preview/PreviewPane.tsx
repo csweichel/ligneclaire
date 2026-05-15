@@ -1,15 +1,18 @@
 import {
+  Badge,
+  Button,
+  cn,
   createPreviewLayout,
   ProgramEditorSurfacesProvider,
 } from "@ligneclaire/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProgramDetails } from "@ligneclaire/node-runtime";
-import { cx } from "../../lib/cx";
 import type {
   AnyEditorProps,
   CurrentDocumentState,
   EditorComponent,
 } from "../../types";
+import { Eyebrow } from "../common/StudioPrimitives";
 
 type PreviewPaneProps = Readonly<{
   programDetails: ProgramDetails | null;
@@ -166,62 +169,61 @@ export function PreviewPane({
   const showWorkspaceSurface = showWorkspaceTab && activeEditorSurface === "workspace";
 
   return (
-    <section className="preview-pane">
-      <div className="preview-pane__header">
-        <div className="preview-pane__copy">
-          <p className="studio-eyebrow">Preview</p>
-          <p className="preview-pane__description">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] rounded-[30px] border border-slate-200/80 bg-white/88 shadow-[0_28px_72px_-52px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200/80 px-5 py-4">
+        <div className="grid gap-1">
+          <Eyebrow>Preview</Eyebrow>
+          <p className="text-sm leading-6 text-slate-500">
             {programDetails?.description ?? "Render output"}
           </p>
         </div>
 
-        <div className="preview-pane__status">
+        <div className="flex flex-wrap items-center gap-2">
           {hasInteractiveEditor ? (
-            <span className="preview-pane__badge">
+            <Badge variant="default">
               {showEditorControls ? "Editor controls visible" : "Editor controls hidden"}
-            </span>
+            </Badge>
           ) : null}
-          {isRendering ? <span className="preview-pane__badge">Rendering</span> : null}
+          {isRendering ? <Badge variant="accent">Rendering</Badge> : null}
           {hasInteractiveEditor ? (
-            <button
+            <Button
               aria-pressed={showEditorControls}
-              className={cx(
-                "preview-pane__toggle",
-                showEditorControls && "preview-pane__toggle--active"
-              )}
-              type="button"
+              size="sm"
+              variant={showEditorControls ? "default" : "outline"}
               onClick={() => {
                 setShowEditor(!showEditorControls);
               }}
             >
               Editor
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button
             aria-pressed={showDebug}
-            className={cx(
-              "preview-pane__toggle",
-              showDebug && "preview-pane__toggle--active"
-            )}
-            type="button"
+            size="sm"
+            variant={showDebug ? "default" : "outline"}
             onClick={() => {
               setShowDebug(!showDebug);
             }}
           >
             Debug
-          </button>
+          </Button>
         </div>
       </div>
 
       <div
-        className={cx(
-          "preview-pane__body",
-          showEditorControls && "preview-pane__body--with-editor"
+        className={cn(
+          "grid min-h-0 min-w-0 grid-cols-1 overflow-hidden",
+          showEditorControls && "xl:grid-cols-[minmax(0,1fr)_340px]"
         )}
       >
         <div
           ref={previewRef}
-          className="preview-stage"
+          className="relative min-h-[520px] min-w-0 overflow-hidden xl:min-h-0"
+          style={{
+            background:
+              "linear-gradient(var(--studio-grid) 1px, transparent 1px), linear-gradient(90deg, var(--studio-grid) 1px, transparent 1px), linear-gradient(180deg, var(--studio-workspace-soft) 0%, var(--studio-workspace) 100%)",
+            backgroundSize: "32px 32px, 32px 32px, 100% 100%",
+          }}
           onLostPointerCapture={() => {
             setPanning(false);
           }}
@@ -259,52 +261,43 @@ export function PreviewPane({
           {showWorkspaceTab ? (
             <div
               aria-label="Preview surfaces"
-              className="preview-stage__tabs"
+              className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/90 p-1 shadow-sm shadow-slate-900/5"
               data-preview-control="true"
               role="tablist"
             >
-              <button
+              <Button
                 aria-selected={showPreviewSurface}
                 aria-pressed={showPreviewSurface}
-                className={cx(
-                  "preview-pane__tab",
-                  showPreviewSurface && "preview-pane__tab--active"
-                )}
                 role="tab"
-                type="button"
+                size="sm"
+                variant={showPreviewSurface ? "default" : "ghost"}
                 onClick={() => {
                   setActiveEditorSurface("preview");
                 }}
               >
                 Preview
-              </button>
-              <button
+              </Button>
+              <Button
                 aria-selected={showWorkspaceSurface}
                 aria-pressed={showWorkspaceSurface}
-                className={cx(
-                  "preview-pane__tab",
-                  showWorkspaceSurface && "preview-pane__tab--active"
-                )}
                 role="tab"
-                type="button"
+                size="sm"
+                variant={showWorkspaceSurface ? "default" : "ghost"}
                 onClick={() => {
                   setActiveEditorSurface("workspace");
                 }}
               >
                 {workspaceTabLabel}
-              </button>
+              </Button>
             </div>
           ) : null}
 
           <div
             aria-hidden={!showPreviewSurface}
-            className={cx(
-              "preview-stage__preview",
-              !showPreviewSurface && "preview-stage__preview--hidden"
-            )}
+            className={cn("absolute inset-0", !showPreviewSurface && "hidden")}
           >
             <div
-              className="preview-paper"
+              className="absolute overflow-hidden rounded-[22px] border border-slate-200/80 bg-[var(--studio-paper)] shadow-[0_28px_64px_-44px_rgba(15,23,42,0.45)]"
               style={{
                 left: `${previewLayout.originX}px`,
                 top: `${previewLayout.originY}px`,
@@ -315,13 +308,13 @@ export function PreviewPane({
               {svg ? (
                 <div
                   aria-label="Plot preview"
-                  className="preview-paper__image"
+                  className="absolute inset-0 h-full w-full overflow-hidden [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
                   dangerouslySetInnerHTML={{
                     __html: inlineSvgMarkup(svg),
                   }}
                 />
               ) : (
-                <div className="preview-paper__placeholder">
+                <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-slate-500">
                   {programDetails
                     ? isRendering
                       ? "Rendering preview..."
@@ -334,63 +327,63 @@ export function PreviewPane({
                 <div
                   ref={setEditorCanvasRoot}
                   data-editor-root="true"
-                  className="preview-paper__editor"
+                  className="pointer-events-none absolute inset-0 z-[2]"
                 />
               ) : null}
             </div>
 
-            <div className="preview-stage__toolbar" data-preview-control="true">
-              <button
-                className="studio-button studio-button--compact"
-                type="button"
+            <div
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/92 p-2 shadow-sm shadow-slate-900/5"
+              data-preview-control="true"
+            >
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => {
                   setZoom((currentZoom) => Math.max(0.45, currentZoom - 0.15));
                 }}
               >
                 -
-              </button>
-              <button
-                className="studio-button studio-button--compact"
-                type="button"
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => {
                   setZoom(1);
                   setPan({ x: 0, y: 0 });
                 }}
               >
                 Reset view
-              </button>
-              <button
-                className="studio-button studio-button--compact"
-                type="button"
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => {
                   setZoom((currentZoom) => Math.min(4.5, currentZoom + 0.15));
                 }}
               >
                 +
-              </button>
+              </Button>
             </div>
           </div>
 
           <div
             aria-hidden={!showWorkspaceSurface}
-            className={cx(
-              "preview-stage__workspace",
-              showWorkspaceSurface && "preview-stage__workspace--active",
-              showWorkspaceTab && "preview-stage__workspace--with-tabs"
+            className={cn(
+              "absolute inset-0 hidden overflow-hidden p-4",
+              showWorkspaceSurface && "block",
+              showWorkspaceTab && "pt-16"
             )}
             data-preview-control="true"
           >
-            <div
-              ref={setEditorWorkspaceRoot}
-              className="preview-stage__workspace-root"
-            />
+            <div ref={setEditorWorkspaceRoot} className="h-full w-full min-h-0 min-w-0 overflow-hidden" />
           </div>
         </div>
 
         {showEditorControls ? (
           <aside
             ref={setEditorPanelRoot}
-            className="preview-pane__editor-panel"
+            className="min-h-0 min-w-0 overflow-auto border-t border-slate-200/80 bg-slate-50/55 xl:border-l xl:border-t-0"
             data-preview-control="true"
           />
         ) : null}

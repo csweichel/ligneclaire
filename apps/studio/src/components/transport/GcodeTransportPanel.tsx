@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Button, Input, Progress, Select, cn } from "@ligneclaire/ui";
 import type { StudioModel } from "../../types";
 import {
   findSelectedPlotter,
@@ -8,6 +9,14 @@ import {
   formatExportRotationSummary,
   resolveGcodeRotationDeg,
 } from "../../lib/gcodeOrientation";
+import {
+  CodeBlock,
+  EmptyState,
+  Field,
+  InfoRow,
+  Notice,
+  PanelCard,
+} from "../common/StudioPrimitives";
 import { ExportSettingsButton } from "../export/ExportSettingsButton";
 import { GcodeVirtualPreview } from "./GcodeVirtualPreview";
 
@@ -151,64 +160,83 @@ export function GcodeTransportPanel({
   ]);
 
   return (
-    <div className="gcode-transport-panel">
-      <div className="gcode-transport-panel__main">
-        <section className="gcode-transport__preview-block">
-          <div className="gcode-transport__preview-header">
-            <h3>Virtual Preview</h3>
+    <div className="grid h-full min-h-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)_minmax(220px,0.9fr)]">
+        <PanelCard className="min-h-0">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Virtual Preview
+            </h3>
           </div>
 
-          <GcodeVirtualPreview
-            activeLineNumber={studio.transport.progress.sentLines}
-            artifact={studio.transport.preparedArtifact}
-            isPreparing={studio.transport.jobState === "preparing"}
-            page={plotter?.page ?? null}
-          />
-
-          <div className="studio-sidebar__meta-grid">
-            <span>Drawing segments</span>
-            <span>{studio.transport.preparedArtifact?.preview.drawingSegments ?? "--"}</span>
-          </div>
-          <div className="studio-sidebar__meta-grid">
-            <span>Travel segments</span>
-            <span>{studio.transport.preparedArtifact?.preview.travelSegments ?? "--"}</span>
-          </div>
-        </section>
-
-        <section className="gcode-transport__log">
-          <div className="gcode-transport__preview-header">
-            <h3>Transport Log</h3>
-            <span>{studio.transport.logs.length} entries</span>
+          <div className="min-h-0">
+            <GcodeVirtualPreview
+              activeLineNumber={studio.transport.progress.sentLines}
+              artifact={studio.transport.preparedArtifact}
+              isPreparing={studio.transport.jobState === "preparing"}
+              page={plotter?.page ?? null}
+            />
           </div>
 
-          <div className="gcode-transport__log-list">
+          <div className="grid gap-2">
+            <InfoRow
+              label="Drawing segments"
+              value={String(studio.transport.preparedArtifact?.preview.drawingSegments ?? "--")}
+            />
+            <InfoRow
+              label="Travel segments"
+              value={String(studio.transport.preparedArtifact?.preview.travelSegments ?? "--")}
+            />
+          </div>
+        </PanelCard>
+
+        <PanelCard className="min-h-0">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Transport Log
+            </h3>
+            <span className="text-xs font-medium text-slate-400">
+              {studio.transport.logs.length} entries
+            </span>
+          </div>
+
+          <div className="min-h-0 overflow-auto rounded-[20px] border border-slate-200/80 bg-white/90">
             {studio.transport.logs.length > 0 ? (
               studio.transport.logs.map((entry) => (
                 <div
                   key={entry.id}
-                  className={`gcode-transport__log-entry gcode-transport__log-entry--${entry.level}`}
+                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-slate-200/80 px-3 py-2 font-['SFMono-Regular','SFMono','Cascadia_Code','Roboto_Mono',monospace] text-xs leading-6 first:border-t-0"
                 >
                   <span>{entry.timeLabel}</span>
-                  <span>{entry.level.toUpperCase()}</span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      entry.level === "error" && "text-rose-600",
+                      entry.level === "rx" && "text-indigo-600",
+                      entry.level === "tx" && "text-emerald-600"
+                    )}
+                  >
+                    {entry.level.toUpperCase()}
+                  </span>
                   <span>{entry.message}</span>
                 </div>
               ))
             ) : (
-              <div className="studio-empty-state">
+              <EmptyState className="m-3">
                 Prepare or send G-code to see serial feedback and virtual device activity here.
-              </div>
+              </EmptyState>
             )}
           </div>
-        </section>
+        </PanelCard>
       </div>
 
-      <aside className="gcode-transport-panel__sidebar">
-        <div className="studio-sidebar__issue">
+      <aside className="grid min-h-0 content-start gap-4 overflow-auto xl:border-l xl:border-slate-200/80 xl:pl-5">
+        <Notice>
           G-code is generated from the current document and selected plotter profile, then either
           streamed to a browser USB serial device or simulated in the virtual plotter.
-        </div>
+        </Notice>
 
-        <div className="gcode-transport__group">
+        <div>
           <ExportSettingsButton
             fullWidth
             studio={studio}
@@ -216,11 +244,10 @@ export function GcodeTransportPanel({
           />
         </div>
 
-        <div className="gcode-transport__group">
-          <label className="studio-field">
-            <span className="studio-field__label">Target</span>
-            <select
-              className="studio-input studio-input--compact"
+        <PanelCard>
+          <Field label="Target">
+            <Select
+              className="h-9"
               value={studio.transport.settings.target}
               onChange={(event) => {
                 studio.transport.setTarget(event.currentTarget.value as "serial" | "virtual");
@@ -228,42 +255,39 @@ export function GcodeTransportPanel({
             >
               <option value="serial">USB Serial Device</option>
               <option value="virtual">Virtual Plotter</option>
-            </select>
-          </label>
+            </Select>
+          </Field>
 
           {studio.transport.settings.target === "serial" ? (
             <>
               {!studio.transport.supported ? (
-                <div className="studio-empty-state">
+                <EmptyState>
                   This browser does not expose the Web Serial API. Use a Chromium-based browser to
                   connect a USB serial plotter directly.
-                </div>
+                </EmptyState>
               ) : (
                 <>
-                  <div className="studio-document-actions__row">
-                    <button
-                      className="studio-button"
+                  <div className="flex flex-wrap gap-2 max-sm:flex-col">
+                    <Button
                       disabled={studio.transport.connectionState === "connected"}
-                      type="button"
+                      variant="outline"
                       onClick={() => {
                         void studio.transport.connect();
                       }}
                     >
                       Connect
-                    </button>
-                    <button
-                      className="studio-button"
+                    </Button>
+                    <Button
                       disabled={studio.transport.connectionState !== "connected"}
-                      type="button"
+                      variant="outline"
                       onClick={() => {
                         void studio.transport.disconnect();
                       }}
                     >
                       Disconnect
-                    </button>
+                    </Button>
 
-                    <button
-                      className="studio-button"
+                    <Button
                       disabled={
                         !studio.transport.canResetAlarm ||
                         studio.transport.connectionState !== "connected" ||
@@ -271,20 +295,19 @@ export function GcodeTransportPanel({
                         studio.transport.jobState === "sending" ||
                         studio.transport.jobState === "paused"
                       }
-                      type="button"
+                      variant="outline"
                       onClick={() => {
                         void studio.transport.resetAlarm();
                       }}
                     >
                       Reset Alarm
-                    </button>
+                    </Button>
                   </div>
 
-                  <div className="gcode-transport__settings-grid">
-                    <label className="studio-field">
-                      <span className="studio-field__label">Baud</span>
-                      <input
-                        className="studio-input studio-input--compact"
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Baud">
+                      <Input
+                        className="h-9"
                         min={1200}
                         step={1}
                         type="number"
@@ -295,12 +318,11 @@ export function GcodeTransportPanel({
                           });
                         }}
                       />
-                    </label>
+                    </Field>
 
-                    <label className="studio-field">
-                      <span className="studio-field__label">Responses</span>
-                      <select
-                        className="studio-input studio-input--compact"
+                    <Field label="Responses">
+                      <Select
+                        className="h-9"
                         value={studio.transport.settings.responseMode}
                         onChange={(event) => {
                           studio.transport.updateSettings({
@@ -310,13 +332,12 @@ export function GcodeTransportPanel({
                       >
                         <option value="ack">Wait for ack</option>
                         <option value="timed">Timed send</option>
-                      </select>
-                    </label>
+                      </Select>
+                    </Field>
 
-                    <label className="studio-field">
-                      <span className="studio-field__label">Line ending</span>
-                      <select
-                        className="studio-input studio-input--compact"
+                    <Field label="Line ending">
+                      <Select
+                        className="h-9"
                         value={studio.transport.settings.lineEnding}
                         onChange={(event) => {
                           studio.transport.updateSettings({
@@ -326,15 +347,18 @@ export function GcodeTransportPanel({
                       >
                         <option value="lf">LF</option>
                         <option value="crlf">CRLF</option>
-                      </select>
-                    </label>
+                      </Select>
+                    </Field>
 
-                    <label className="studio-field">
-                      <span className="studio-field__label">
-                        {studio.transport.settings.responseMode === "ack" ? "Ack timeout" : "Line delay"}
-                      </span>
-                      <input
-                        className="studio-input studio-input--compact"
+                    <Field
+                      label={
+                        studio.transport.settings.responseMode === "ack"
+                          ? "Ack timeout"
+                          : "Line delay"
+                      }
+                    >
+                      <Input
+                        className="h-9"
                         min={0}
                         step={10}
                         type="number"
@@ -352,168 +376,137 @@ export function GcodeTransportPanel({
                           );
                         }}
                       />
-                    </label>
+                    </Field>
                   </div>
                 </>
               )}
             </>
           ) : null}
-        </div>
+        </PanelCard>
 
-        <div className="studio-document-actions">
-          <div className="studio-document-actions__row">
-            <button
-              className="studio-button"
+        <PanelCard>
+          <div className="grid gap-2">
+            <div className="flex flex-wrap gap-2 max-sm:flex-col">
+              <Button
               disabled={!canPrepare || studio.transport.jobState === "preparing"}
-              type="button"
+              variant="outline"
               onClick={() => {
                 void studio.transport.prepare();
               }}
             >
               {studio.transport.preparedArtifact ? "Refresh G-code" : "Prepare G-code"}
-            </button>
+              </Button>
 
-            <button
-              className="studio-button studio-button--primary"
+              <Button
               disabled={sendDisabled}
-              type="button"
+              variant="default"
               onClick={() => {
                 void studio.transport.send();
               }}
             >
               {studio.transport.settings.target === "virtual" ? "Run Virtual Plotter" : "Send G-code"}
-            </button>
-          </div>
+              </Button>
+            </div>
 
-          <div className="studio-document-actions__row">
-            <button
-              className="studio-button"
+            <div className="flex flex-wrap gap-2 max-sm:flex-col">
+              <Button
               disabled={studio.transport.jobState !== "sending"}
-              type="button"
+              variant="outline"
               onClick={() => {
                 studio.transport.pause();
               }}
             >
               Pause
-            </button>
+              </Button>
 
-            <button
-              className="studio-button"
+              <Button
               disabled={studio.transport.jobState !== "paused"}
-              type="button"
+              variant="outline"
               onClick={() => {
                 studio.transport.resume();
               }}
             >
               Resume
-            </button>
+              </Button>
 
-            <button
-              className="studio-button studio-button--danger"
+              <Button
               disabled={
                 studio.transport.jobState !== "sending" &&
                 studio.transport.jobState !== "paused"
               }
-              type="button"
+              variant="destructive"
               onClick={() => {
                 studio.transport.cancel();
               }}
             >
               Cancel
-            </button>
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="gcode-transport__progress">
-          <div className="gcode-transport__progress-bar">
-            <div
-              className="gcode-transport__progress-fill"
-              style={{
-                width: `${progressPercent}%`,
-              }}
-            />
+          <div className="grid gap-2">
+            <Progress value={progressPercent} />
+            <div className="text-right text-sm text-slate-500">
+              {studio.transport.progress.sentLines}/{studio.transport.progress.totalLines} lines
+            </div>
           </div>
-          <div className="gcode-transport__progress-label">
-            {studio.transport.progress.sentLines}/{studio.transport.progress.totalLines} lines
-          </div>
-        </div>
 
-        <div className="studio-document-actions__row">
-          <button
-            className="studio-button"
-            type="button"
+          <Button
+            className="w-full"
+            variant="outline"
             onClick={() => {
               studio.transport.clearLogs();
             }}
           >
             Clear log
-          </button>
-        </div>
+          </Button>
 
-        {studio.transport.lastError ? (
-          <div className="gcode-transport__error-card">
-            <span className="studio-field__label">Last Error</span>
-            <pre className="gcode-transport__error-text">{studio.transport.lastError}</pre>
-            {studio.transport.lastMachineError &&
-            studio.transport.lastMachineError !== studio.transport.lastError ? (
-              <pre className="gcode-transport__error-text">
-                {studio.transport.lastMachineError}
-              </pre>
-            ) : null}
+          {studio.transport.lastError ? (
+            <div className="grid gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Last Error
+              </span>
+              <CodeBlock>{studio.transport.lastError}</CodeBlock>
+              {studio.transport.lastMachineError &&
+              studio.transport.lastMachineError !== studio.transport.lastError ? (
+                <CodeBlock>{studio.transport.lastMachineError}</CodeBlock>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="grid gap-2">
+            <InfoRow label="Connection" value={connectionLabel(studio)} />
+            <InfoRow label="Job" value={jobLabel(studio)} />
+            <InfoRow label="Plotter" value={plotter?.label ?? "--"} />
+            <InfoRow label="Orientation" value={orientationLabel} />
+            <InfoRow
+              label="Oversize"
+              value={formatOversizeHandlingLabel(studio.exportSettings.oversizeHandling)}
+            />
+            <InfoRow
+              label="Prepared file"
+              value={studio.transport.preparedArtifact?.fileName ?? "--"}
+            />
+            <InfoRow label="Port" value={studio.transport.portLabel ?? "--"} />
+            <InfoRow
+              label="Acknowledged"
+              value={String(studio.transport.progress.acknowledgedLines)}
+            />
+            <InfoRow label="Errors" value={String(studio.transport.progress.errorLines)} />
+            <InfoRow label="Last response" value={studio.transport.lastResponse ?? "--"} />
+            <InfoRow
+              label="Last machine fault"
+              value={studio.transport.lastMachineError ?? "--"}
+            />
           </div>
-        ) : null}
-
-        <div className="studio-sidebar__meta-grid">
-          <span>Connection</span>
-          <span>{connectionLabel(studio)}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Job</span>
-          <span>{jobLabel(studio)}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Plotter</span>
-          <span>{plotter?.label ?? "--"}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Orientation</span>
-          <span>{orientationLabel}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Oversize</span>
-          <span>{formatOversizeHandlingLabel(studio.exportSettings.oversizeHandling)}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Prepared file</span>
-          <span>{studio.transport.preparedArtifact?.fileName ?? "--"}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Port</span>
-          <span>{studio.transport.portLabel ?? "--"}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Acknowledged</span>
-          <span>{studio.transport.progress.acknowledgedLines}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Errors</span>
-          <span>{studio.transport.progress.errorLines}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Last response</span>
-          <span>{studio.transport.lastResponse ?? "--"}</span>
-        </div>
-        <div className="studio-sidebar__meta-grid">
-          <span>Last machine fault</span>
-          <span>{studio.transport.lastMachineError ?? "--"}</span>
-        </div>
 
         {studio.transport.preparedStale ? (
-          <div className="studio-sidebar__issue">
+          <Notice tone="warning">
             The prepared G-code is stale. Refresh before sending if you want the latest parameter,
             plotter, orientation, or oversize settings included.
-          </div>
+          </Notice>
         ) : null}
+        </PanelCard>
       </aside>
     </div>
   );

@@ -1,3 +1,4 @@
+import { Button, Select, cn } from "@ligneclaire/ui";
 import { exportRotationOptions } from "../../lib/gcodeOrientation";
 import {
   exportOversizeOptions,
@@ -5,8 +6,8 @@ import {
   formatExportSettingsSummary,
   formatOversizeHandlingLabel,
 } from "../../lib/exportSettings";
-import { cx } from "../../lib/cx";
 import type { ExportRotationSetting, StudioModel } from "../../types";
+import { EmptyState, Field, InfoRow, Notice } from "../common/StudioPrimitives";
 import { StudioModalFrame } from "../common/StudioModalFrame";
 
 type ExportSettingsModalProps = Readonly<{
@@ -53,20 +54,18 @@ export function ExportSettingsModal({
       surfaceClassName="studio-modal__surface--panel"
       title="Export settings"
     >
-      <div className="export-settings">
-        <div className="export-settings__content">
-          <section className="export-settings__section">
-            <div className="export-settings__intro">
-              <p className="export-settings__lead">
+      <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
+        <div className="grid min-h-0 gap-5 overflow-auto pr-1">
+          <section className="grid gap-4 rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-4">
+            <div className="grid gap-2">
+              <p className="text-sm leading-6 text-slate-500">
                 Configure the plotter target and how G-code should adapt the page.
               </p>
-              <p className="export-settings__summary">{summary}</p>
+              <p className="text-sm font-medium leading-6 text-slate-900">{summary}</p>
             </div>
 
-            <label className="studio-field">
-              <span className="studio-field__label">Plotter model</span>
-              <select
-                className="studio-input"
+            <Field label="Plotter model">
+              <Select
                 disabled={studio.plotters.length === 0}
                 value={studio.exportSettings.deviceId}
                 onChange={(event) => {
@@ -79,43 +78,40 @@ export function ExportSettingsModal({
                       {candidate.label}
                     </option>
                   ))
-                ) : (
-                  <option value="">No plotter profiles</option>
-                )}
-              </select>
-            </label>
+                  ) : (
+                    <option value="">No plotter profiles</option>
+                  )}
+              </Select>
+            </Field>
 
             {plotter ? (
-              <div className="studio-sidebar__meta-grid">
-                <span>Page size</span>
-                <span>
-                  {plotter.page.widthMm} x {plotter.page.heightMm} mm
-                </span>
-              </div>
+              <InfoRow
+                label="Page size"
+                value={`${plotter.page.widthMm} x ${plotter.page.heightMm} mm`}
+              />
             ) : (
-              <div className="studio-empty-state">
+              <EmptyState>
                 Add a plotter profile to enable G-code export and transport.
-              </div>
+              </EmptyState>
             )}
 
             {studio.heightMesh.mesh ? (
-              <div className="studio-sidebar__meta-grid">
-                <span>Height mesh</span>
-                <span>
-                  {studio.heightMesh.mesh.grid.columns} x {studio.heightMesh.mesh.grid.rows}
-                  {studio.heightMesh.deviceMismatch ? " (wrong plotter)" : ""}
-                </span>
-              </div>
+              <InfoRow
+                label="Height mesh"
+                value={`${studio.heightMesh.mesh.grid.columns} x ${studio.heightMesh.mesh.grid.rows}${studio.heightMesh.deviceMismatch ? " (wrong plotter)" : ""}`}
+              />
             ) : null}
           </section>
 
-          <section className="export-settings__section">
-            <div className="export-settings__section-header">
-              <h3>Orientation</h3>
-              <p>Choose how the document should rotate before G-code generation.</p>
+          <section className="grid gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 p-4">
+            <div className="grid gap-1">
+              <h3 className="text-base font-semibold text-slate-950">Orientation</h3>
+              <p className="text-sm leading-6 text-slate-500">
+                Choose how the document should rotate before G-code generation.
+              </p>
             </div>
 
-            <div className="export-settings__choice-grid">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
               {exportRotationOptions.map((option) => {
                 const selected =
                   studio.exportSettings.rotationDeg === option.value;
@@ -124,9 +120,11 @@ export function ExportSettingsModal({
                   <button
                     key={String(option.value)}
                     aria-pressed={selected}
-                    className={cx(
-                      "export-settings__choice",
-                      selected && "export-settings__choice--active"
+                    className={cn(
+                      "rounded-[20px] border px-4 py-3 text-left text-sm font-medium transition",
+                      selected
+                        ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                     )}
                     type="button"
                     onClick={() => {
@@ -142,13 +140,15 @@ export function ExportSettingsModal({
             </div>
           </section>
 
-          <section className="export-settings__section">
-            <div className="export-settings__section-header">
-              <h3>Oversize handling</h3>
-              <p>Control what happens when the program canvas is larger than the plotter page.</p>
+          <section className="grid gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 p-4">
+            <div className="grid gap-1">
+              <h3 className="text-base font-semibold text-slate-950">Oversize handling</h3>
+              <p className="text-sm leading-6 text-slate-500">
+                Control what happens when the program canvas is larger than the plotter page.
+              </p>
             </div>
 
-            <div className="export-settings__stack">
+            <div className="grid gap-2">
               {exportOversizeOptions.map((option) => {
                 const selected = studio.exportSettings.oversizeHandling === option.value;
 
@@ -156,40 +156,46 @@ export function ExportSettingsModal({
                   <button
                     key={option.value}
                     aria-pressed={selected}
-                    className={cx(
-                      "export-settings__card",
-                      selected && "export-settings__card--active"
+                    className={cn(
+                      "grid gap-1 rounded-[20px] border px-4 py-3 text-left transition",
+                      selected
+                        ? "border-indigo-200 bg-indigo-50"
+                        : "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50"
                     )}
                     type="button"
                     onClick={() => {
                       studio.setExportOversizeHandling(option.value);
                     }}
                   >
-                    <span className="export-settings__card-title">{option.label}</span>
-                    <span className="export-settings__card-copy">{option.description}</span>
+                    <span className="font-semibold text-slate-900">{option.label}</span>
+                    <span className="text-sm leading-6 text-slate-500">{option.description}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="studio-sidebar__meta-grid">
-              <span>Selected mode</span>
-              <span>{formatOversizeHandlingLabel(studio.exportSettings.oversizeHandling)}</span>
-            </div>
+            <InfoRow
+              label="Selected mode"
+              value={formatOversizeHandlingLabel(studio.exportSettings.oversizeHandling)}
+            />
+            {!plotter ? (
+              <Notice tone="warning">
+                Pick a plotter profile before exporting or sending G-code.
+              </Notice>
+            ) : null}
           </section>
         </div>
 
-        <div className="export-settings__footer">
-          <button
-            className="studio-button studio-button--primary"
+        <div className="mt-5 flex justify-end border-t border-slate-200/80 pt-5">
+          <Button
             disabled={exportDisabled}
-            type="button"
+            variant="default"
             onClick={() => {
               void studio.exportGcode();
             }}
           >
             {studio.pendingExport === "gcode" ? "Exporting..." : "Export G-code"}
-          </button>
+          </Button>
         </div>
       </div>
     </StudioModalFrame>

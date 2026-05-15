@@ -136,21 +136,21 @@ export function GcodeVirtualPreview({
   }, [activeLineNumber, artifact, page, size]);
 
   return (
-    <div className="gcode-preview-frame">
+    <div className="relative h-full min-h-0">
       <canvas
         aria-hidden={isPreparing}
-        className="gcode-preview"
+        className="block h-full max-h-full min-h-0 w-full rounded-[20px] border border-slate-200/80 bg-[var(--studio-paper)]"
         ref={canvasRef}
       />
 
       {isPreparing ? (
         <div
           aria-live="polite"
-          className="gcode-preview__overlay"
+          className="absolute inset-0 grid place-items-center gap-3 rounded-[20px] border border-slate-200/80 bg-[rgba(255,253,248,0.88)] text-center text-slate-500 backdrop-blur-sm"
           role="status"
         >
-          <div className="gcode-preview__spinner" />
-          <div className="gcode-preview__label">Preparing G-code preview...</div>
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+          <div className="text-sm font-medium">Preparing G-code preview...</div>
         </div>
       ) : null}
     </div>

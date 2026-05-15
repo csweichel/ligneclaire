@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from "react";
-import { cx } from "../../lib/cx";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { cn } from "@ligneclaire/ui";
 
 type StudioWorkspaceProps = Readonly<{
   preview: ReactNode;
@@ -11,8 +11,36 @@ export function StudioWorkspace({
   editor,
 }: StudioWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
-  const [splitRatio, setSplitRatio] = useState(0.72);
+  const [splitRatio, setSplitRatio] = useState(0.6);
   const [dragging, setDragging] = useState(false);
+  const [stacked, setStacked] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia("(max-width: 1100px)").matches;
+  });
+  const separatorWidth = 10;
+  const minEditorWidth = 320;
+  const minPreviewWidth = 760;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 1100px)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setStacked(event.matches);
+    };
+
+    setStacked(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
 
   function updateSplit(clientX: number): void {
     const rect = workspaceRef.current?.getBoundingClientRect();
@@ -20,22 +48,32 @@ export function StudioWorkspace({
       return;
     }
 
-    const ratio = (clientX - rect.left) / rect.width;
-    setSplitRatio(Math.max(0.56, Math.min(0.82, ratio)));
+    const availableWidth = Math.max(rect.width - separatorWidth, minEditorWidth + minPreviewWidth);
+    const nextRatio = (clientX - rect.left) / availableWidth;
+    const minRatio = minPreviewWidth / availableWidth;
+    const maxRatio = 1 - minEditorWidth / availableWidth;
+
+    setSplitRatio(Math.min(maxRatio, Math.max(minRatio, nextRatio)));
   }
 
   return (
     <div
       ref={workspaceRef}
-      className="studio-workspace"
+      className="grid min-h-0 min-w-0 w-full flex-1 gap-0"
       style={{
-        gridTemplateColumns: `minmax(0, ${splitRatio}fr) 10px minmax(320px, ${1 - splitRatio}fr)`,
+        gridTemplateColumns: stacked
+          ? "1fr"
+          : `minmax(${minPreviewWidth}px, ${splitRatio}fr) ${separatorWidth}px minmax(${minEditorWidth}px, ${1 - splitRatio}fr)`,
       }}
     >
-      <div className="studio-workspace__pane">{preview}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden">{preview}</div>
 
       <div
-        className={cx("studio-divider", dragging && "is-active")}
+        className={cn(
+          "group relative cursor-col-resize rounded-full bg-gradient-to-b from-transparent via-slate-300 to-transparent",
+          stacked && "hidden",
+          dragging && "via-indigo-500"
+        )}
         role="separator"
         tabIndex={-1}
         onLostPointerCapture={() => {
@@ -56,9 +94,17 @@ export function StudioWorkspace({
         onPointerUp={() => {
           setDragging(false);
         }}
-      />
+        >
+          <div
+            aria-hidden="true"
+            className={cn(
+              "absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400/70 transition group-hover:bg-indigo-500/70",
+            dragging && "bg-indigo-500"
+          )}
+        />
+      </div>
 
-      <div className="studio-workspace__pane">{editor}</div>
+      <div className="min-h-0 min-w-0 overflow-hidden">{editor}</div>
     </div>
   );
 }

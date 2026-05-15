@@ -1,5 +1,14 @@
-import { useEffect, type ReactNode } from "react";
-import { cx } from "../../lib/cx";
+import type { ReactNode } from "react";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@ligneclaire/ui";
+import { cn } from "@ligneclaire/ui";
+import { Eyebrow } from "./StudioPrimitives";
 
 type StudioModalFrameProps = Readonly<{
   bodyClassName?: string;
@@ -18,50 +27,35 @@ export function StudioModalFrame({
   surfaceClassName,
   title,
 }: StudioModalFrameProps) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
-
   return (
-    <div
-      aria-modal="true"
-      className="studio-modal"
-      role="dialog"
-      onClick={onClose}
-    >
-      <div
-        className={cx("studio-modal__surface", surfaceClassName)}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
+    <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent
+        className={cn(
+          "grid h-[94vh] w-[min(94vw,1180px)] grid-rows-[auto_minmax(0,1fr)]",
+          surfaceClassName === "studio-modal__surface--panel" &&
+            "h-auto w-[min(760px,calc(100vw-24px))] max-h-[94vh]",
+          surfaceClassName
+        )}
       >
-        <div className="studio-modal__header">
-          <div className="studio-modal__copy">
-            {eyebrow ? <p className="studio-eyebrow">{eyebrow}</p> : null}
-            <h2 className="studio-modal__title">{title}</h2>
+        <DialogHeader className="flex-row items-start justify-between gap-4">
+          <div className="grid gap-2">
+            {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="sr-only">{title}</DialogDescription>
           </div>
 
-          <button
+          <Button
             aria-label={`Close ${title}`}
-            className="studio-button studio-button--compact"
-            type="button"
+            size="sm"
+            variant="secondary"
             onClick={onClose}
           >
             Close
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
-        <div className={cx("studio-modal__body", bodyClassName)}>{children}</div>
-      </div>
-    </div>
+        <div className={cn("min-h-0 overflow-hidden px-6 pb-6", bodyClassName)}>{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 }

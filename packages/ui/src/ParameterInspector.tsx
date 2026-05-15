@@ -1,5 +1,9 @@
 import { clamp, type ParameterSchema } from "@ligneclaire/engine";
 import type { JSX } from "react";
+import { Badge } from "./components/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/card";
+import { Input } from "./components/input";
+import { Switch } from "./components/switch";
 
 type ParameterValues = Readonly<Record<string, number | boolean>>;
 
@@ -24,35 +28,39 @@ export function ParameterInspector({
   }
 
   return (
-    <div className="lc-parameter-inspector">
+    <div className="flex w-full flex-col gap-4">
       {[...groups.entries()].map(([groupName, entries]) => (
-        <section key={groupName} className="lc-parameter-group">
-          <div className="lc-parameter-group__header">
-            <h3 className="lc-parameter-group__title">{groupName}</h3>
-            <span className="lc-parameter-group__meta">
+        <Card
+          key={groupName}
+          className="w-full rounded-[24px] border-slate-200/80 bg-white/80 shadow-sm"
+        >
+          <CardHeader className="flex-row items-center justify-between gap-4 pb-3">
+            <CardTitle className="text-base">{groupName}</CardTitle>
+            <Badge variant="default">
               {entries.length} control{entries.length === 1 ? "" : "s"}
-            </span>
-          </div>
+            </Badge>
+          </CardHeader>
 
-          <div className="lc-parameter-group__body">
+          <CardContent className="flex flex-col gap-3 pt-0">
             {entries.map(([key, spec]) => {
               const value = values[key];
 
               if (spec.kind === "bool") {
                 return (
-                  <label key={key} className="lc-parameter-toggle">
-                    <div className="lc-parameter-toggle__copy">
-                      <p className="lc-parameter-field__label">{spec.label ?? key}</p>
+                  <label
+                    key={key}
+                    className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3"
+                  >
+                    <div className="grid gap-1">
+                      <p className="text-sm font-semibold text-slate-900">{spec.label ?? key}</p>
                       {spec.description ? (
-                        <p className="lc-parameter-field__description">{spec.description}</p>
+                        <p className="text-sm leading-6 text-slate-500">{spec.description}</p>
                       ) : null}
                     </div>
-                    <input
+                    <Switch
                       checked={Boolean(value)}
-                      className="lc-parameter-toggle__checkbox"
-                      type="checkbox"
-                      onChange={(event) => {
-                        onChange(key, event.currentTarget.checked);
+                      onCheckedChange={(checked) => {
+                        onChange(key, checked);
                       }}
                     />
                   </label>
@@ -63,23 +71,26 @@ export function ParameterInspector({
               const step = spec.step ?? (spec.kind === "int" ? 1 : 0.01);
 
               return (
-                <div key={key} className="lc-parameter-field">
-                  <div className="lc-parameter-field__header">
-                    <div>
-                      <p className="lc-parameter-field__label">{spec.label ?? key}</p>
+                <div
+                  key={key}
+                  className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="grid gap-1">
+                      <p className="text-sm font-semibold text-slate-900">{spec.label ?? key}</p>
                       {spec.description ? (
-                        <p className="lc-parameter-field__description">{spec.description}</p>
+                        <p className="text-sm leading-6 text-slate-500">{spec.description}</p>
                       ) : null}
                     </div>
-                    <span className="lc-parameter-field__value">
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-slate-500">
                       {numericValue.toFixed(spec.kind === "int" ? 0 : 2)}
                       {spec.unit ? ` ${spec.unit}` : ""}
                     </span>
                   </div>
 
-                  <div className="lc-parameter-field__controls">
+                  <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center gap-3 max-sm:grid-cols-1">
                     <input
-                      className="lc-parameter-field__range"
+                      className="w-full accent-indigo-600"
                       max={spec.max}
                       min={spec.min}
                       step={step}
@@ -95,8 +106,8 @@ export function ParameterInspector({
                         );
                       }}
                     />
-                    <input
-                      className="lc-parameter-field__number"
+                    <Input
+                      className="h-10 text-right font-medium tabular-nums"
                       step={step}
                       type="number"
                       value={numericValue}
@@ -118,8 +129,8 @@ export function ParameterInspector({
                 </div>
               );
             })}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
