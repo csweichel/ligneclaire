@@ -8,8 +8,11 @@
   "gcode": {
     "unit": "mm",
     "feedRateMmPerMin": 2400,
-    "penUpCommand": "M5",
-    "penDownCommand": "M3 S30",
+    "penMotion": {
+      "mode": "commands",
+      "penUpCommand": "M5",
+      "penDownCommand": "M3 S30"
+    },
     "verticalFlip": true
   }
 }

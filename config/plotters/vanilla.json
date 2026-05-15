@@ -28,8 +28,11 @@
       "interpolation": "bilinear",
       "referenceMode": "max"
     },
-    "penUpCommand": "G91\nG0 Z50\nG90",
-    "penDownCommand": "G91\nG0 Z-50\nG90",
+    "penMotion": {
+      "mode": "z-depth",
+      "penUpZMm": 20,
+      "penDownZMm": 0
+    },
     "verticalFlip": false,
     "optimizePaths": false,
     "penUpAtDocumentEnd": true,

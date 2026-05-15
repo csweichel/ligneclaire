@@ -45,6 +45,7 @@ import {
   saveStudioSessionState,
   type StudioSessionState,
 } from "../lib/studioPersistence";
+import { defaultPlotterPenMotion } from "../lib/penMotion";
 import { useGcodeTransport } from "./useGcodeTransport";
 import type {
   CurrentDocumentState,
@@ -72,6 +73,7 @@ const initialExportSettings: ExportSettings = {
   deviceId: "",
   rotationDeg: "auto",
   oversizeHandling: "ignore",
+  penMotion: defaultPlotterPenMotion(null),
 };
 
 function snapshotValue(value: unknown): string {
@@ -174,6 +176,23 @@ function choosePreferredPlotterId(
   }
 
   return plotters[0]!.id;
+}
+
+function nextExportSettingsForDevice(
+  existing: ExportSettings,
+  plotters: readonly PlotterDeviceSummary[],
+  deviceId: string
+): ExportSettings {
+  if (deviceId === existing.deviceId) {
+    return existing;
+  }
+
+  const plotter = plotters.find((candidate) => candidate.id === deviceId) ?? null;
+  return {
+    ...existing,
+    deviceId,
+    penMotion: defaultPlotterPenMotion(plotter),
+  };
 }
 
 function createDownloadName(
@@ -295,6 +314,7 @@ export function useStudioData(): StudioModel {
     deviceId: exportSettings.deviceId,
     heightMesh,
     oversizeHandling: exportSettings.oversizeHandling,
+    penMotion: exportSettings.penMotion,
     plotters,
     rotationDeg: resolvedExportRotationDeg,
     selectedProgramId,
@@ -596,14 +616,7 @@ export function useStudioData(): StudioModel {
         programDetails?.canvas,
         existing.deviceId
       );
-      if (nextDeviceId === existing.deviceId) {
-        return existing;
-      }
-
-      return {
-        ...existing,
-        deviceId: nextDeviceId,
-      };
+      return nextExportSettingsForDevice(existing, plotters, nextDeviceId);
     });
   }, [
     plotters,
@@ -655,11 +668,7 @@ export function useStudioData(): StudioModel {
       ...currentSession,
       exportSettings,
     }));
-  }, [
-    exportSettings.deviceId,
-    exportSettings.rotationDeg,
-    exportSettings.oversizeHandling,
-  ]);
+  }, [exportSettings]);
 
   useEffect(() => {
     if (!selectedProgramId || !current) {
@@ -743,10 +752,9 @@ export function useStudioData(): StudioModel {
   }
 
   function setExportDeviceId(deviceId: string): void {
-    setExportSettings((existing) => ({
-      ...existing,
-      deviceId,
-    }));
+    setExportSettings((existing) =>
+      nextExportSettingsForDevice(existing, plotters, deviceId)
+    );
   }
 
   function setHeightMeshPlotterId(plotterId: string): void {
@@ -766,6 +774,13 @@ export function useStudioData(): StudioModel {
     setExportSettings((existing) => ({
       ...existing,
       oversizeHandling,
+    }));
+  }
+
+  function setExportPenMotion(penMotion: ExportSettings["penMotion"]): void {
+    setExportSettings((existing) => ({
+      ...existing,
+      penMotion,
     }));
   }
 
@@ -1215,6 +1230,7 @@ export function useStudioData(): StudioModel {
         deviceId: exportSettings.deviceId,
         rotationDeg: resolvedExportRotationDeg,
         oversizeHandling: exportSettings.oversizeHandling,
+        penMotion: exportSettings.penMotion,
         heightMesh: heightMesh ?? undefined,
         downloadName: createDownloadName(selectedProgramId, current.slug, ".gcode"),
       },
@@ -1269,6 +1285,7 @@ export function useStudioData(): StudioModel {
     setExportDeviceId,
     setExportRotationDeg,
     setExportOversizeHandling,
+    setExportPenMotion,
     saveCurrent,
     duplicateCurrent,
     createFromCurrent,

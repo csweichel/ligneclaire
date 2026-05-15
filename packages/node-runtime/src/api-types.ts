@@ -82,12 +82,29 @@ export type DownloadSvgRequest = RenderRequest &
     downloadName?: string;
   }>;
 
+export type PlotterPenMotionCommands = Readonly<{
+  mode: "commands";
+  penUpCommand: string;
+  penDownCommand: string;
+}>;
+
+export type PlotterPenMotionZDepth = Readonly<{
+  mode: "z-depth";
+  penUpZMm: number;
+  penDownZMm: number;
+}>;
+
+export type PlotterPenMotionConfig =
+  | PlotterPenMotionCommands
+  | PlotterPenMotionZDepth;
+
 export type DownloadGcodeRequest = RenderRequest &
   Readonly<{
     deviceId: string;
     oversizeHandling?: GcodeOversizeHandling;
     rotationDeg?: GcodeRotationDeg;
     heightMesh?: HeightMeshFile;
+    penMotion?: PlotterPenMotionConfig;
     downloadName?: string;
   }>;
 
@@ -103,6 +120,7 @@ export type ExportGcodeRequest = RenderRequest &
     oversizeHandling?: GcodeOversizeHandling;
     rotationDeg?: GcodeRotationDeg;
     heightMesh?: HeightMeshFile;
+    penMotion?: PlotterPenMotionConfig;
     outPath: string;
   }>;
 
@@ -157,8 +175,7 @@ export type PlotterGcodeConfig = Readonly<{
   preambleCommand?: string;
   heightMeshSampler?: HeightMeshSamplerConfig;
   heightMeshCompensation?: HeightMeshCompensationConfig;
-  penUpCommand: string;
-  penDownCommand: string;
+  penMotion: PlotterPenMotionConfig;
   verticalFlip: boolean;
   optimizePaths?: boolean;
   penUpAtDocumentEnd?: boolean;
@@ -195,6 +212,7 @@ export type PlotterGcodeSummary = Readonly<{
   preambleCommand?: string;
   heightMeshSampler?: HeightMeshSamplerConfig;
   heightMeshCompensation?: HeightMeshCompensationConfig;
+  penMotion: PlotterPenMotionConfig;
 }>;
 
 export type PlotterDeviceSummary = Readonly<{

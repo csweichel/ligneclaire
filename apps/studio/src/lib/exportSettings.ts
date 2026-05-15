@@ -4,6 +4,7 @@ import type {
   ProgramDetails,
 } from "@ligneclaire/node-runtime";
 import { formatExportRotationSummary } from "./gcodeOrientation";
+import { formatPenMotionModeLabel } from "./penMotion";
 import type { ExportSettings } from "../types";
 
 export const exportOversizeOptions: readonly Readonly<{
@@ -63,5 +64,5 @@ export function formatExportSettingsSummary(
 
   return `${plotterLabel} · ${orientationLabel} · ${formatOversizeHandlingLabel(
     settings.oversizeHandling
-  )}`;
+  )} · ${formatPenMotionModeLabel(settings.penMotion)}`;
 }

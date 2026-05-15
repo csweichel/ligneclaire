@@ -11,10 +11,12 @@ import type {
   ExportSvgRequest,
   GcodeOversizeHandling,
   GcodeRotationDeg,
+  PlotterPenMotionConfig,
 } from "./api-types";
 import { ensureDirectory, resolveExportPath, workspaceRoot, workspaceRelative } from "./paths";
 import { applyHeightMeshCompensation, parseHeightMeshFile } from "./height-mesh";
 import { loadPlotterConfig, type PlotterConfig } from "./plotters";
+import { resolvePlotterPenMotion } from "./pen-motion";
 import { runProcess } from "./process";
 import { getProgramDetails } from "./registry";
 import { renderProgram } from "./render";
@@ -150,11 +152,15 @@ async function makeTempWorkingDir(prefix: string): Promise<string> {
   return await mkdtemp(path.join(tmpdir(), `ligneclaire-${prefix}-`));
 }
 
-export function createGwriteProfile(config: PlotterConfig): string {
+export function createGwriteProfile(
+  config: PlotterConfig,
+  penMotionOverride?: PlotterPenMotionConfig
+): string {
   const unitCommand = config.gcode.unit === "mm" ? "G21" : "G20";
   const travelCommand = config.gcode.travelCommand ?? "G0";
   const travelFeedRateMmPerMin =
     config.gcode.travelFeedRateMmPerMin ?? config.gcode.feedRateMmPerMin;
+  const penMotion = resolvePlotterPenMotion(config.gcode, penMotionOverride);
   const travelMove = `${createMoveCommand(
     travelCommand,
     "{x:.4f}",
@@ -176,11 +182,11 @@ export function createGwriteProfile(config: PlotterConfig): string {
   ]);
   const segmentFirst = joinGcodeBlocks([
     travelMove.trimEnd(),
-    config.gcode.penDownCommand,
+    penMotion.penDownCommand,
     `G1 F${config.gcode.feedRateMmPerMin}`,
   ]);
   const documentEnd = joinGcodeBlocks([
-    ...(config.gcode.penUpAtDocumentEnd === false ? [] : [config.gcode.penUpCommand]),
+    ...(config.gcode.penUpAtDocumentEnd === false ? [] : [penMotion.penUpCommand]),
     ...(config.gcode.returnHomeAtDocumentEnd === false ? [] : [returnHomeMove.trimEnd()]),
     "M2",
   ]);
@@ -195,7 +201,7 @@ export function createGwriteProfile(config: PlotterConfig): string {
     'line_start = ""',
     `segment_first = """${escapeToml(segmentFirst)}"""`,
     `segment = """${escapeToml(`G1 X{x:.4f} Y{y:.4f} F${config.gcode.feedRateMmPerMin}\n`) }"""`,
-    `line_end = """${escapeToml(`${config.gcode.penUpCommand}\n`) }"""`,
+    `line_end = """${escapeToml(`${penMotion.penUpCommand}\n`) }"""`,
     `document_end = """${escapeToml(documentEnd)}"""`,
     `vertical_flip = ${config.gcode.verticalFlip ? "true" : "false"}`,
     "",
@@ -204,7 +210,7 @@ export function createGwriteProfile(config: PlotterConfig): string {
 
 function applyRequestedHeightMesh(
   gcode: string,
-  request: Pick<DownloadGcodeRequest | ExportGcodeRequest, "heightMesh">,
+  request: Pick<DownloadGcodeRequest | ExportGcodeRequest, "heightMesh" | "penMotion">,
   device: PlotterConfig
 ): string {
   if (!request.heightMesh) {
@@ -238,7 +244,7 @@ function applyRequestedHeightMesh(
     );
   }
 
-  return applyHeightMeshCompensation(gcode, mesh, device);
+  return applyHeightMeshCompensation(gcode, mesh, device, request.penMotion);
 }
 
 async function runVpypePipeline(inputSvgPath: string, extraArgs: readonly string[]): Promise<void> {
@@ -356,7 +362,7 @@ export async function exportGcode(request: ExportGcodeRequest): Promise<ExportRe
     const configPath = path.join(tempDir, "vpype-gwrite.toml");
     const device = await loadPlotterConfig(request.deviceId);
     await writeFile(inputSvgPath, renderResult.svg, "utf8");
-    await writeFile(configPath, createGwriteProfile(device), "utf8");
+    await writeFile(configPath, createGwriteProfile(device, request.penMotion), "utf8");
     const args = createGcodeExportArgs(
       request,
       configPath,
@@ -454,7 +460,7 @@ export async function exportGcodeDownload(
     const configPath = path.join(tempDir, "vpype-gwrite.toml");
     const device = await loadPlotterConfig(request.deviceId);
     await writeFile(inputSvgPath, renderResult.svg, "utf8");
-    await writeFile(configPath, createGwriteProfile(device), "utf8");
+    await writeFile(configPath, createGwriteProfile(device, request.penMotion), "utf8");
     const args = createGcodeExportArgs(
       request,
       configPath,

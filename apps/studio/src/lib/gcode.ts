@@ -24,6 +24,11 @@ export type GcodePreviewDocument = Readonly<{
   travelSegments: number;
 }>;
 
+export type ParseGcodePreviewOptions = Readonly<{
+  penUpCommand?: string;
+  penDownCommand?: string;
+}>;
+
 const commentPattern = /\([^)]*\)/g;
 
 type ParserState = Readonly<{
@@ -38,6 +43,10 @@ type ParserState = Readonly<{
 function stripComments(line: string): string {
   const withoutSemicolon = line.split(";")[0] ?? line;
   return withoutSemicolon.replace(commentPattern, "").trim();
+}
+
+function normalizeLine(line: string): string {
+  return stripComments(line).replace(/\s+/g, " ").trim().toUpperCase();
 }
 
 function readAxisWord(line: string, axis: "X" | "Y" | "Z"): number | null {
@@ -71,8 +80,88 @@ export function splitGcodeLines(content: string): readonly string[] {
     .filter((line) => line.length > 0);
 }
 
-export function parseGcodePreview(content: string): GcodePreviewDocument {
+function commandBlockLines(command: string | undefined): readonly string[] {
+  if (!command) {
+    return [];
+  }
+
+  return splitGcodeLines(command)
+    .map((line) => normalizeLine(line))
+    .filter((line) => line.length > 0);
+}
+
+function blockMatches(
+  lines: readonly string[],
+  startIndex: number,
+  block: readonly string[]
+): boolean {
+  if (block.length === 0 || startIndex + block.length > lines.length) {
+    return false;
+  }
+
+  for (let index = 0; index < block.length; index += 1) {
+    if (normalizeLine(lines[startIndex + index]!) !== block[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function nextParserState(state: ParserState, rawLine: string): ParserState {
+  const upperLine = normalizeLine(rawLine);
+  if (upperLine.length === 0) {
+    return state;
+  }
+
+  let nextState = state;
+  if (/\bG20\b/.test(upperLine)) {
+    nextState = { ...nextState, unitScale: 25.4 };
+  }
+  if (/\bG21\b/.test(upperLine)) {
+    nextState = { ...nextState, unitScale: 1 };
+  }
+  if (/\bG90\b/.test(upperLine)) {
+    nextState = { ...nextState, absolute: true };
+  }
+  if (/\bG91\b/.test(upperLine)) {
+    nextState = { ...nextState, absolute: false };
+  }
+
+  if (!/\bG0\b|\bG00\b|\bG1\b|\bG01\b/.test(upperLine)) {
+    return nextState;
+  }
+
+  return {
+    ...nextState,
+    x: nextAxisValue(
+      nextState.x,
+      readAxisWord(upperLine, "X"),
+      nextState.absolute,
+      nextState.unitScale
+    ),
+    y: nextAxisValue(
+      nextState.y,
+      readAxisWord(upperLine, "Y"),
+      nextState.absolute,
+      nextState.unitScale
+    ),
+    z: nextAxisValue(
+      nextState.z,
+      readAxisWord(upperLine, "Z"),
+      nextState.absolute,
+      nextState.unitScale
+    ),
+  };
+}
+
+export function parseGcodePreview(
+  content: string,
+  options: ParseGcodePreviewOptions = {}
+): GcodePreviewDocument {
   const lines = splitGcodeLines(content);
+  const penDownBlock = commandBlockLines(options.penDownCommand);
+  const penUpBlock = commandBlockLines(options.penUpCommand);
   let state: ParserState = {
     x: 0,
     y: 0,
@@ -94,26 +183,41 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
     maxY = Math.max(maxY, y);
   }
 
-  for (let index = 0; index < lines.length; index += 1) {
+  for (let index = 0; index < lines.length; ) {
+    if (blockMatches(lines, index, penDownBlock)) {
+      let nextState = state;
+      for (let blockIndex = 0; blockIndex < penDownBlock.length; blockIndex += 1) {
+        nextState = nextParserState(nextState, lines[index + blockIndex]!);
+      }
+      state = {
+        ...nextState,
+        drawing: true,
+      };
+      index += penDownBlock.length;
+      continue;
+    }
+
+    if (blockMatches(lines, index, penUpBlock)) {
+      let nextState = state;
+      for (let blockIndex = 0; blockIndex < penUpBlock.length; blockIndex += 1) {
+        nextState = nextParserState(nextState, lines[index + blockIndex]!);
+      }
+      state = {
+        ...nextState,
+        drawing: false,
+      };
+      index += penUpBlock.length;
+      continue;
+    }
+
     const rawLine = lines[index]!;
     const line = stripComments(rawLine);
     if (line.length === 0) {
+      index += 1;
       continue;
     }
 
     const upperLine = line.toUpperCase();
-    if (/\bG20\b/.test(upperLine)) {
-      state = { ...state, unitScale: 25.4 };
-    }
-    if (/\bG21\b/.test(upperLine)) {
-      state = { ...state, unitScale: 1 };
-    }
-    if (/\bG90\b/.test(upperLine)) {
-      state = { ...state, absolute: true };
-    }
-    if (/\bG91\b/.test(upperLine)) {
-      state = { ...state, absolute: false };
-    }
     if (/\bM3\b/.test(upperLine) || /\bM4\b/.test(upperLine)) {
       state = { ...state, drawing: true };
     }
@@ -122,46 +226,31 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
     }
 
     if (!/\bG0\b|\bG00\b|\bG1\b|\bG01\b/.test(upperLine)) {
+      state = nextParserState(state, rawLine);
+      index += 1;
       continue;
     }
 
     const xWord = readAxisWord(upperLine, "X");
     const yWord = readAxisWord(upperLine, "Y");
     const hasXYMotion = xWord !== null || yWord !== null;
-    const nextX = nextAxisValue(
-      state.x,
-      xWord,
-      state.absolute,
-      state.unitScale
-    );
-    const nextY = nextAxisValue(
-      state.y,
-      yWord,
-      state.absolute,
-      state.unitScale
-    );
     const zWord = readAxisWord(upperLine, "Z");
-    const nextZ = nextAxisValue(
-      state.z,
-      zWord,
-      state.absolute,
-      state.unitScale
-    );
+    const nextState = nextParserState(state, rawLine);
     const nextDrawing =
       /\bM3\b|\bM4\b/.test(upperLine)
         ? true
         : /\bM5\b/.test(upperLine)
           ? false
           : !hasXYMotion && zWord !== null
-            ? nextZ >= 0
+            ? nextState.z >= 0
             : state.drawing;
 
-    if (nextX === state.x && nextY === state.y) {
+    if (nextState.x === state.x && nextState.y === state.y) {
       state = {
-        ...state,
-        z: nextZ,
+        ...nextState,
         drawing: nextDrawing,
       };
+      index += 1;
       continue;
     }
 
@@ -172,8 +261,8 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
         y: state.y,
       },
       to: {
-        x: nextX,
-        y: nextY,
+        x: nextState.x,
+        y: nextState.y,
       },
       drawing: nextDrawing,
     };
@@ -182,12 +271,10 @@ export function parseGcodePreview(content: string): GcodePreviewDocument {
     includePoint(segment.to.x, segment.to.y);
 
     state = {
-      ...state,
-      x: nextX,
-      y: nextY,
-      z: nextZ,
+      ...nextState,
       drawing: nextDrawing,
     };
+    index += 1;
   }
 
   return {

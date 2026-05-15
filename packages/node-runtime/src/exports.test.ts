@@ -20,8 +20,11 @@ describe("createGwriteProfile", () => {
       gcode: {
         unit: "mm",
         feedRateMmPerMin: 2400,
-        penUpCommand: "M5",
-        penDownCommand: "M3 S30",
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "M5",
+          penDownCommand: "M3 S30",
+        },
         verticalFlip: true,
       },
     };
@@ -46,8 +49,11 @@ describe("createGwriteProfile", () => {
         feedRateMmPerMin: 1200,
         travelCommand: "G1",
         travelFeedRateMmPerMin: 1200,
-        penUpCommand: "M5\nG4 P1",
-        penDownCommand: "M3 S400\nG4 P1",
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "M5\nG4 P1",
+          penDownCommand: "M3 S400\nG4 P1",
+        },
         verticalFlip: true,
       },
     };
@@ -72,8 +78,11 @@ describe("createGwriteProfile", () => {
         unit: "mm",
         feedRateMmPerMin: 2400,
         preambleCommand: "G54\nG92 X0 Y0",
-        penUpCommand: "M5",
-        penDownCommand: "M3 S30",
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "M5",
+          penDownCommand: "M3 S30",
+        },
         verticalFlip: true,
       },
     };
@@ -105,8 +114,11 @@ describe("createGwriteProfile", () => {
           releaseDistanceMm: 10,
           clearanceMm: 1,
         },
-        penUpCommand: "M5",
-        penDownCommand: "M3 S30",
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "M5",
+          penDownCommand: "M3 S30",
+        },
         verticalFlip: true,
       },
     };
@@ -131,8 +143,11 @@ describe("createGwriteProfile", () => {
         feedRateMmPerMin: 1200,
         travelCommand: "G0",
         travelFeedRateMmPerMin: 1200,
-        penUpCommand: "G91\nG0 Z-15\nG90",
-        penDownCommand: "G91\nG0 Z15\nG90",
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "G91\nG0 Z-15\nG90",
+          penDownCommand: "G91\nG0 Z15\nG90",
+        },
         verticalFlip: false,
         optimizePaths: false,
         penUpAtDocumentEnd: true,
@@ -147,6 +162,38 @@ describe("createGwriteProfile", () => {
     expect(profile).toContain('line_end = """G91\nG0 Z-15\nG90');
     expect(profile).toContain('document_end = """G91\nG0 Z-15\nG90\nM2\n"""');
   });
+
+  it("can synthesize Z-axis pen moves from a configured depth mode", () => {
+    const config: PlotterConfig = {
+      id: "vanilla",
+      label: "Vanilla G-code (raw XY/Z)",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 1200,
+        travelCommand: "G0",
+        travelFeedRateMmPerMin: 1200,
+        penMotion: {
+          mode: "z-depth",
+          penUpZMm: 12.5,
+          penDownZMm: -1.25,
+        },
+        verticalFlip: false,
+        optimizePaths: false,
+        penUpAtDocumentEnd: true,
+        returnHomeAtDocumentEnd: false,
+      },
+    };
+
+    const profile = createGwriteProfile(config);
+
+    expect(profile).toContain('segment_first = """G0 X{x:.4f} Y{y:.4f}\nG0 Z-1.25\nG1 F1200');
+    expect(profile).toContain('line_end = """G0 Z12.5\n"""');
+    expect(profile).toContain('document_end = """G0 Z12.5\nM2\n"""');
+  });
 });
 
 describe("applyHeightMeshCompensation", () => {
@@ -160,8 +207,11 @@ describe("applyHeightMeshCompensation", () => {
     gcode: {
       unit: "mm",
       feedRateMmPerMin: 1200,
-      penUpCommand: "G91\nG0 Z50\nG90",
-      penDownCommand: "G91\nG0 Z-50\nG90",
+      penMotion: {
+        mode: "commands",
+        penUpCommand: "G91\nG0 Z50\nG90",
+        penDownCommand: "G91\nG0 Z-50\nG90",
+      },
       heightMeshCompensation: {
         enabled: true,
         interpolation: "nearest",
@@ -256,6 +306,31 @@ describe("applyHeightMeshCompensation", () => {
 
     expect(compensated).toContain("G91\nG0 Z-50\nG90\nG1 Z-51 F1200\nG1 F1200");
   });
+
+  it("adds mesh offsets on top of the configured Z-depth drawing height", () => {
+    const compensated = applyHeightMeshCompensation(
+      [
+        "G21",
+        "G90",
+        "G0 X0 Y50",
+        "G0 Z-1",
+        "G1 F1200",
+        "G1 X100 Y50 F1200",
+        "G0 Z5",
+        "M2",
+      ].join("\n"),
+      createMesh([0, -2]),
+      plotter,
+      {
+        mode: "z-depth",
+        penUpZMm: 5,
+        penDownZMm: -1,
+      }
+    );
+
+    expect(compensated).toContain("G1 X100 Y50 F1200 Z-3");
+    expect(compensated).toContain("G1 Z-1 F1200\nG0 Z5");
+  });
 });
 
 describe("buildPageRotationCommands", () => {
@@ -344,8 +419,11 @@ describe("createGcodeExportArgs", () => {
       gcode: {
         unit: "mm",
         feedRateMmPerMin: 1200,
-        penUpCommand: "G91\nG0 Z-15\nG90",
-        penDownCommand: "G91\nG0 Z15\nG90",
+        penMotion: {
+          mode: "commands",
+          penUpCommand: "G91\nG0 Z-15\nG90",
+          penDownCommand: "G91\nG0 Z15\nG90",
+        },
         verticalFlip: false,
         optimizePaths: false,
         penUpAtDocumentEnd: true,

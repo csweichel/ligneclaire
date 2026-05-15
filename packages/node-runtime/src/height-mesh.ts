@@ -3,6 +3,8 @@ import {
   sampleHeightMeshZ,
   type HeightMeshFile,
 } from "@ligneclaire/engine";
+import type { PlotterPenMotionConfig } from "./api-types";
+import { resolvePlotterPenMotion } from "./pen-motion";
 import type { PlotterConfig } from "./plotters";
 
 export {
@@ -179,7 +181,8 @@ function createAbsoluteZMove(zMm: number, feedRateMmPerMin: number): string {
 export function applyHeightMeshCompensation(
   gcode: string,
   mesh: HeightMeshFile,
-  plotter: PlotterConfig
+  plotter: PlotterConfig,
+  penMotionOverride?: PlotterPenMotionConfig
 ): string {
   const compensation = plotter.gcode.heightMeshCompensation;
   if (!compensation || compensation.enabled === false) {
@@ -187,8 +190,9 @@ export function applyHeightMeshCompensation(
   }
 
   const activeCompensation = compensation;
-  const penDownBlock = commandBlockLines(plotter.gcode.penDownCommand);
-  const penUpBlock = commandBlockLines(plotter.gcode.penUpCommand);
+  const penMotion = resolvePlotterPenMotion(plotter.gcode, penMotionOverride);
+  const penDownBlock = commandBlockLines(penMotion.penDownCommand);
+  const penUpBlock = commandBlockLines(penMotion.penUpCommand);
   const referenceZMm = resolveHeightMeshReferenceZ(mesh, activeCompensation.referenceMode);
   const lines = splitLines(gcode);
   const output: string[] = [

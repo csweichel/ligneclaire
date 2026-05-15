@@ -1,4 +1,4 @@
-import { Button, Select, cn } from "@ligneclaire/ui";
+import { Button, Input, Select, Textarea, cn } from "@ligneclaire/ui";
 import { exportRotationOptions } from "../../lib/gcodeOrientation";
 import {
   exportOversizeOptions,
@@ -6,6 +6,7 @@ import {
   formatExportSettingsSummary,
   formatOversizeHandlingLabel,
 } from "../../lib/exportSettings";
+import { formatPenMotionModeLabel } from "../../lib/penMotion";
 import type { ExportRotationSetting, StudioModel } from "../../types";
 import { EmptyState, Field, InfoRow, Notice } from "../common/StudioPrimitives";
 import { StudioModalFrame } from "../common/StudioModalFrame";
@@ -31,11 +32,35 @@ function parseExportRotationSetting(value: string): ExportRotationSetting {
   }
 }
 
+function penMotionDefaultsForMode(
+  studio: StudioModel,
+  mode: "commands" | "z-depth"
+): StudioModel["exportSettings"]["penMotion"] {
+  const plotter = findSelectedPlotter(studio.plotters, studio.exportSettings.deviceId);
+  const plotterPenMotion = plotter?.gcode?.penMotion;
+  if (plotterPenMotion?.mode === mode) {
+    return plotterPenMotion;
+  }
+
+  return mode === "commands"
+    ? {
+        mode,
+        penUpCommand: "",
+        penDownCommand: "",
+      }
+    : {
+        mode,
+        penUpZMm: 0,
+        penDownZMm: 0,
+      };
+}
+
 export function ExportSettingsModal({
   onClose,
   studio,
 }: ExportSettingsModalProps) {
   const plotter = findSelectedPlotter(studio.plotters, studio.exportSettings.deviceId);
+  const penMotion = studio.exportSettings.penMotion;
   const summary = formatExportSettingsSummary(
     studio.exportSettings,
     studio.plotters,
@@ -181,6 +206,132 @@ export function ExportSettingsModal({
             {!plotter ? (
               <Notice tone="warning">
                 Pick a plotter profile before exporting or sending G-code.
+              </Notice>
+            ) : null}
+          </section>
+
+          <section className="grid gap-4 rounded-lc-control border border-lc-border bg-lc-panel p-4">
+            <div className="grid gap-1">
+              <h3 className="text-base font-semibold text-lc-text">Pen motion</h3>
+              <p className="text-sm leading-6 text-lc-text-secondary">
+                Choose whether pen lifts and drops are emitted as raw command blocks or as
+                absolute Z-axis moves.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
+              {(["commands", "z-depth"] as const).map((mode) => {
+                const selected = penMotion.mode === mode;
+
+                return (
+                  <button
+                    key={mode}
+                    aria-pressed={selected}
+                    className={cn(
+                      "rounded-lc-control border px-4 py-3 text-left text-sm font-medium transition-colors",
+                      selected
+                        ? "border-lc-primary bg-lc-primary-soft text-lc-primary-ink"
+                        : "border-lc-border bg-lc-panel text-lc-text-secondary hover:bg-lc-panel-hover"
+                    )}
+                    type="button"
+                    onClick={() => {
+                      if (penMotion.mode === mode) {
+                        return;
+                      }
+
+                      studio.setExportPenMotion(penMotionDefaultsForMode(studio, mode));
+                    }}
+                  >
+                    <span>{mode === "commands" ? "Commands" : "Z depth"}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {penMotion.mode === "commands" ? (
+              <div className="grid gap-4">
+                <Field
+                  label="Pen up command"
+                  hint="Sent between drawing segments and at document end unless disabled by the plotter profile."
+                >
+                  <Textarea
+                    value={penMotion.penUpCommand}
+                    onChange={(event) => {
+                      studio.setExportPenMotion({
+                        ...penMotion,
+                        penUpCommand: event.currentTarget.value,
+                      });
+                    }}
+                  />
+                </Field>
+
+                <Field
+                  label="Pen down command"
+                  hint="Sent after each travel move, right before drawing begins."
+                >
+                  <Textarea
+                    value={penMotion.penDownCommand}
+                    onChange={(event) => {
+                      studio.setExportPenMotion({
+                        ...penMotion,
+                        penDownCommand: event.currentTarget.value,
+                      });
+                    }}
+                  />
+                </Field>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  label="Pen up Z (mm)"
+                  hint="Absolute safe travel height used while moving between paths."
+                >
+                  <Input
+                    step="0.1"
+                    type="number"
+                    value={penMotion.penUpZMm}
+                    onChange={(event) => {
+                      const nextValue = Number(event.currentTarget.value);
+                      if (!Number.isFinite(nextValue)) {
+                        return;
+                      }
+
+                      studio.setExportPenMotion({
+                        ...penMotion,
+                        penUpZMm: nextValue,
+                      });
+                    }}
+                  />
+                </Field>
+
+                <Field
+                  label="Pen down Z (mm)"
+                  hint="Base drawing depth before height-mesh compensation is added."
+                >
+                  <Input
+                    step="0.1"
+                    type="number"
+                    value={penMotion.penDownZMm}
+                    onChange={(event) => {
+                      const nextValue = Number(event.currentTarget.value);
+                      if (!Number.isFinite(nextValue)) {
+                        return;
+                      }
+
+                      studio.setExportPenMotion({
+                        ...penMotion,
+                        penDownZMm: nextValue,
+                      });
+                    }}
+                  />
+                </Field>
+              </div>
+            )}
+
+            <InfoRow label="Selected mode" value={formatPenMotionModeLabel(penMotion)} />
+            {plotter?.gcode?.heightMeshCompensation?.enabled && penMotion.mode === "z-depth" ? (
+              <Notice tone="info">
+                Height-mesh offsets are added to the configured pen-down Z while drawing.
               </Notice>
             ) : null}
           </section>

@@ -57,7 +57,31 @@ describe("parseGcodePreview", () => {
       G0 Z-15
       G90
       G0 X20 Y5
-    `);
+    `, {
+      penUpCommand: "G91\nG0 Z-15\nG90",
+      penDownCommand: "G91\nG0 Z15\nG90",
+    });
+
+    expect(preview.segments).toHaveLength(2);
+    expect(preview.drawingSegments).toBe(1);
+    expect(preview.travelSegments).toBe(1);
+    expect(preview.segments[0]?.drawing).toBe(true);
+    expect(preview.segments[1]?.drawing).toBe(false);
+  });
+
+  it("matches configured absolute Z-depth pen moves without relying on sign heuristics", () => {
+    const preview = parseGcodePreview(`
+      G21
+      G90
+      G0 X0 Y0
+      G0 Z-1
+      G1 X10 Y5
+      G0 Z5
+      G0 X20 Y5
+    `, {
+      penUpCommand: "G0 Z5",
+      penDownCommand: "G0 Z-1",
+    });
 
     expect(preview.segments).toHaveLength(2);
     expect(preview.drawingSegments).toBe(1);

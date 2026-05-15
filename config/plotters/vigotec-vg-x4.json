@@ -10,8 +10,11 @@
     "feedRateMmPerMin": 1200,
     "travelCommand": "G1",
     "travelFeedRateMmPerMin": 1200,
-    "penUpCommand": "M5\nG4 P1",
-    "penDownCommand": "M3 S400\nG4 P1",
+    "penMotion": {
+      "mode": "commands",
+      "penUpCommand": "M5\nG4 P1",
+      "penDownCommand": "M3 S400\nG4 P1"
+    },
     "verticalFlip": true
   },
   "transport": {

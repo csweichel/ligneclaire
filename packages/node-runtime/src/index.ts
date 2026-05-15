@@ -5,6 +5,7 @@ export * from "./google-fonts";
 export * from "./height-mesh";
 export * from "./param-store";
 export * from "./paths";
+export * from "./pen-motion";
 export * from "./plotters";
 export * from "./registry";
 export * from "./render";

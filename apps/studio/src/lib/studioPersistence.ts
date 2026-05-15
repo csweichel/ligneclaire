@@ -1,3 +1,4 @@
+import type { PlotterPenMotionConfig } from "@ligneclaire/node-runtime";
 import type { CurrentDocumentState, ExportRotationSetting, ExportSettings } from "../types";
 
 const storageKey = "ligneclaire.studio.session.v1";
@@ -38,6 +39,44 @@ function parseRotationDeg(value: unknown): ExportRotationSetting | null {
   }
 }
 
+function parsePenMotionConfig(value: unknown): PlotterPenMotionConfig | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  switch (candidate.mode) {
+    case "commands":
+      if (
+        typeof candidate.penUpCommand === "string" &&
+        typeof candidate.penDownCommand === "string"
+      ) {
+        return {
+          mode: "commands",
+          penUpCommand: candidate.penUpCommand,
+          penDownCommand: candidate.penDownCommand,
+        };
+      }
+      return null;
+    case "z-depth":
+      if (
+        typeof candidate.penUpZMm === "number" &&
+        Number.isFinite(candidate.penUpZMm) &&
+        typeof candidate.penDownZMm === "number" &&
+        Number.isFinite(candidate.penDownZMm)
+      ) {
+        return {
+          mode: "z-depth",
+          penUpZMm: candidate.penUpZMm,
+          penDownZMm: candidate.penDownZMm,
+        };
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
 function parseExportSettings(value: unknown): ExportSettings | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -46,10 +85,12 @@ function parseExportSettings(value: unknown): ExportSettings | null {
   const candidate = value as Record<string, unknown>;
   const rotationDeg = parseRotationDeg(candidate.rotationDeg);
   const oversizeHandling = candidate.oversizeHandling;
+  const penMotion = parsePenMotionConfig(candidate.penMotion);
 
   if (
     typeof candidate.deviceId !== "string" ||
     rotationDeg === null ||
+    penMotion === null ||
     (oversizeHandling !== "ignore" &&
       oversizeHandling !== "scale" &&
       oversizeHandling !== "clip")
@@ -61,6 +102,7 @@ function parseExportSettings(value: unknown): ExportSettings | null {
     deviceId: candidate.deviceId,
     rotationDeg,
     oversizeHandling,
+    penMotion,
   };
 }
 

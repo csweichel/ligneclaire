@@ -3,6 +3,10 @@ import path from "node:path";
 import { RuntimeError } from "./errors";
 import { resolvePlotterConfigPath, workspaceRoot } from "./paths";
 import type { PlotterDeviceSummary, PlotterGcodeConfig } from "./api-types";
+import {
+  normalizePlotterPenMotion,
+  type PlotterGcodeConfigWithLegacyPenCommands,
+} from "./pen-motion";
 
 export type PlotterConfig = PlotterDeviceSummary &
   Readonly<{
@@ -11,10 +15,35 @@ export type PlotterConfig = PlotterDeviceSummary &
 
 const plotterConfigDirectory = path.join(workspaceRoot, "config", "plotters");
 
+type RawPlotterConfig = Omit<PlotterConfig, "gcode"> &
+  Readonly<{
+    gcode: PlotterGcodeConfigWithLegacyPenCommands;
+  }>;
+
+function normalizePlotterConfig(config: RawPlotterConfig): PlotterConfig {
+  const nextGcode = Object.fromEntries(
+    Object.entries({
+      ...config.gcode,
+      penMotion: normalizePlotterPenMotion(config.gcode),
+    }).filter(([key]) => key !== "penUpCommand" && key !== "penDownCommand")
+  );
+
+  return {
+    ...config,
+    gcode: nextGcode as PlotterGcodeConfig,
+  };
+}
+
 async function readPlotterConfig(filePath: string): Promise<PlotterConfig> {
   try {
-    return JSON.parse(await readFile(filePath, "utf8")) as PlotterConfig;
+    return normalizePlotterConfig(
+      JSON.parse(await readFile(filePath, "utf8")) as RawPlotterConfig
+    );
   } catch (error) {
+    if (error instanceof RuntimeError) {
+      throw error;
+    }
+
     throw new RuntimeError("INVALID_PLOTTER_CONFIG", `Failed to read plotter config ${filePath}.`, {
       status: 500,
       cause: error,
@@ -47,6 +76,7 @@ export async function listPlotters(): Promise<readonly PlotterDeviceSummary[]> {
           preambleCommand: config.gcode.preambleCommand,
           heightMeshSampler: config.gcode.heightMeshSampler,
           heightMeshCompensation: config.gcode.heightMeshCompensation,
+          penMotion: config.gcode.penMotion,
         },
         transport: config.transport,
       };

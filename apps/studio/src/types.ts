@@ -13,6 +13,7 @@ import type {
   HeightMeshSamplerConfig,
   ParamSetListResponse,
   PlotterDeviceSummary,
+  PlotterPenMotionConfig,
   ProgramDetails,
   ProgramListItem,
   ToolDiagnostics,
@@ -45,6 +46,7 @@ export type ExportSettings = Readonly<{
   deviceId: string;
   rotationDeg: ExportRotationSetting;
   oversizeHandling: GcodeOversizeHandling;
+  penMotion: PlotterPenMotionConfig;
 }>;
 
 export type GcodeTransportTarget = "serial" | "virtual";
@@ -239,6 +241,7 @@ export type StudioModel = Readonly<{
   setExportDeviceId: (deviceId: string) => void;
   setExportRotationDeg: (rotationDeg: ExportRotationSetting) => void;
   setExportOversizeHandling: (oversizeHandling: GcodeOversizeHandling) => void;
+  setExportPenMotion: (penMotion: PlotterPenMotionConfig) => void;
   saveCurrent: () => Promise<void>;
   duplicateCurrent: () => Promise<void>;
   createFromCurrent: () => Promise<void>;

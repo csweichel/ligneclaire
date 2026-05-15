@@ -2,11 +2,13 @@ import type {
   GcodeOversizeHandling,
   HeightMeshFile,
   PlotterDeviceSummary,
+  PlotterPenMotionConfig,
 } from "@ligneclaire/node-runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetchTextArtifact } from "../api";
 import type { ResolvedGcodeRotationDeg } from "../lib/gcodeOrientation";
 import { parseGcodePreview } from "../lib/gcode";
+import { resolvePenMotionCommands } from "../lib/penMotion";
 import type {
   CurrentDocumentState,
   GcodeLogEntry,
@@ -26,6 +28,7 @@ type UseGcodeTransportArgs = Readonly<{
   deviceId: string;
   heightMesh: HeightMeshFile | null;
   oversizeHandling: GcodeOversizeHandling;
+  penMotion: PlotterPenMotionConfig;
   plotters: readonly PlotterDeviceSummary[];
   rotationDeg: ResolvedGcodeRotationDeg;
   selectedProgramId: string;
@@ -279,6 +282,7 @@ export function useGcodeTransport({
   deviceId,
   heightMesh,
   oversizeHandling,
+  penMotion,
   plotters,
   rotationDeg,
   selectedProgramId,
@@ -329,10 +333,19 @@ export function useGcodeTransport({
             deviceId,
             rotationDeg,
             oversizeHandling,
+            penMotion,
             heightMesh,
           })
         : null,
-    [current, deviceId, heightMesh, oversizeHandling, rotationDeg, selectedProgramId]
+    [
+      current,
+      deviceId,
+      heightMesh,
+      oversizeHandling,
+      penMotion,
+      rotationDeg,
+      selectedProgramId,
+    ]
   );
 
   useEffect(() => {
@@ -683,9 +696,11 @@ export function useGcodeTransport({
         deviceId,
         rotationDeg,
         oversizeHandling,
+        penMotion,
         heightMesh,
         downloadName: `${selectedProgramId}-${current.slug}.gcode`,
       });
+      const previewPenMotion = resolvePenMotionCommands(selectedPlotter, penMotion);
       const artifact: GcodePreparedArtifact = {
         fileName: response.fileName,
         content: response.content,
@@ -693,7 +708,7 @@ export function useGcodeTransport({
           .split(/\r?\n/)
           .map((line) => line.trim())
           .filter((line) => line.length > 0),
-        preview: parseGcodePreview(response.content),
+        preview: parseGcodePreview(response.content, previewPenMotion),
         snapshot: currentSnapshot,
         generatedAt: new Date().toISOString(),
       };
