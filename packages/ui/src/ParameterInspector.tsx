@@ -32,7 +32,7 @@ export function ParameterInspector({
       {[...groups.entries()].map(([groupName, entries]) => (
         <Card
           key={groupName}
-          className="w-full rounded-[24px] border-slate-200/80 bg-white/80 shadow-sm"
+          className="w-full rounded-lc-control border-lc-border bg-lc-panel shadow-none"
         >
           <CardHeader className="flex-row items-center justify-between gap-4 pb-3">
             <CardTitle className="text-base">{groupName}</CardTitle>
@@ -49,12 +49,12 @@ export function ParameterInspector({
                 return (
                   <label
                     key={key}
-                    className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3"
+                    className="flex items-start justify-between gap-4 rounded-lc-control border border-lc-border bg-lc-panel-subtle px-4 py-3"
                   >
                     <div className="grid gap-1">
-                      <p className="text-sm font-semibold text-slate-900">{spec.label ?? key}</p>
+                      <p className="text-sm font-semibold text-lc-text">{spec.label ?? key}</p>
                       {spec.description ? (
-                        <p className="text-sm leading-6 text-slate-500">{spec.description}</p>
+                        <p className="text-sm leading-6 text-lc-text-secondary">{spec.description}</p>
                       ) : null}
                     </div>
                     <Switch
@@ -73,16 +73,16 @@ export function ParameterInspector({
               return (
                 <div
                   key={key}
-                  className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3"
+                  className="grid gap-3 rounded-lc-control border border-lc-border bg-lc-panel-subtle px-4 py-3"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="grid gap-1">
-                      <p className="text-sm font-semibold text-slate-900">{spec.label ?? key}</p>
+                      <p className="text-sm font-semibold text-lc-text">{spec.label ?? key}</p>
                       {spec.description ? (
-                        <p className="text-sm leading-6 text-slate-500">{spec.description}</p>
+                        <p className="text-sm leading-6 text-lc-text-secondary">{spec.description}</p>
                       ) : null}
                     </div>
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-slate-500">
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-lc-text-secondary">
                       {numericValue.toFixed(spec.kind === "int" ? 0 : 2)}
                       {spec.unit ? ` ${spec.unit}` : ""}
                     </span>
@@ -90,7 +90,7 @@ export function ParameterInspector({
 
                   <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center gap-3 max-sm:grid-cols-1">
                     <input
-                      className="w-full accent-indigo-600"
+                      className="w-full accent-lc-primary"
                       max={spec.max}
                       min={spec.min}
                       step={step}

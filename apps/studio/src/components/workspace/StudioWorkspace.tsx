@@ -11,7 +11,7 @@ export function StudioWorkspace({
   editor,
 }: StudioWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
-  const [splitRatio, setSplitRatio] = useState(0.6);
+  const [splitRatio, setSplitRatio] = useState(0.28);
   const [dragging, setDragging] = useState(false);
   const hasEditor = editor !== null && editor !== undefined;
   const [stacked, setStacked] = useState(() => {
@@ -51,8 +51,8 @@ export function StudioWorkspace({
 
     const availableWidth = Math.max(rect.width - separatorWidth, minEditorWidth + minPreviewWidth);
     const nextRatio = (clientX - rect.left) / availableWidth;
-    const minRatio = minPreviewWidth / availableWidth;
-    const maxRatio = 1 - minEditorWidth / availableWidth;
+    const minRatio = minEditorWidth / availableWidth;
+    const maxRatio = 1 - minPreviewWidth / availableWidth;
 
     setSplitRatio(Math.min(maxRatio, Math.max(minRatio, nextRatio)));
   }
@@ -60,22 +60,22 @@ export function StudioWorkspace({
   return (
     <div
       ref={workspaceRef}
-      className="grid min-h-0 min-w-0 w-full flex-1 gap-0"
+      className="grid min-h-0 min-w-0 w-full flex-1 gap-0 bg-lc-panel"
       style={{
         gridTemplateColumns: stacked || !hasEditor
           ? "1fr"
-          : `minmax(${minPreviewWidth}px, ${splitRatio}fr) ${separatorWidth}px minmax(${minEditorWidth}px, ${1 - splitRatio}fr)`,
+          : `minmax(${minEditorWidth}px, ${splitRatio}fr) ${separatorWidth}px minmax(${minPreviewWidth}px, ${1 - splitRatio}fr)`,
       }}
     >
-      <div className="min-h-0 min-w-0 overflow-hidden">{preview}</div>
-
       {hasEditor ? (
         <>
+          <div className="min-h-0 min-w-0 overflow-hidden">{editor}</div>
+
           <div
             className={cn(
-              "group relative cursor-col-resize rounded-full bg-gradient-to-b from-transparent via-slate-300 to-transparent",
+              "group relative cursor-col-resize bg-gradient-to-b from-transparent via-lc-border to-transparent",
               stacked && "hidden",
-              dragging && "via-indigo-500"
+              dragging && "via-lc-primary"
             )}
             role="separator"
             tabIndex={-1}
@@ -101,15 +101,16 @@ export function StudioWorkspace({
             <div
               aria-hidden="true"
               className={cn(
-                "absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400/70 transition group-hover:bg-indigo-500/70",
-                dragging && "bg-indigo-500"
+                "absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lc-border-strong transition",
+                "group-hover:bg-lc-primary/70",
+                dragging && "bg-lc-primary"
               )}
             />
           </div>
-
-          <div className="min-h-0 min-w-0 overflow-hidden">{editor}</div>
         </>
       ) : null}
+
+      <div className="min-h-0 min-w-0 overflow-hidden">{preview}</div>
     </div>
   );
 }

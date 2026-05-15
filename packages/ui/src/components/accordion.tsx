@@ -12,7 +12,7 @@ const AccordionItem = forwardRef<
   return (
     <AccordionPrimitive.Item
       ref={ref}
-      className={cn("overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70", className)}
+      className={cn("overflow-hidden rounded-lc-control border border-lc-border bg-lc-panel", className)}
       {...props}
     />
   );
@@ -27,13 +27,13 @@ const AccordionTrigger = forwardRef<
       <AccordionPrimitive.Trigger
         ref={ref}
         className={cn(
-          "flex flex-1 items-center justify-between gap-4 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:text-slate-700 [&[data-state=open]>span:last-child]:rotate-180",
+          "flex flex-1 items-center justify-between gap-4 px-4 py-3 text-left font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary transition hover:bg-lc-panel-hover [&[data-state=open]>span:last-child]:rotate-180",
           className
         )}
         {...props}
       >
         {children}
-        <span aria-hidden="true" className="text-slate-400 transition-transform duration-200">
+        <span aria-hidden="true" className="text-lc-text-muted transition-transform duration-200">
           ▾
         </span>
       </AccordionPrimitive.Trigger>

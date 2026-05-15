@@ -3,8 +3,6 @@ import type { ExportKind, StudioModel, StudioPerspective } from "../../types";
 import { InlineField } from "../common/StudioPrimitives";
 import { StatusBadge } from "../common/StatusBadge";
 
-const studioLogoUrl = new URL("../../../../../Logo.png", import.meta.url).href;
-
 type ExportAction = ExportKind | "send-gcode";
 
 const exportKindLabels: Record<ExportAction, string> = {
@@ -79,30 +77,27 @@ export function StudioHeader({
   }
 
   return (
-    <header className="flex flex-col gap-4 rounded-[28px] border border-slate-200/80 bg-white/88 px-5 py-4 shadow-[0_28px_72px_-52px_rgba(15,23,42,0.45)] backdrop-blur-xl xl:flex-row xl:items-center xl:justify-between">
-      <div className="min-w-0">
-        <h1 className="m-0 leading-none">
-          <span className="sr-only">LigneClaire</span>
-          <img
-            className="block h-14 w-auto max-w-[min(240px,42vw)]"
-            src={studioLogoUrl}
-            alt=""
-          />
+    <header className="grid gap-5 border-b border-lc-border bg-lc-panel px-5 py-5 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
+      <div className="min-w-0 xl:justify-self-start">
+        <h1 className="m-0 text-3xl font-semibold tracking-[-0.05em] text-lc-text">
+          Ligne Claire
         </h1>
       </div>
 
       <nav
         aria-label="Perspectives"
-        className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-slate-200/80 bg-slate-50/90 p-1 shadow-inner shadow-slate-200/40"
+        className="flex min-w-0 items-center gap-6 overflow-x-auto xl:justify-self-center"
       >
         <Button
           aria-pressed={perspective === "programs"}
           className={cn(
-            "min-w-[8.5rem] rounded-full",
-            perspective === "programs" && "shadow-sm"
+            "min-w-fit rounded-none border-x-0 border-t-0 border-b-2 px-0 pb-2 pt-1 font-lc-mono text-sm font-medium uppercase tracking-[0.12em] hover:bg-transparent",
+            perspective === "programs"
+              ? "border-lc-primary text-lc-primary"
+              : "border-transparent text-lc-text-secondary hover:text-lc-text"
           )}
           size="sm"
-          variant={perspective === "programs" ? "default" : "ghost"}
+          variant="ghost"
           onClick={() => {
             onSelectPerspective("programs");
           }}
@@ -112,12 +107,14 @@ export function StudioHeader({
         <Button
           aria-pressed={perspective === "node-composer"}
           className={cn(
-            "min-w-[9.5rem] rounded-full",
-            perspective === "node-composer" && "shadow-sm"
+            "min-w-fit rounded-none border-x-0 border-t-0 border-b-2 px-0 pb-2 pt-1 font-lc-mono text-sm font-medium uppercase tracking-[0.12em] hover:bg-transparent",
+            perspective === "node-composer"
+              ? "border-lc-primary text-lc-primary"
+              : "border-transparent text-lc-text-secondary hover:text-lc-text"
           )}
           disabled={!nodeComposerAvailable}
           size="sm"
-          variant={perspective === "node-composer" ? "default" : "ghost"}
+          variant="ghost"
           onClick={() => {
             onSelectPerspective("node-composer");
           }}
@@ -127,11 +124,13 @@ export function StudioHeader({
         <Button
           aria-pressed={perspective === "machine-control"}
           className={cn(
-            "min-w-[9.5rem] rounded-full",
-            perspective === "machine-control" && "shadow-sm"
+            "min-w-fit rounded-none border-x-0 border-t-0 border-b-2 px-0 pb-2 pt-1 font-lc-mono text-sm font-medium uppercase tracking-[0.12em] hover:bg-transparent",
+            perspective === "machine-control"
+              ? "border-lc-primary text-lc-primary"
+              : "border-transparent text-lc-text-secondary hover:text-lc-text"
           )}
           size="sm"
-          variant={perspective === "machine-control" ? "default" : "ghost"}
+          variant="ghost"
           onClick={() => {
             onSelectPerspective("machine-control");
           }}
@@ -140,11 +139,11 @@ export function StudioHeader({
         </Button>
       </nav>
 
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 xl:justify-self-end">
         {perspective !== "machine-control" ? (
           <InlineField className="min-w-[13rem]" label="Export">
             <Select
-              className="h-9 rounded-full bg-white"
+              className="h-10 min-w-[10rem] bg-lc-panel"
               disabled={exportSelectDisabled}
               value=""
               onChange={(event) => {

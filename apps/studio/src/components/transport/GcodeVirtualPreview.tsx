@@ -11,6 +11,17 @@ type GcodeVirtualPreviewProps = Readonly<{
   }> | null;
 }>;
 
+function readThemeColor(styles: CSSStyleDeclaration, ...names: string[]): string {
+  for (const name of names) {
+    const value = styles.getPropertyValue(name).trim();
+    if (value.length > 0) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 export function GcodeVirtualPreview({
   activeLineNumber,
   artifact,
@@ -67,11 +78,37 @@ export function GcodeVirtualPreview({
 
     const styles = getComputedStyle(document.documentElement);
     const colors = {
-      paper: styles.getPropertyValue("--studio-paper").trim() || "#FFFDF8",
-      textSecondary: styles.getPropertyValue("--studio-ink-soft").trim() || "#6B7280",
-      line: styles.getPropertyValue("--studio-line-soft").trim() || "#D9DEE4",
-      plotPrimary: styles.getPropertyValue("--studio-plot-primary").trim() || "#526A7A",
-      mask: styles.getPropertyValue("--studio-mask").trim() || "#7DA7A0",
+      paper:
+        readThemeColor(styles, "--lc-color-surface-panel", "--studio-paper", "--lc-color-surface-app") ||
+        "white",
+      textSecondary:
+        readThemeColor(
+          styles,
+          "--lc-color-text-secondary",
+          "--studio-ink-soft",
+          "--lc-color-text-primary"
+        ) || "black",
+      line:
+        readThemeColor(
+          styles,
+          "--lc-color-border-muted",
+          "--studio-line-soft",
+          "--lc-color-border-default"
+        ) || "lightgray",
+      plotPrimary:
+        readThemeColor(
+          styles,
+          "--lc-color-preview-plot",
+          "--studio-plot-primary",
+          "--lc-color-text-primary"
+        ) || "black",
+      mask:
+        readThemeColor(
+          styles,
+          "--lc-color-preview-mask",
+          "--studio-mask",
+          "--lc-color-text-muted"
+        ) || "gray",
     };
 
     context.fillStyle = colors.paper;
@@ -79,7 +116,7 @@ export function GcodeVirtualPreview({
 
     if (!artifact || artifact.preview.segments.length === 0) {
       context.fillStyle = colors.textSecondary;
-      context.font = '13px "Avenir Next", "Helvetica Neue", sans-serif';
+      context.font = '13px "Hanken Grotesk", "Avenir Next", "Helvetica Neue", sans-serif';
       context.textAlign = "center";
       context.textBaseline = "middle";
       context.fillText("Prepare G-code to preview the toolpath.", width / 2, height / 2);
@@ -139,17 +176,17 @@ export function GcodeVirtualPreview({
     <div className="relative h-full min-h-0">
       <canvas
         aria-hidden={isPreparing}
-        className="block h-full max-h-full min-h-0 w-full rounded-[20px] border border-slate-200/80 bg-[var(--studio-paper)]"
+        className="block h-full max-h-full min-h-0 w-full rounded-lc-control border border-lc-border bg-lc-panel"
         ref={canvasRef}
       />
 
       {isPreparing ? (
         <div
           aria-live="polite"
-          className="absolute inset-0 grid place-items-center gap-3 rounded-[20px] border border-slate-200/80 bg-[rgba(255,253,248,0.88)] text-center text-slate-500 backdrop-blur-sm"
+          className="absolute inset-0 grid place-items-center gap-3 rounded-lc-control border border-lc-border bg-lc-panel-scrim text-center text-lc-text-secondary"
           role="status"
         >
-          <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-lc-primary-soft border-t-lc-primary" />
           <div className="text-sm font-medium">Preparing G-code preview...</div>
         </div>
       ) : null}

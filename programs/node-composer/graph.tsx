@@ -89,8 +89,17 @@ export function NodeComposerGraph({
 }: NodeComposerGraphProps): JSX.Element {
   const isWorkspace = layout === "workspace";
   const draggingNodeIdRef = useRef<string | null>(null);
+  const flowFrameRef = useRef<HTMLDivElement | null>(null);
+  const reactFlowRef = useRef<any>(null);
   const [pendingTapSource, setPendingTapSource] = useState<NodeEndpoint | null>(null);
   const manualTapConnect = tapConnectEnabled();
+  const fitViewOptions = useMemo(
+    () => ({
+      padding: isWorkspace ? 0.08 : 0.14,
+      maxZoom: 1,
+    }),
+    [isWorkspace]
+  );
 
   const handleTapConnection = useCallback(
     (handle: TapConnectHandle): void => {
@@ -234,6 +243,31 @@ export function NodeComposerGraph({
     [programState.connections]
   );
 
+  useEffect(() => {
+    const frame = flowFrameRef.current;
+    const reactFlow = reactFlowRef.current;
+    if (!frame || !reactFlow || flowNodes.length === 0) {
+      return;
+    }
+
+    const refit = () => {
+      requestAnimationFrame(() => {
+        void reactFlow.fitView(fitViewOptions);
+      });
+    };
+
+    refit();
+
+    const observer = new ResizeObserver(() => {
+      refit();
+    });
+    observer.observe(frame);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [fitViewOptions, flowNodes.length]);
+
   function patchGraphNodePosition(
     nodes: ComposerFlowNode[],
     nodeId: string,
@@ -265,6 +299,7 @@ export function NodeComposerGraph({
       </div>
 
       <div
+        ref={flowFrameRef}
         className={`lc-node-composer__flow-frame${isWorkspace ? " lc-node-composer__flow-frame--workspace" : ""}`}
       >
         <ReactFlow
@@ -277,10 +312,7 @@ export function NodeComposerGraph({
           edges={flowEdges}
           edgesFocusable={false}
           fitView
-          fitViewOptions={{
-            padding: 0.14,
-            maxZoom: 1,
-          }}
+          fitViewOptions={fitViewOptions}
           isValidConnection={(connection) => {
             const candidate = connectionFromFlow(connection);
             return candidate ? canConnectNodes(programState, candidate) : false;
@@ -292,6 +324,12 @@ export function NodeComposerGraph({
           nodes={graphNodes}
           nodesConnectable={!manualTapConnect}
           nodesFocusable={false}
+          onInit={(instance) => {
+            reactFlowRef.current = instance;
+            requestAnimationFrame(() => {
+              void instance.fitView(fitViewOptions);
+            });
+          }}
           onConnect={(connection) => {
             const candidate = connectionFromFlow(connection);
             if (!candidate) {
@@ -341,7 +379,7 @@ export function NodeComposerGraph({
           }}
           selectionOnDrag={false}
         >
-          <Background color="rgba(31, 41, 55, 0.08)" gap={24} size={1} />
+          <Background color="var(--lc-color-grid)" gap={24} size={1} />
           <Controls position="top-right" showInteractive={false} />
         </ReactFlow>
       </div>

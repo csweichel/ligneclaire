@@ -9,7 +9,7 @@ const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function
     <div
       ref={ref}
       className={cn(
-        "rounded-3xl border border-slate-200/80 bg-white/85 shadow-[0_28px_80px_-52px_rgba(15,23,42,0.45)] backdrop-blur-xl",
+        "rounded-lc-control border border-lc-border bg-lc-panel shadow-none",
         className
       )}
       {...props}
@@ -30,7 +30,7 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
       <h3
         ref={ref}
         className={cn(
-          'font-["Iowan_Old_Style","Palatino_Linotype","Book_Antiqua",Georgia,serif] text-xl font-semibold text-slate-950',
+          "text-lg font-semibold text-lc-text",
           className
         )}
         {...props}
@@ -41,7 +41,7 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
 
 const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
   function CardDescription({ className, ...props }, ref) {
-    return <p ref={ref} className={cn("text-sm leading-6 text-slate-500", className)} {...props} />;
+    return <p ref={ref} className={cn("text-sm leading-6 text-lc-text-secondary", className)} {...props} />;
   }
 );
 

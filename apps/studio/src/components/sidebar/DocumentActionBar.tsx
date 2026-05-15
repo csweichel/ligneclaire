@@ -73,7 +73,7 @@ export function DocumentActionBar({
               Reset to defaults
             </Button>
             <Button
-              className={cn("justify-start", !deleteDisabled && "text-rose-700")}
+              className={cn("justify-start", !deleteDisabled && "text-lc-danger")}
               disabled={deleteDisabled}
               variant="ghost"
               onClick={() => {
@@ -87,7 +87,7 @@ export function DocumentActionBar({
         </Popover>
       </div>
 
-      {note ? <p className="text-sm leading-6 text-slate-500">{note}</p> : null}
+      {note ? <p className="text-sm leading-6 text-lc-text-secondary">{note}</p> : null}
     </div>
   );
 }

@@ -35,15 +35,15 @@ export function StatusBadge({
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-full border border-slate-200/80 bg-white/80 px-3 py-2 shadow-sm shadow-slate-900/5">
+    <div className="flex min-h-10 min-w-0 items-center gap-3 rounded-lc-control border border-lc-border bg-lc-panel-subtle px-3 py-2">
       <Badge
         className={cn(
-          "gap-2 border-none px-0 py-0 text-[11px] tracking-[0.16em]",
-          tone === "default" && "bg-transparent text-slate-600",
-          tone === "warning" && "bg-transparent text-amber-700",
-          tone === "success" && "bg-transparent text-emerald-700",
-          tone === "accent" && "bg-transparent text-indigo-700",
-          tone === "destructive" && "bg-transparent text-rose-700"
+          "gap-2 border-none bg-transparent px-0 py-0 text-[11px] tracking-[0.14em]",
+          tone === "default" && "text-lc-text-secondary",
+          tone === "warning" && "text-lc-warning",
+          tone === "success" && "text-lc-success",
+          tone === "accent" && "text-lc-primary-ink",
+          tone === "destructive" && "text-lc-danger"
         )}
         variant="default"
       >
@@ -51,16 +51,16 @@ export function StatusBadge({
           aria-hidden="true"
           className={cn(
             "h-2.5 w-2.5 rounded-full",
-            tone === "default" && "bg-slate-300",
-            tone === "warning" && "bg-amber-400",
-            tone === "success" && "bg-emerald-400",
-            tone === "accent" && "bg-indigo-500",
-            tone === "destructive" && "bg-rose-500"
+            tone === "default" && "bg-lc-text-muted",
+            tone === "warning" && "bg-lc-warning",
+            tone === "success" && "bg-lc-success",
+            tone === "accent" && "bg-lc-primary",
+            tone === "destructive" && "bg-lc-danger"
           )}
         />
         {label}
       </Badge>
-      <span className="min-w-0 truncate text-sm text-slate-500">{detail}</span>
+      <span className="min-w-0 truncate text-sm text-lc-text-secondary">{detail}</span>
     </div>
   );
 }

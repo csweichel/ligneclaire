@@ -11,11 +11,11 @@ function Progress({ className, value = 0, ...props }: ProgressProps) {
 
   return (
     <div
-      className={cn("h-2 overflow-hidden rounded-full bg-slate-200/80", className)}
+      className={cn("h-2 overflow-hidden rounded-full bg-lc-panel-subtle", className)}
       {...props}
     >
       <div
-        className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+        className="h-full rounded-full bg-lc-success transition-all duration-300"
         style={{ width: `${clampedValue}%` }}
       />
     </div>

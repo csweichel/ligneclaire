@@ -4,25 +4,25 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/10",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lc-control border text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lc-primary/20",
   {
     variants: {
       variant: {
         default:
-          "bg-indigo-600 text-white shadow-sm shadow-indigo-950/15 hover:bg-indigo-700",
+          "border-lc-primary bg-lc-primary text-lc-on-primary hover:border-lc-primary-hover hover:bg-lc-primary-hover",
         secondary:
-          "bg-white/90 text-slate-900 ring-1 ring-slate-200/80 shadow-sm shadow-slate-900/5 hover:bg-white",
+          "border-lc-border bg-lc-panel text-lc-text hover:bg-lc-panel-hover",
         outline:
-          "border border-slate-300/80 bg-white/70 text-slate-700 hover:bg-white",
-        ghost: "text-slate-700 hover:bg-slate-100/80",
+          "border-lc-border bg-lc-panel-subtle text-lc-text hover:bg-lc-panel",
+        ghost: "border-transparent bg-transparent text-lc-text-secondary hover:bg-lc-panel-subtle hover:text-lc-text",
         destructive:
-          "bg-rose-600 text-white shadow-sm shadow-rose-950/15 hover:bg-rose-700",
-        soft: "bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+          "border-lc-danger bg-lc-danger text-lc-on-primary hover:border-lc-danger-hover hover:bg-lc-danger-hover",
+        soft: "border-lc-primary-soft bg-lc-primary-soft text-lc-primary-ink hover:bg-lc-primary-soft-hover",
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-8 rounded-lg px-3 text-xs",
-        lg: "h-12 rounded-2xl px-5 text-base",
+        sm: "h-8 px-3 text-xs",
+        lg: "h-12 px-5 text-base",
         icon: "h-10 w-10 p-0",
       },
     },

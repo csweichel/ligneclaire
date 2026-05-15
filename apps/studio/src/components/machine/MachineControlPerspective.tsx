@@ -288,15 +288,17 @@ export function MachineControlPerspective({
   }, [canJog, jogSteps.x, jogSteps.y, jogSteps.z, plotter]);
 
   return (
-    <section className="grid h-full min-h-0 gap-5 rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(246,247,251,0.92)_100%)] p-4 shadow-[0_28px_72px_-52px_rgba(15,23,42,0.45)] xl:grid-cols-[320px_minmax(0,1fr)]">
+    <section className="grid h-full min-h-0 gap-5 bg-lc-app p-5 xl:grid-cols-[320px_minmax(0,1fr)]">
       <aside className="grid min-h-0 content-start gap-4 overflow-auto">
         <PanelCard>
           <div className="flex items-start justify-between gap-3">
             <div className="grid gap-1">
-              <span className="text-base font-semibold text-slate-950">
+              <span className="text-base font-semibold text-lc-text">
                 {plotter?.label ?? "No plotter selected"}
               </span>
-              <span className="text-sm font-medium text-slate-500">{connectionLabel(studio)}</span>
+              <span className="text-sm font-medium text-lc-text-secondary">
+                {connectionLabel(studio)}
+              </span>
             </div>
             {studio.transport.connectionState === "connected" ? (
               <Button
@@ -407,7 +409,7 @@ export function MachineControlPerspective({
         <PanelCard>
           <div className="grid gap-4">
             <div className="grid gap-3">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
                 {positionSourceLabel}
               </span>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -612,7 +614,7 @@ export function MachineControlPerspective({
         </PanelCard>
 
         <PanelCard>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <div className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
             Mesh sampler
           </div>
 
@@ -667,7 +669,7 @@ export function MachineControlPerspective({
                 }}
               />
             </Field>
-            <span className="pb-3 text-slate-400">x</span>
+            <span className="pb-3 text-lc-text-muted">x</span>
             <Field label="Height">
               <Input
                 className="h-9"
@@ -776,7 +778,7 @@ export function MachineControlPerspective({
           contentClassName="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto]"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <span className="inline-flex min-h-8 items-center rounded-full border border-slate-200/80 bg-slate-50/90 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+            <span className="inline-flex min-h-8 items-center rounded-lc-control border border-lc-border bg-lc-panel-subtle px-3 font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
               Preview
             </span>
             <div className="flex flex-wrap gap-2">
@@ -822,7 +824,7 @@ export function MachineControlPerspective({
             </div>
           </div>
 
-          <div className="min-h-0 overflow-hidden rounded-[24px] border border-slate-200/80 bg-[var(--studio-paper)]">
+          <div className="min-h-0 overflow-hidden rounded-lc-control border border-lc-border bg-lc-panel">
             <GcodeVirtualPreview
               activeLineNumber={studio.transport.progress.sentLines}
               artifact={studio.transport.preparedArtifact}
@@ -864,7 +866,7 @@ export function MachineControlPerspective({
           contentClassName="grid h-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)]"
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
               Console
             </span>
             <Button
@@ -905,7 +907,7 @@ export function MachineControlPerspective({
 
           {studio.transport.lastError ? (
             <div className="grid gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
                 Last Error
               </span>
               <CodeBlock>{studio.transport.lastError}</CodeBlock>
@@ -926,20 +928,20 @@ export function MachineControlPerspective({
             <InfoRow label="Errors" value={String(studio.transport.progress.errorLines)} />
           </div>
 
-          <div className="min-h-0 overflow-auto rounded-[20px] border border-slate-200/80 bg-white/90">
+          <div className="min-h-0 overflow-auto rounded-lc-control border border-lc-console-border bg-lc-console">
             {studio.transport.logs.length > 0 ? (
               studio.transport.logs.map((entry) => (
                 <div
                   key={entry.id}
-                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-slate-200/80 px-3 py-2 font-['SFMono-Regular','SFMono','Cascadia_Code','Roboto_Mono',monospace] text-xs leading-6 first:border-t-0"
+                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-lc-console-border px-3 py-2 font-lc-mono text-xs leading-6 text-lc-console-text first:border-t-0"
                 >
                   <span>{entry.timeLabel}</span>
                   <span
                     className={cn(
                       "font-semibold",
-                      entry.level === "error" && "text-rose-600",
-                      entry.level === "rx" && "text-indigo-600",
-                      entry.level === "tx" && "text-emerald-600"
+                      entry.level === "error" && "text-lc-console-error",
+                      entry.level === "rx" && "text-lc-console-rx",
+                      entry.level === "tx" && "text-lc-console-tx"
                     )}
                   >
                     {entry.level.toUpperCase()}
@@ -967,12 +969,12 @@ type PositionAxisCardProps = Readonly<{
 
 function PositionAxisCard({ axis, title, value }: PositionAxisCardProps) {
   return (
-    <div className="grid gap-1 rounded-[18px] border border-slate-200/80 bg-slate-50/80 px-3 py-3">
-      <small className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <div className="grid gap-2 rounded-lc-control border border-lc-console-border bg-lc-console px-3 py-3">
+      <small className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-console-tx">
         {axis}
       </small>
       <span
-        className="overflow-hidden text-right font-['SFMono-Regular','SFMono','Cascadia_Code','Roboto_Mono',monospace] text-sm font-semibold tabular-nums text-slate-900"
+        className="overflow-hidden text-right font-lc-mono text-[24px] font-bold leading-8 tracking-[-0.02em] tabular-nums text-lc-console-text md:text-[30px] md:leading-9 xl:text-[36px] xl:leading-11"
         title={title}
       >
         {value}
@@ -999,7 +1001,7 @@ function JogPadButton({
   return (
     <Button
       className={cn(
-        "h-[72px] w-full flex-col rounded-[18px] border-slate-300/80 bg-white/95 text-slate-900 hover:bg-white",
+        "h-[72px] w-full flex-col rounded-lc-control border-lc-border bg-lc-panel text-lc-text hover:bg-lc-panel-hover",
         className
       )}
       disabled={disabled}
@@ -1007,7 +1009,7 @@ function JogPadButton({
       onClick={onClick}
     >
       <span className="text-base font-semibold">{label}</span>
-      <small className="text-xs font-medium text-slate-500">{shortcut}</small>
+      <small className="text-xs font-medium text-lc-text-secondary">{shortcut}</small>
     </Button>
   );
 }

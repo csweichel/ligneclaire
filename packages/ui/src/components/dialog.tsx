@@ -16,7 +16,7 @@ const DialogOverlay = forwardRef<
     <DialogPrimitive.Overlay
       ref={ref}
       className={cn(
-        "fixed inset-0 z-50 bg-slate-950/35 backdrop-blur-sm data-[state=closed]:animate-out data-[state=open]:animate-in",
+        "fixed inset-0 z-50 bg-lc-text/28 data-[state=closed]:animate-out data-[state=open]:animate-in",
         className
       )}
       {...props}
@@ -34,7 +34,7 @@ const DialogContent = forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-[min(94vw,1100px)] max-h-[94vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/95 shadow-[0_36px_120px_-48px_rgba(15,23,42,0.55)] backdrop-blur-xl focus:outline-none",
+          "fixed left-1/2 top-1/2 z-50 grid w-[min(94vw,1100px)] max-h-[94vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lc-shell border border-lc-border bg-lc-panel focus:outline-none",
           className
         )}
         {...props}
@@ -47,8 +47,8 @@ const DialogHeader = ({
   className,
   ...props
 }: ComponentPropsWithoutRef<"div">) => (
-  <div
-    className={cn("flex flex-col gap-2 border-b border-slate-200/80 px-6 py-5", className)}
+    <div
+    className={cn("flex flex-col gap-2 border-b border-lc-border px-6 py-5", className)}
     {...props}
   />
 );
@@ -57,9 +57,9 @@ const DialogFooter = ({
   className,
   ...props
 }: ComponentPropsWithoutRef<"div">) => (
-  <div
-    className={cn(
-      "flex flex-col-reverse gap-3 border-t border-slate-200/80 px-6 py-5 sm:flex-row sm:justify-end",
+    <div
+      className={cn(
+      "flex flex-col-reverse gap-3 border-t border-lc-border px-6 py-5 sm:flex-row sm:justify-end",
       className
     )}
     {...props}
@@ -72,9 +72,9 @@ const DialogTitle = forwardRef<
 >(function DialogTitle({ className, ...props }, ref) {
   return (
     <DialogPrimitive.Title
-      ref={ref}
-      className={cn(
-        'font-["Iowan_Old_Style","Palatino_Linotype","Book_Antiqua",Georgia,serif] text-2xl font-semibold text-slate-950',
+        ref={ref}
+        className={cn(
+        "text-2xl font-semibold text-lc-text",
         className
       )}
       {...props}
@@ -86,7 +86,7 @@ const DialogDescription = forwardRef<
   ElementRef<typeof DialogPrimitive.Description>,
   ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(function DialogDescription({ className, ...props }, ref) {
-  return <DialogPrimitive.Description ref={ref} className={cn("text-sm leading-6 text-slate-500", className)} {...props} />;
+  return <DialogPrimitive.Description ref={ref} className={cn("text-sm leading-6 text-lc-text-secondary", className)} {...props} />;
 });
 
 export {

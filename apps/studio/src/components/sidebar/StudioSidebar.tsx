@@ -14,7 +14,6 @@ import {
   Field,
   InfoRow,
   Notice,
-  PanelCard,
 } from "../common/StudioPrimitives";
 import { DocumentActionBar } from "./DocumentActionBar";
 
@@ -69,20 +68,16 @@ export function StudioSidebar({
             : undefined;
 
   return (
-    <aside className="h-full min-h-0 min-w-0 w-full">
-      <PanelCard
-        className="h-full min-h-0 w-full overflow-hidden"
-        contentClassName="gap-4 p-4"
+    <aside className="h-full min-h-0 min-w-0 w-full bg-lc-panel">
+      <div
+        className={
+          showDocumentControls
+            ? "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]"
+            : "grid h-full min-h-0 grid-rows-[minmax(0,1fr)]"
+        }
       >
-        <div
-          className={
-            showDocumentControls
-              ? "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]"
-              : "grid h-full min-h-0 grid-rows-[minmax(0,1fr)]"
-          }
-        >
-          {showDocumentControls ? (
-            <div className="grid gap-4 border-b border-slate-200/80 pb-5">
+        {showDocumentControls ? (
+          <div className="grid gap-5 border-b border-lc-border px-5 py-6">
               {showProgramSelector && listedPrograms.length > 0 ? (
                 <Field label="Program">
                   <Select
@@ -171,43 +166,43 @@ export function StudioSidebar({
                   Interactive editor controls are available beside the preview page.
                 </Notice>
               ) : null}
-            </div>
-          ) : null}
+          </div>
+        ) : null}
 
-          <div
-            className={
-              showDocumentControls
-                ? "grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4 overflow-hidden pt-5"
-                : "grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4 overflow-hidden"
-            }
-          >
-            <div className="min-h-0 overflow-auto">
-              {studio.programDetails && studio.current ? (
-                hasGeneratedParameters ? (
-                  <ParameterInspector
-                    schema={studio.programDetails.params}
-                    values={studio.current.params}
-                    onChange={studio.updateParam}
-                  />
-                ) : (
-                  <EmptyState>
-                    {studio.localProgram?.editor
-                      ? "This program is configured from the interactive editor beside the preview page."
-                      : "This program does not expose generated parameters."}
-                  </EmptyState>
-                )
+        <div
+          className={
+            showDocumentControls
+              ? "grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4 overflow-hidden px-5 py-6"
+              : "grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4 overflow-hidden px-5 py-6"
+          }
+        >
+          <div className="min-h-0 overflow-auto">
+            {studio.programDetails && studio.current ? (
+              hasGeneratedParameters ? (
+                <ParameterInspector
+                  schema={studio.programDetails.params}
+                  values={studio.current.params}
+                  onChange={studio.updateParam}
+                />
               ) : (
                 <EmptyState>
-                  Load a program to inspect and adjust its generated controls.
+                  {studio.localProgram?.editor
+                    ? "This program is configured from the interactive editor beside the preview page."
+                    : "This program does not expose generated parameters."}
                 </EmptyState>
-              )}
-            </div>
+              )
+            ) : (
+              <EmptyState>
+                Load a program to inspect and adjust its generated controls.
+              </EmptyState>
+            )}
+          </div>
 
-            <Accordion
-              className="grid gap-3 overflow-auto"
-              defaultValue={[]}
-              type="multiple"
-            >
+          <Accordion
+            className="grid gap-3 overflow-auto"
+            defaultValue={[]}
+            type="multiple"
+          >
               <AccordionItem value="status">
                 <AccordionTrigger>Status</AccordionTrigger>
                 <AccordionContent className="grid gap-2 px-4 pb-4">
@@ -273,10 +268,9 @@ export function StudioSidebar({
                   />
                 </AccordionContent>
               </AccordionItem>
-            </Accordion>
-          </div>
+          </Accordion>
         </div>
-      </PanelCard>
+      </div>
     </aside>
   );
 }
@@ -297,11 +291,11 @@ type IssueBlockProps = Readonly<{
 
 function IssueBlock({ title, items }: IssueBlockProps) {
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <section className="rounded-lc-control border border-lc-border bg-lc-panel px-4 py-3">
+      <h3 className="mb-2 font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
         {title}
       </h3>
-      <ul className="grid gap-2 pl-4 text-sm leading-6 text-slate-600">
+      <ul className="grid gap-2 pl-4 text-sm leading-6 text-lc-text-secondary">
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}

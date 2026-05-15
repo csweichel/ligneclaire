@@ -35,7 +35,7 @@ function Eyebrow({ children, className }: EyebrowProps) {
   return (
     <p
       className={cn(
-        "text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500",
+        "font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary",
         className
       )}
     >
@@ -47,11 +47,11 @@ function Eyebrow({ children, className }: EyebrowProps) {
 function Field({ children, className, hint, label }: FieldProps) {
   return (
     <label className={cn("grid gap-2", className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
         {label}
       </span>
       {children}
-      {hint ? <span className="text-sm leading-6 text-slate-500">{hint}</span> : null}
+      {hint ? <span className="text-sm leading-6 text-lc-text-secondary">{hint}</span> : null}
     </label>
   );
 }
@@ -59,7 +59,7 @@ function Field({ children, className, hint, label }: FieldProps) {
 function InlineField({ children, className, label }: InlineFieldProps) {
   return (
     <label className={cn("flex items-center gap-3 max-md:flex-col max-md:items-stretch", className)}>
-      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <span className="shrink-0 font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
         {label}
       </span>
       <div className="min-w-0 flex-1">{children}</div>
@@ -70,8 +70,8 @@ function InlineField({ children, className, label }: InlineFieldProps) {
 function InfoRow({ className, label, value, valueClassName }: InfoRowProps) {
   return (
     <div className={cn("grid grid-cols-[auto_minmax(0,1fr)] gap-4 text-sm", className)}>
-      <span className="text-slate-500">{label}</span>
-      <span className={cn("text-right font-medium text-slate-900 break-words", valueClassName)}>
+      <span className="text-lc-text-secondary">{label}</span>
+      <span className={cn("break-words text-right font-medium text-lc-text", valueClassName)}>
         {value}
       </span>
     </div>
@@ -82,7 +82,7 @@ function EmptyState({ children, className }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-6 text-slate-500",
+        "rounded-lc-control border border-dashed border-lc-border bg-lc-panel-subtle px-4 py-4 text-sm leading-6 text-lc-text-secondary",
         className
       )}
     >
@@ -99,12 +99,11 @@ function Notice({
   return (
     <div
       className={cn(
-        "rounded-2xl border px-4 py-3 text-sm leading-6",
-        tone === "default" &&
-          "border-slate-200/80 bg-slate-50/80 text-slate-600",
-        tone === "info" && "border-sky-200 bg-sky-50 text-sky-700",
-        tone === "warning" && "border-amber-200 bg-amber-50 text-amber-700",
-        tone === "destructive" && "border-rose-200 bg-rose-50 text-rose-700",
+        "rounded-lc-control border px-4 py-3 text-sm leading-6",
+        tone === "default" && "border-lc-border bg-lc-panel-subtle text-lc-text-secondary",
+        tone === "info" && "border-lc-primary-soft bg-lc-primary-soft text-lc-primary-ink",
+        tone === "warning" && "border-lc-warning-soft bg-lc-warning-soft text-lc-warning",
+        tone === "destructive" && "border-lc-danger-soft bg-lc-danger-soft text-lc-danger",
         className
       )}
       {...props}
@@ -121,7 +120,7 @@ function PanelCard({
   return (
     <Card
       className={cn(
-        "rounded-[26px] border-slate-200/80 bg-white/88 shadow-[0_24px_72px_-52px_rgba(15,23,42,0.45)]",
+        "rounded-lc-control border-lc-border bg-lc-panel shadow-none",
         className
       )}
       {...props}
@@ -135,7 +134,7 @@ function CodeBlock({ children, className }: HTMLAttributes<HTMLPreElement>) {
   return (
     <pre
       className={cn(
-        'overflow-auto rounded-2xl border border-rose-200 bg-rose-50/70 p-3 font-["SFMono-Regular","SFMono","Cascadia_Code","Roboto_Mono",monospace] text-xs leading-6 text-slate-700',
+        "overflow-auto rounded-lc-control border border-lc-console-border bg-lc-console p-3 font-lc-mono text-xs leading-6 text-lc-console-text",
         className
       )}
     >

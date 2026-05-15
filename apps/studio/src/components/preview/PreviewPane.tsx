@@ -169,11 +169,11 @@ export function PreviewPane({
   const showWorkspaceSurface = showWorkspaceTab && activeEditorSurface === "workspace";
 
   return (
-    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] rounded-[30px] border border-slate-200/80 bg-white/88 shadow-[0_28px_72px_-52px_rgba(15,23,42,0.45)] backdrop-blur-xl">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200/80 px-5 py-4">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-lc-app">
+      <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-6">
         <div className="grid gap-1">
           <Eyebrow>Preview</Eyebrow>
-          <p className="text-sm leading-6 text-slate-500">
+          <p className="text-sm leading-6 text-lc-text-secondary">
             {programDetails?.description ?? "Render output"}
           </p>
         </div>
@@ -212,7 +212,7 @@ export function PreviewPane({
 
       <div
         className={cn(
-          "grid min-h-0 min-w-0 grid-cols-1 overflow-hidden",
+          "grid min-h-0 min-w-0 grid-cols-1 overflow-hidden border-t border-lc-border",
           showEditorControls && "xl:grid-cols-[minmax(0,1fr)_340px]"
         )}
       >
@@ -261,7 +261,7 @@ export function PreviewPane({
           {showWorkspaceTab ? (
             <div
               aria-label="Preview surfaces"
-              className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/90 p-1 shadow-sm shadow-slate-900/5"
+              className="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-lc-control border border-lc-border bg-lc-panel p-1 shadow-lc-recessed"
               data-preview-control="true"
               role="tablist"
             >
@@ -297,7 +297,7 @@ export function PreviewPane({
             className={cn("absolute inset-0", !showPreviewSurface && "hidden")}
           >
             <div
-              className="absolute overflow-hidden rounded-[22px] border border-slate-200/80 bg-[var(--studio-paper)] shadow-[0_28px_64px_-44px_rgba(15,23,42,0.45)]"
+              className="absolute overflow-hidden rounded-lc-shell border border-lc-border bg-lc-panel"
               style={{
                 left: `${previewLayout.originX}px`,
                 top: `${previewLayout.originY}px`,
@@ -314,7 +314,7 @@ export function PreviewPane({
                   }}
                 />
               ) : (
-                <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-slate-500">
+                <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-lc-text-secondary">
                   {programDetails
                     ? isRendering
                       ? "Rendering preview..."
@@ -333,7 +333,7 @@ export function PreviewPane({
             </div>
 
             <div
-              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/92 p-2 shadow-sm shadow-slate-900/5"
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lc-control border border-lc-border bg-lc-panel p-2 shadow-lc-recessed"
               data-preview-control="true"
             >
               <Button
@@ -383,7 +383,7 @@ export function PreviewPane({
         {showEditorControls ? (
           <aside
             ref={setEditorPanelRoot}
-            className="min-h-0 min-w-0 overflow-auto border-t border-slate-200/80 bg-slate-50/55 xl:border-l xl:border-t-0"
+            className="min-h-0 min-w-0 overflow-auto border-t border-lc-border bg-lc-panel-muted xl:border-l xl:border-t-0"
             data-preview-control="true"
           />
         ) : null}

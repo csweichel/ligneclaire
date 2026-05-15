@@ -164,7 +164,7 @@ export function GcodeTransportPanel({
       <div className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)_minmax(220px,0.9fr)]">
         <PanelCard className="min-h-0">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <h3 className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
               Virtual Preview
             </h3>
           </div>
@@ -192,28 +192,28 @@ export function GcodeTransportPanel({
 
         <PanelCard className="min-h-0">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <h3 className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
               Transport Log
             </h3>
-            <span className="text-xs font-medium text-slate-400">
+            <span className="text-xs font-medium text-lc-text-muted">
               {studio.transport.logs.length} entries
             </span>
           </div>
 
-          <div className="min-h-0 overflow-auto rounded-[20px] border border-slate-200/80 bg-white/90">
+          <div className="min-h-0 overflow-auto rounded-lc-control border border-lc-console-border bg-lc-console">
             {studio.transport.logs.length > 0 ? (
               studio.transport.logs.map((entry) => (
                 <div
                   key={entry.id}
-                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-slate-200/80 px-3 py-2 font-['SFMono-Regular','SFMono','Cascadia_Code','Roboto_Mono',monospace] text-xs leading-6 first:border-t-0"
+                  className="grid grid-cols-[68px_54px_minmax(0,1fr)] gap-3 border-t border-lc-console-border px-3 py-2 font-lc-mono text-xs leading-6 text-lc-console-text first:border-t-0"
                 >
                   <span>{entry.timeLabel}</span>
                   <span
                     className={cn(
                       "font-semibold",
-                      entry.level === "error" && "text-rose-600",
-                      entry.level === "rx" && "text-indigo-600",
-                      entry.level === "tx" && "text-emerald-600"
+                      entry.level === "error" && "text-lc-console-error",
+                      entry.level === "rx" && "text-lc-console-rx",
+                      entry.level === "tx" && "text-lc-console-tx"
                     )}
                   >
                     {entry.level.toUpperCase()}
@@ -230,7 +230,7 @@ export function GcodeTransportPanel({
         </PanelCard>
       </div>
 
-      <aside className="grid min-h-0 content-start gap-4 overflow-auto xl:border-l xl:border-slate-200/80 xl:pl-5">
+      <aside className="grid min-h-0 content-start gap-4 overflow-auto xl:border-l xl:border-lc-border xl:pl-5">
         <Notice>
           G-code is generated from the current document and selected plotter profile, then either
           streamed to a browser USB serial device or simulated in the virtual plotter.
@@ -446,7 +446,7 @@ export function GcodeTransportPanel({
 
           <div className="grid gap-2">
             <Progress value={progressPercent} />
-            <div className="text-right text-sm text-slate-500">
+            <div className="text-right text-sm text-lc-text-secondary">
               {studio.transport.progress.sentLines}/{studio.transport.progress.totalLines} lines
             </div>
           </div>
@@ -463,7 +463,7 @@ export function GcodeTransportPanel({
 
           {studio.transport.lastError ? (
             <div className="grid gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
                 Last Error
               </span>
               <CodeBlock>{studio.transport.lastError}</CodeBlock>

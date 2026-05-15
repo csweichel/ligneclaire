@@ -56,12 +56,12 @@ export function ExportSettingsModal({
     >
       <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
         <div className="grid min-h-0 gap-5 overflow-auto pr-1">
-          <section className="grid gap-4 rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-4">
+          <section className="grid gap-4 rounded-lc-control border border-lc-border bg-lc-panel-subtle p-4">
             <div className="grid gap-2">
-              <p className="text-sm leading-6 text-slate-500">
+              <p className="text-sm leading-6 text-lc-text-secondary">
                 Configure the plotter target and how G-code should adapt the page.
               </p>
-              <p className="text-sm font-medium leading-6 text-slate-900">{summary}</p>
+              <p className="text-sm font-medium leading-6 text-lc-text">{summary}</p>
             </div>
 
             <Field label="Plotter model">
@@ -103,10 +103,10 @@ export function ExportSettingsModal({
             ) : null}
           </section>
 
-          <section className="grid gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 p-4">
+          <section className="grid gap-4 rounded-lc-control border border-lc-border bg-lc-panel p-4">
             <div className="grid gap-1">
-              <h3 className="text-base font-semibold text-slate-950">Orientation</h3>
-              <p className="text-sm leading-6 text-slate-500">
+              <h3 className="text-base font-semibold text-lc-text">Orientation</h3>
+              <p className="text-sm leading-6 text-lc-text-secondary">
                 Choose how the document should rotate before G-code generation.
               </p>
             </div>
@@ -121,10 +121,10 @@ export function ExportSettingsModal({
                     key={String(option.value)}
                     aria-pressed={selected}
                     className={cn(
-                      "rounded-[20px] border px-4 py-3 text-left text-sm font-medium transition",
+                      "rounded-lc-control border px-4 py-3 text-left text-sm font-medium transition-colors",
                       selected
-                        ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                        : "border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                        ? "border-lc-primary bg-lc-primary-soft text-lc-primary-ink"
+                        : "border-lc-border bg-lc-panel text-lc-text-secondary hover:bg-lc-panel-hover"
                     )}
                     type="button"
                     onClick={() => {
@@ -140,10 +140,10 @@ export function ExportSettingsModal({
             </div>
           </section>
 
-          <section className="grid gap-4 rounded-[24px] border border-slate-200/80 bg-white/90 p-4">
+          <section className="grid gap-4 rounded-lc-control border border-lc-border bg-lc-panel p-4">
             <div className="grid gap-1">
-              <h3 className="text-base font-semibold text-slate-950">Oversize handling</h3>
-              <p className="text-sm leading-6 text-slate-500">
+              <h3 className="text-base font-semibold text-lc-text">Oversize handling</h3>
+              <p className="text-sm leading-6 text-lc-text-secondary">
                 Control what happens when the program canvas is larger than the plotter page.
               </p>
             </div>
@@ -157,18 +157,18 @@ export function ExportSettingsModal({
                     key={option.value}
                     aria-pressed={selected}
                     className={cn(
-                      "grid gap-1 rounded-[20px] border px-4 py-3 text-left transition",
+                      "grid gap-1 rounded-lc-control border px-4 py-3 text-left transition-colors",
                       selected
-                        ? "border-indigo-200 bg-indigo-50"
-                        : "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50"
+                        ? "border-lc-primary bg-lc-primary-soft"
+                        : "border-lc-border bg-lc-panel hover:bg-lc-panel-hover"
                     )}
                     type="button"
                     onClick={() => {
                       studio.setExportOversizeHandling(option.value);
                     }}
                   >
-                    <span className="font-semibold text-slate-900">{option.label}</span>
-                    <span className="text-sm leading-6 text-slate-500">{option.description}</span>
+                    <span className="font-semibold text-lc-text">{option.label}</span>
+                    <span className="text-sm leading-6 text-lc-text-secondary">{option.description}</span>
                   </button>
                 );
               })}
@@ -186,7 +186,7 @@ export function ExportSettingsModal({
           </section>
         </div>
 
-        <div className="mt-5 flex justify-end border-t border-slate-200/80 pt-5">
+        <div className="mt-5 flex justify-end border-t border-lc-border pt-5">
           <Button
             disabled={exportDisabled}
             variant="default"

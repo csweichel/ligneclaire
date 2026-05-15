@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 @source "../../../programs";
@@ -7,29 +8,147 @@ html {
 }
 
 :root {
-  color: #0f172a;
+  color: #191b23;
   color-scheme: light;
-  font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
-  --studio-bg: #f3f4f6;
-  --studio-workspace: #e8edf5;
-  --studio-workspace-soft: #eff3f8;
-  --studio-panel: #ffffff;
-  --studio-paper: #fffdf8;
-  --studio-grid: rgba(15, 23, 42, 0.06);
-  --studio-line: #d5dbe6;
-  --studio-line-soft: #e4e8ef;
-  --studio-ink: #0f172a;
-  --studio-ink-soft: #64748b;
-  --studio-ink-muted: #64748b;
-  --studio-blue: #4f46e5;
-  --studio-blue-soft: rgba(79, 70, 229, 0.11);
-  --studio-red: #e11d48;
-  --studio-red-soft: rgba(225, 29, 72, 0.08);
-  --studio-yellow: #d97706;
-  --studio-green: #059669;
-  --studio-green-soft: rgba(5, 150, 105, 0.12);
-  --studio-plot-primary: #526a7a;
-  --studio-mask: #7da7a0;
+  font-family: "Hanken Grotesk", "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
+  --lc-font-sans: "Hanken Grotesk", "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
+  --lc-font-mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+
+  --lc-radius-control: 8px;
+  --lc-radius-shell: 16px;
+  --lc-radius-pill: 999px;
+
+  --lc-color-surface-app: #f6f5f2;
+  --lc-color-surface-canvas: #f3f2ee;
+  --lc-color-surface-panel: #ffffff;
+  --lc-color-surface-panel-muted: #f7f6f3;
+  --lc-color-surface-panel-subtle: #f1efea;
+  --lc-color-surface-panel-hover: #faf9f6;
+  --lc-color-surface-scrim: rgba(255, 255, 255, 0.92);
+
+  --lc-color-border-default: #d1d5db;
+  --lc-color-border-muted: #e5e7eb;
+  --lc-color-border-strong: #b9bec8;
+  --lc-color-grid: rgba(115, 119, 134, 0.12);
+
+  --lc-color-text-primary: #191b23;
+  --lc-color-text-secondary: #424654;
+  --lc-color-text-muted: #737786;
+  --lc-color-text-on-primary: #ffffff;
+
+  --lc-color-accent-primary: #1c5fd4;
+  --lc-color-accent-primary-hover: #154fb3;
+  --lc-color-accent-primary-soft: #e6eefc;
+  --lc-color-accent-primary-soft-hover: #dbe6fb;
+  --lc-color-accent-primary-ink: #154fb3;
+  --lc-color-accent-primary-ring: rgba(28, 95, 212, 0.18);
+
+  --lc-color-success: #1f6b4b;
+  --lc-color-success-strong: #2a7a56;
+  --lc-color-success-soft: #e7f1eb;
+  --lc-color-warning: #8c6500;
+  --lc-color-warning-soft: #f4ebd7;
+  --lc-color-danger: #a63d36;
+  --lc-color-danger-hover: #8b302a;
+  --lc-color-danger-soft: #f7e2de;
+  --lc-color-feedback-warning-border: rgba(245, 158, 11, 0.22);
+  --lc-color-feedback-warning-surface: rgba(255, 251, 235, 0.85);
+  --lc-color-feedback-warning-text: #92400e;
+  --lc-color-feedback-danger-border: rgba(225, 29, 72, 0.16);
+  --lc-color-feedback-neutral-border: rgba(148, 163, 184, 0.45);
+  --lc-color-feedback-neutral-surface: rgba(248, 250, 252, 0.82);
+
+  --lc-color-console-surface: #151617;
+  --lc-color-console-border: #2d3036;
+  --lc-color-console-text: #f0efe8;
+  --lc-color-console-error: #ff9b90;
+  --lc-color-console-rx: #bdd2ff;
+  --lc-color-console-tx: #93d7a8;
+
+  --lc-color-preview-plot: #687c88;
+  --lc-color-preview-mask: #8ca7a1;
+  --lc-color-flow-edge: rgba(15, 23, 42, 0.18);
+  --lc-color-flow-guide: rgba(28, 95, 212, 0.42);
+
+  --lc-shadow-recessed: inset 0 1px 0 rgba(25, 27, 35, 0.04);
+  --lc-shadow-focus-ring: 0 0 0 1px rgba(28, 95, 212, 0.18);
+
+  --studio-font-sans: var(--lc-font-sans);
+  --studio-font-mono: var(--lc-font-mono);
+  --studio-bg: var(--lc-color-surface-app);
+  --studio-workspace: var(--lc-color-surface-canvas);
+  --studio-workspace-soft: var(--lc-color-surface-panel-muted);
+  --studio-panel: var(--lc-color-surface-panel);
+  --studio-paper: var(--lc-color-surface-panel);
+  --studio-grid: var(--lc-color-grid);
+  --studio-line: var(--lc-color-border-default);
+  --studio-line-soft: var(--lc-color-border-muted);
+  --studio-ink: var(--lc-color-text-primary);
+  --studio-ink-soft: var(--lc-color-text-secondary);
+  --studio-ink-muted: var(--lc-color-text-muted);
+  --studio-blue: var(--lc-color-accent-primary);
+  --studio-blue-strong: var(--lc-color-accent-primary-hover);
+  --studio-blue-soft: var(--lc-color-accent-primary-ring);
+  --studio-red: var(--lc-color-danger);
+  --studio-red-soft: var(--lc-color-danger-soft);
+  --studio-yellow: var(--lc-color-warning);
+  --studio-green: var(--lc-color-success);
+  --studio-green-strong: var(--lc-color-success-strong);
+  --studio-green-soft: var(--lc-color-success-soft);
+  --studio-plot-primary: var(--lc-color-preview-plot);
+  --studio-mask: var(--lc-color-preview-mask);
+  --studio-console: var(--lc-color-console-surface);
+  --studio-console-ink: var(--lc-color-console-text);
+}
+
+@theme inline {
+  --font-lc-sans: var(--lc-font-sans);
+  --font-lc-mono: var(--lc-font-mono);
+
+  --radius-lc-control: var(--lc-radius-control);
+  --radius-lc-shell: var(--lc-radius-shell);
+  --radius-lc-pill: var(--lc-radius-pill);
+
+  --color-lc-app: var(--lc-color-surface-app);
+  --color-lc-canvas: var(--lc-color-surface-canvas);
+  --color-lc-panel: var(--lc-color-surface-panel);
+  --color-lc-panel-muted: var(--lc-color-surface-panel-muted);
+  --color-lc-panel-subtle: var(--lc-color-surface-panel-subtle);
+  --color-lc-panel-hover: var(--lc-color-surface-panel-hover);
+  --color-lc-panel-scrim: var(--lc-color-surface-scrim);
+
+  --color-lc-border: var(--lc-color-border-default);
+  --color-lc-border-muted: var(--lc-color-border-muted);
+  --color-lc-border-strong: var(--lc-color-border-strong);
+  --color-lc-grid: var(--lc-color-grid);
+
+  --color-lc-text: var(--lc-color-text-primary);
+  --color-lc-text-secondary: var(--lc-color-text-secondary);
+  --color-lc-text-muted: var(--lc-color-text-muted);
+  --color-lc-on-primary: var(--lc-color-text-on-primary);
+
+  --color-lc-primary: var(--lc-color-accent-primary);
+  --color-lc-primary-hover: var(--lc-color-accent-primary-hover);
+  --color-lc-primary-soft: var(--lc-color-accent-primary-soft);
+  --color-lc-primary-soft-hover: var(--lc-color-accent-primary-soft-hover);
+  --color-lc-primary-ink: var(--lc-color-accent-primary-ink);
+
+  --color-lc-success: var(--lc-color-success);
+  --color-lc-success-soft: var(--lc-color-success-soft);
+  --color-lc-warning: var(--lc-color-warning);
+  --color-lc-warning-soft: var(--lc-color-warning-soft);
+  --color-lc-danger: var(--lc-color-danger);
+  --color-lc-danger-hover: var(--lc-color-danger-hover);
+  --color-lc-danger-soft: var(--lc-color-danger-soft);
+
+  --color-lc-console: var(--lc-color-console-surface);
+  --color-lc-console-border: var(--lc-color-console-border);
+  --color-lc-console-text: var(--lc-color-console-text);
+  --color-lc-console-error: var(--lc-color-console-error);
+  --color-lc-console-rx: var(--lc-color-console-rx);
+  --color-lc-console-tx: var(--lc-color-console-tx);
+
+  --shadow-lc-recessed: var(--lc-shadow-recessed);
 }
 
 * {
@@ -41,10 +160,7 @@ body {
   min-width: 320px;
   min-height: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(99, 102, 241, 0.09), transparent 26%),
-    radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 24%),
-    linear-gradient(180deg, #f8fafc 0%, #f3f4f6 52%, #eef2f7 100%);
+  background: var(--lc-color-surface-app);
   color: var(--studio-ink);
 }
 
@@ -52,47 +168,55 @@ body {
   height: 100vh;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 .studio-button {
   min-height: 40px;
-  padding: 10px 14px;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--studio-ink);
-  font: inherit;
+  padding: 8px 16px;
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel);
+  color: var(--lc-color-text-primary);
+  box-shadow: var(--lc-shadow-recessed);
+  font-family: var(--lc-font-sans);
   font-size: 0.92rem;
   font-weight: 600;
   transition:
     background 150ms ease,
     border-color 150ms ease,
-    color 150ms ease,
-    box-shadow 150ms ease;
-  box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.45);
+    color 150ms ease;
 }
 
 .studio-button:hover:not(:disabled) {
-  border-color: rgba(100, 116, 139, 0.45);
-  background: rgba(255, 255, 255, 1);
+  border-color: var(--lc-color-border-strong);
+  background: var(--lc-color-surface-panel-hover);
 }
 
 .studio-button--primary {
-  border-color: transparent;
-  background: var(--studio-blue);
-  color: white;
+  border-color: var(--lc-color-accent-primary);
+  background: var(--lc-color-accent-primary);
+  box-shadow: none;
+  color: var(--lc-color-text-on-primary);
 }
 
 .studio-button--primary:hover:not(:disabled) {
-  filter: brightness(0.96);
+  border-color: var(--lc-color-accent-primary-hover);
+  background: var(--lc-color-accent-primary-hover);
 }
 
 .studio-button--danger {
-  color: var(--studio-red);
+  color: var(--lc-color-danger);
 }
 
 .studio-button--compact {
   min-height: 34px;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: var(--lc-radius-control);
   font-size: 0.82rem;
 }
 
@@ -100,26 +224,26 @@ body {
   width: 100%;
   min-height: 42px;
   padding: 10px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--studio-ink);
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel);
+  box-shadow: var(--lc-shadow-recessed);
+  color: var(--lc-color-text-primary);
   font: inherit;
-  box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.45);
 }
 
 .studio-input--compact {
   min-height: 36px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: var(--lc-radius-control);
   font-size: 0.86rem;
 }
 
 .studio-input:focus,
 .lc-parameter-field__number:focus {
   outline: 2px solid transparent;
-  border-color: rgba(79, 70, 229, 0.4);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  border-color: var(--lc-color-accent-primary);
+  box-shadow: var(--lc-shadow-recessed), var(--lc-shadow-focus-ring);
 }
 
 .studio-input:disabled,
@@ -146,8 +270,9 @@ body {
 .lc-editor-overlay__eyebrow {
   margin: 0;
   color: var(--studio-ink-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-family: var(--studio-font-mono);
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -169,19 +294,19 @@ body {
 
 .studio-sidebar__issue {
   padding: 12px 14px;
-  border: 1px solid rgba(245, 158, 11, 0.22);
-  border-radius: 18px;
-  background: rgba(255, 251, 235, 0.85);
-  color: #92400e;
+  border: 1px solid var(--lc-color-feedback-warning-border);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-feedback-warning-surface);
+  color: var(--lc-color-feedback-warning-text);
   font-size: 0.88rem;
   line-height: 1.55;
 }
 
 .studio-empty-state {
   padding: 14px 16px;
-  border: 1px dashed rgba(148, 163, 184, 0.45);
-  border-radius: 18px;
-  background: rgba(248, 250, 252, 0.82);
+  border: 1px dashed var(--lc-color-feedback-neutral-border);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-feedback-neutral-surface);
   color: var(--studio-ink-soft);
   font-size: 0.92rem;
   line-height: 1.55;
@@ -202,15 +327,15 @@ body {
   display: grid;
   gap: 8px;
   padding: 12px 14px;
-  border: 1px solid rgba(225, 29, 72, 0.16);
-  border-radius: 18px;
+  border: 1px solid var(--lc-color-feedback-danger-border);
+  border-radius: var(--lc-radius-control);
   background: var(--studio-red-soft);
 }
 
 .gcode-transport__error-text {
   margin: 0;
   color: var(--studio-ink);
-  font-family: "SFMono-Regular", "SFMono", "Cascadia Code", "Roboto Mono", monospace;
+  font-family: var(--studio-font-mono);
   font-size: 0.8rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -291,10 +416,11 @@ body {
   width: 100%;
   min-height: 38px;
   padding: 8px 10px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--studio-ink);
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel);
+  box-shadow: var(--lc-shadow-recessed);
+  color: var(--lc-color-text-primary);
   font: inherit;
   text-align: right;
 }
@@ -317,8 +443,8 @@ body {
 
 .lc-editor-overlay__title {
   margin: 0;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  font-size: 1.05rem;
+  font-family: var(--lc-font-sans);
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -366,13 +492,9 @@ body {
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--studio-line-soft);
-  border-radius: 20px;
-  background: linear-gradient(
-    180deg,
-    rgba(248, 250, 252, 0.72) 0%,
-    rgba(255, 255, 255, 0.94) 100%
-  );
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel);
 }
 
 .lc-node-composer__section--workspace {
@@ -426,8 +548,9 @@ body {
 
 .lc-node-composer__flow-frame {
   overflow: hidden;
-  border: 1px solid var(--studio-line-soft);
-  border-radius: 18px;
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-shell);
+  background: var(--lc-color-surface-panel);
 }
 
 .lc-node-composer__flow-frame--workspace {
@@ -437,11 +560,15 @@ body {
 
 .lc-node-composer__flow {
   height: 460px;
-  background: linear-gradient(
-    180deg,
-    rgba(237, 240, 243, 0.9) 0%,
-    rgba(230, 232, 235, 0.82) 100%
-  );
+  background:
+    linear-gradient(var(--lc-color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lc-color-grid) 1px, transparent 1px),
+    linear-gradient(
+      180deg,
+      var(--lc-color-surface-panel-muted) 0%,
+      var(--lc-color-surface-canvas) 100%
+    );
+  background-size: 32px 32px, 32px 32px, 100% 100%;
 }
 
 .lc-node-composer__flow--workspace {
@@ -457,7 +584,7 @@ body {
 
 .lc-node-composer__flow .react-flow__edge-path,
 .lc-node-composer__flow .react-flow__connection-path {
-  stroke: rgba(15, 23, 42, 0.18);
+  stroke: var(--lc-color-flow-edge);
   stroke-width: 2.2;
 }
 
@@ -467,44 +594,40 @@ body {
 }
 
 .lc-node-composer__flow .react-flow__controls {
-  border: 1px solid var(--studio-line-soft);
-  border-radius: 14px;
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
   overflow: hidden;
-  box-shadow: 0 12px 32px -24px rgba(15, 23, 42, 0.35);
 }
 
 .lc-node-composer__flow .react-flow__controls-button {
-  border-bottom-color: var(--studio-line-soft);
-  background: rgba(255, 255, 255, 0.96);
+  border-bottom-color: var(--lc-color-border-default);
+  background: var(--lc-color-surface-panel);
   color: var(--studio-ink);
 }
 
 .lc-node-composer__flow .react-flow__controls-button:hover {
-  background: rgba(248, 250, 252, 0.96);
+  background: var(--lc-color-surface-panel-hover);
 }
 
 .lc-node-composer__flow-node {
   width: 236px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 20px 48px -36px rgba(15, 23, 42, 0.42);
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel);
   overflow: visible;
 }
 
 .lc-node-composer__flow .react-flow__node.selected .lc-node-composer__flow-node {
-  border-color: rgba(79, 70, 229, 0.28);
-  box-shadow:
-    0 24px 56px -34px rgba(15, 23, 42, 0.44),
-    0 0 0 4px rgba(79, 70, 229, 0.12);
+  border-color: var(--lc-color-accent-primary);
+  box-shadow: 0 0 0 1px var(--lc-color-accent-primary-ring);
 }
 
 .lc-node-composer__flow-node-header {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 246, 248, 0.92) 100%);
+  border-bottom: 1px solid var(--lc-color-border-muted);
+  background: var(--lc-color-surface-panel-subtle);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -603,9 +726,9 @@ body {
   content: "";
   position: absolute;
   inset: 6px;
-  border: 2px solid var(--studio-line);
+  border: 2px solid var(--lc-color-border-default);
   border-radius: 999px;
-  background: var(--studio-panel);
+  background: var(--lc-color-surface-panel);
 }
 
 .lc-node-composer__flow-handle--connected::after {
@@ -614,9 +737,9 @@ body {
 }
 
 .lc-node-composer__flow-handle--pending::after {
-  border-color: var(--studio-blue);
-  background: rgba(79, 70, 229, 0.14);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.18);
+  border-color: var(--lc-color-accent-primary);
+  background: var(--lc-color-accent-primary-soft);
+  box-shadow: 0 0 0 4px var(--lc-color-accent-primary-ring);
 }
 
 .lc-node-composer__inspector-wiring {
@@ -630,9 +753,9 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--studio-line-soft);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel-muted);
 }
 
 .lc-node-composer__asset-input {
@@ -654,17 +777,16 @@ body {
   display: grid;
   gap: 2px;
   padding: 6px;
-  border: 1px solid var(--studio-line-soft);
-  border-radius: 16px;
-  background: var(--studio-panel);
-  box-shadow: 0 20px 48px -34px rgba(15, 23, 42, 0.35);
+  border: 1px solid var(--lc-color-border-default);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-color-surface-panel);
 }
 
 .lc-node-composer__font-picker-option {
   width: 100%;
   padding: 10px 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--lc-radius-control);
   background: transparent;
   color: var(--studio-ink);
   display: grid;
@@ -676,7 +798,7 @@ body {
 
 .lc-node-composer__font-picker-option:hover,
 .lc-node-composer__font-picker-option[aria-selected="true"] {
-  background: rgba(248, 250, 252, 0.96);
+  background: var(--lc-color-surface-panel-subtle);
 }
 
 .lc-node-composer__font-picker-family {
@@ -714,13 +836,13 @@ body {
 
 .lc-node-composer__overlay-guide {
   fill: none;
-  stroke: rgba(79, 70, 229, 0.58);
+  stroke: var(--lc-color-flow-guide);
   stroke-width: 1.4;
   stroke-dasharray: 6 5;
 }
 
 .lc-node-composer__overlay-handle {
-  box-shadow: 0 0 0 5px rgba(79, 70, 229, 0.18);
+  box-shadow: 0 0 0 5px var(--lc-color-accent-primary-ring);
 }
 
 .lc-editor-handle {
@@ -732,7 +854,7 @@ body {
   border: 2px solid var(--studio-panel);
   border-radius: 999px;
   background: var(--studio-blue);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.14);
+  box-shadow: 0 0 0 4px var(--lc-color-accent-primary-ring);
 }
 
 .lc-editor-handle::before,
@@ -742,7 +864,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--lc-color-surface-panel);
 }
 
 .lc-editor-handle::before {

@@ -24,17 +24,17 @@ export function ExportSettingsButton({
   return (
     <button
       className={cn(
-        "grid gap-1 rounded-[22px] border border-slate-200/80 bg-white/90 px-4 py-3 text-left shadow-sm shadow-slate-900/5 transition hover:border-slate-300 hover:bg-white",
+        "grid gap-1 rounded-lc-control border border-lc-border bg-lc-panel px-4 py-3 text-left transition hover:bg-lc-panel-hover",
         fullWidth && "w-full",
         className
       )}
       type="button"
       onClick={onClick}
     >
-      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <span className="font-lc-mono text-[11px] font-medium uppercase tracking-[0.14em] text-lc-text-secondary">
         G-code settings
       </span>
-      <span className="text-sm font-medium leading-6 text-slate-900">{summary}</span>
+      <span className="text-sm font-medium leading-6 text-lc-text">{summary}</span>
     </button>
   );
 }

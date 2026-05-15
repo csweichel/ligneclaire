@@ -78,7 +78,7 @@ export function ProgramEditorPanel({
     <section
       {...props}
       className={cn(
-        "flex min-h-full flex-col gap-4 px-5 py-5 text-slate-900",
+        "flex min-h-full flex-col gap-4 px-5 py-5 text-lc-text",
         className
       )}
     >
@@ -102,7 +102,7 @@ export function ProgramEditorWorkspace({
       data-editor-workspace="true"
       data-tab-label={tabLabel}
       className={cn(
-        "grid h-full min-h-0 w-full overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/75 p-4 shadow-inner shadow-slate-200/40 backdrop-blur-sm",
+        "grid h-full min-h-0 w-full overflow-hidden rounded-lc-shell border border-lc-border bg-lc-panel p-4 shadow-lc-recessed",
         className
       )}
     >

@@ -62,7 +62,7 @@ export function StudioShell({ studio }: StudioShellProps) {
   }
 
   return (
-    <div className="grid h-full min-h-0 max-w-full grid-rows-[auto_minmax(0,1fr)] gap-4 p-3 max-[1100px]:h-auto max-[1100px]:min-h-screen">
+    <div className="grid h-full min-h-0 max-w-full grid-rows-[auto_minmax(0,1fr)] bg-lc-app max-[1100px]:h-auto max-[1100px]:min-h-screen">
       <StudioHeader
         perspective={perspective}
         studio={studio}
