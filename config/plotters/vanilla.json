@@ -34,7 +34,7 @@
       "penDownZMm": 0
     },
     "verticalFlip": false,
-    "optimizePaths": false,
+    "optimizePaths": true,
     "penUpAtDocumentEnd": true,
     "returnHomeAtDocumentEnd": false
   }

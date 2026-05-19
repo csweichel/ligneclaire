@@ -408,7 +408,7 @@ describe("buildOversizeHandlingCommands", () => {
 });
 
 describe("createGcodeExportArgs", () => {
-  it("simplifies curved SVG geometry during import before gcode writing", () => {
+  it("simplifies curved SVG geometry during import and uses stronger path ordering for gcode", () => {
     const config: PlotterConfig = {
       id: "axidraw-a4",
       label: "AxiDraw A4",
@@ -452,6 +452,7 @@ describe("createGcodeExportArgs", () => {
       "linemerge",
       "reloop",
       "linesort",
+      "--two-opt",
       "gwrite",
       "--profile",
       "axidraw-a4",

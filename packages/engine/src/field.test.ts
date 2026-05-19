@@ -9,6 +9,42 @@ const bounds = {
 } as const;
 
 describe("field tracing", () => {
+  it("traces in both directions from the seed point", () => {
+    const field = createVectorField(bounds, {
+      columns: 2,
+      rows: 2,
+      sampler() {
+        return {
+          angle: 0,
+          length: 1,
+        };
+      },
+    });
+
+    const traced = traceNearestVectorField(
+      field,
+      {
+        x: 5,
+        y: 5,
+      },
+      {
+        segmentLength: 1,
+        steps: 3,
+        bounds,
+      }
+    );
+
+    expect(traced.points).toEqual([
+      { x: 2, y: 5 },
+      { x: 3, y: 5 },
+      { x: 4, y: 5 },
+      { x: 5, y: 5 },
+      { x: 6, y: 5 },
+      { x: 7, y: 5 },
+      { x: 8, y: 5 },
+    ]);
+  });
+
   it("interpolates vectors between neighboring field cells", () => {
     const field = createVectorField(bounds, {
       columns: 2,

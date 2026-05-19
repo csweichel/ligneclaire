@@ -283,6 +283,7 @@ const embeddedProgramEntriesById = new Map(
   embeddedProgramEntries.map((entry) => [entry.program.id, entry])
 );
 const defaultEmbeddedProgramEntry = embeddedProgramEntries[0] ?? null;
+export const programNodeProgramStateFieldKey = "programStateJson";
 
 function getEmbeddedProgramEntry(programId: string): EmbeddedProgramEntry | null {
   return embeddedProgramEntriesById.get(programId) ?? null;
@@ -305,6 +306,50 @@ function getEmbeddedProgramParamSet(
 function resolveEmbeddedProgramId(value: unknown): string {
   const candidate = readString(value, defaultEmbeddedProgramEntry?.program.id ?? "");
   return getEmbeddedProgram(candidate)?.id ?? defaultEmbeddedProgramEntry?.program.id ?? "";
+}
+
+function parseNodeConfigJson(value: string): unknown | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeProgramNodeStateOverride(
+  program: EmbeddedProgram,
+  params: Readonly<Record<string, number | boolean>>,
+  input: unknown
+): string | null {
+  const candidate = readString(input, "").trim();
+  if (candidate.length === 0) {
+    return null;
+  }
+
+  const parsed = parseNodeConfigJson(candidate);
+  if (parsed === null) {
+    return null;
+  }
+
+  try {
+    return JSON.stringify(resolveProgramState(program, params as never, parsed));
+  } catch {
+    return null;
+  }
+}
+
+function programNodeParamSet(config: NodeConfig): EmbeddedProgramParamSet | null {
+  const programId = programNodeProgramId(config);
+  return getEmbeddedProgramParamSet(programId, readString(config.paramSetId, ""));
+}
+
+function programNodeStateOverrideInput(config: NodeConfig): unknown | undefined {
+  const candidate = readString(config[programNodeProgramStateFieldKey], "").trim();
+  if (candidate.length === 0) {
+    return undefined;
+  }
+
+  return parseNodeConfigJson(candidate) ?? undefined;
 }
 
 function isNodeKind(kind: string): kind is NodeKind {
@@ -486,6 +531,22 @@ export function programNodeProgramId(config: NodeConfig): string {
 
 export function programNodeProgram(config: NodeConfig): EmbeddedProgram | null {
   return getEmbeddedProgram(programNodeProgramId(config));
+}
+
+export function programNodeHasProgramStateOverride(config: NodeConfig): boolean {
+  return readString(config[programNodeProgramStateFieldKey], "").trim().length > 0;
+}
+
+export function programNodeResolvedProgramState(config: NodeConfig): unknown {
+  const program = programNodeProgram(config);
+  if (!program) {
+    return null;
+  }
+
+  const paramSet = programNodeParamSet(config);
+  const params = programNodeParams(program, config, paramSet);
+  const programStateInput = programNodeStateOverrideInput(config) ?? paramSet?.programState;
+  return resolveProgramState(program, params as never, programStateInput);
 }
 
 export function programNodeParamFields(config: NodeConfig): readonly NodeFieldSpec[] {
@@ -1547,6 +1608,16 @@ function normalizeProgramNodeConfig(input: unknown): NodeConfig {
       field,
       candidate[key] !== undefined ? candidate[key] : paramSet?.params[key]
     );
+  }
+
+  const params = programNodeParams(program, normalized, paramSet);
+  const programStateOverride = normalizeProgramNodeStateOverride(
+    program,
+    params,
+    candidate[programNodeProgramStateFieldKey]
+  );
+  if (programStateOverride) {
+    normalized[programNodeProgramStateFieldKey] = programStateOverride;
   }
 
   return normalized;
@@ -2843,15 +2914,13 @@ function renderProgramNodePaths(
   config: NodeConfig,
   mode: EvaluationContext["mode"]
 ): readonly Polyline[] {
-  const programId = programNodeProgramId(config);
-  const program = getEmbeddedProgram(programId) ?? defaultEmbeddedProgramEntry?.program ?? null;
+  const program = programNodeProgram(config);
   if (!program) {
     return [];
   }
 
-  const paramSet = getEmbeddedProgramParamSet(programId, readString(config.paramSetId, ""));
-  const params = programNodeParams(program, config, paramSet);
-  const programState = resolveProgramState(program, params as never, paramSet?.programState);
+  const params = programNodeParams(program, config, programNodeParamSet(config));
+  const programState = programNodeResolvedProgramState(config);
   const document = program.render({
     programId: program.id,
     mode,
@@ -3664,6 +3733,7 @@ export function applyProgramNodeParamSet(
     programId,
     paramSetId: paramSet?.slug ?? "",
     ...(paramSet?.params ?? currentParams),
+    [programNodeProgramStateFieldKey]: "",
   });
 }
 

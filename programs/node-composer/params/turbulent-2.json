@@ -1,0 +1,106 @@
+{
+  "programId": "node-composer",
+  "programVersion": "1.0.0",
+  "name": "Turbulent 2",
+  "params": {},
+  "programState": {
+    "nodes": [
+      {
+        "id": "node-11",
+        "kind": "output-layer",
+        "position": {
+          "x": 900.0301860987644,
+          "y": 231.4655399794852
+        },
+        "config": {
+          "style": "primary",
+          "label": "Layer",
+          "enabled": true
+        }
+      },
+      {
+        "id": "node-12",
+        "kind": "mask-rect",
+        "position": {
+          "x": 99.22405118937138,
+          "y": 521.3534899623895
+        },
+        "config": {
+          "centerX": 105,
+          "centerY": 148.5,
+          "width": 120,
+          "height": 160,
+          "rotationDeg": 0
+        }
+      },
+      {
+        "id": "node-13",
+        "kind": "clip-mask",
+        "position": {
+          "x": 459.771503932008,
+          "y": 298.9827577785377
+        },
+        "config": {
+          "mode": "clip"
+        }
+      },
+      {
+        "id": "node-14",
+        "kind": "program",
+        "position": {
+          "x": 83.50852342109118,
+          "y": 66.08616226249224
+        },
+        "config": {
+          "programId": "sculpture-scan",
+          "paramSetId": "",
+          "seed": 202656,
+          "lineSpacing": 1,
+          "sampleStep": 0.5,
+          "relief": 14.9,
+          "features": 22,
+          "featureRadius": 31,
+          "stretch": 1.3,
+          "detail": 0.6,
+          "warp": 0.99
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "nodeId": "node-12",
+          "portId": "mask"
+        },
+        "to": {
+          "nodeId": "node-13",
+          "portId": "mask"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-13",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-11",
+          "portId": "paths"
+        }
+      },
+      {
+        "from": {
+          "nodeId": "node-14",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-13",
+          "portId": "paths"
+        }
+      }
+    ],
+    "selectedNodeId": "node-14",
+    "nextNodeNumber": 15
+  },
+  "createdAt": "2026-05-15T17:39:37.309Z",
+  "updatedAt": "2026-05-15T17:39:37.309Z"
+}

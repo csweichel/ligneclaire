@@ -23,7 +23,7 @@ import { renderProgram } from "./render";
 import { getToolDiagnostics } from "./tools";
 
 const svgOptimizationPipeline = ["linemerge", "linesimplify", "reloop", "linesort"] as const;
-const gcodeOptimizationPipeline = ["linemerge", "reloop", "linesort"] as const;
+const gcodeOptimizationPipeline = ["linemerge", "reloop", "linesort", "--two-opt"] as const;
 const gcodeReadSimplifyArgs = ["--quantization", "0.1mm", "--simplify"] as const;
 
 type PageSize = Readonly<{

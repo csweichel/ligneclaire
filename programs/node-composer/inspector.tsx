@@ -1,14 +1,23 @@
 import { clamp } from "@ligneclaire/sdk";
+import {
+  countImportedSvgOutlinePoints,
+  emptyImportedSvgOutlineData,
+  importSvgOutlineFile,
+  normalizeImportedSvgOutlineData,
+} from "@ligneclaire/ui";
 import { useDeferredValue, useEffect, useRef, useState, type ChangeEvent, type JSX } from "react";
 import {
   connectionForInput,
   nodeLabel,
   nodeSpec,
+  programNodeHasProgramStateOverride,
   programNodeParamFields,
   programNodeParamSets,
   programNodeProgram,
   programNodeProgramId,
   programNodePrograms,
+  programNodeProgramStateFieldKey,
+  programNodeResolvedProgramState,
   type ComposerNode,
   type NodeComposerProgramState,
   type NodeConfigValue,
@@ -157,6 +166,140 @@ type ProgramNodeFieldsProps = Readonly<{
   onSelectParamSet: (nodeId: string, paramSetId: string) => void;
 }>;
 
+const SVG_CONCENTRIC_OUTLINE_PROGRAM_ID = "svg-concentric-outline";
+
+type SvgConcentricProgramStateFieldsProps = Readonly<{
+  selectedNode: ComposerNode;
+  onPatchConfig: (nodeId: string, patch: Readonly<Record<string, NodeConfigValue>>) => void;
+}>;
+
+function SvgConcentricProgramStateFields({
+  selectedNode,
+  onPatchConfig,
+}: SvgConcentricProgramStateFieldsProps): JSX.Element {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasOverride = programNodeHasProgramStateOverride(selectedNode.config);
+  const selectedParamSetId = String(selectedNode.config.paramSetId ?? "");
+  const currentState = normalizeImportedSvgOutlineData(
+    programNodeResolvedProgramState(selectedNode.config)
+  );
+  const pointCount = countImportedSvgOutlinePoints(currentState);
+  const resetLabel = selectedParamSetId ? "Reset to Parameter Set" : "Reset to Default";
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const imported = await importSvgOutlineFile(file);
+      onPatchConfig(selectedNode.id, {
+        [programNodeProgramStateFieldKey]: JSON.stringify(imported),
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Failed to import the selected SVG.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <label className="lc-editor-overlay__field">
+        <span className="lc-editor-overlay__label">SVG Source</span>
+
+        <div className="lc-node-composer__asset-actions">
+          <button
+            className="studio-button studio-button--compact"
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              inputRef.current?.click();
+            }}
+          >
+            {loading ? "Loading..." : hasOverride ? "Replace SVG" : "Choose SVG"}
+          </button>
+
+          <button
+            className="studio-button studio-button--compact"
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setError(null);
+              onPatchConfig(selectedNode.id, {
+                [programNodeProgramStateFieldKey]: JSON.stringify(emptyImportedSvgOutlineData()),
+              });
+            }}
+          >
+            Clear
+          </button>
+
+          {hasOverride ? (
+            <button
+              className="studio-button studio-button--compact"
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setError(null);
+                onPatchConfig(selectedNode.id, {
+                  [programNodeProgramStateFieldKey]: "",
+                });
+              }}
+            >
+              {resetLabel}
+            </button>
+          ) : null}
+
+          <input
+            ref={inputRef}
+            accept=".svg,image/svg+xml"
+            className="lc-node-composer__asset-input"
+            type="file"
+            onChange={(event) => {
+              void handleFileChange(event);
+            }}
+          />
+        </div>
+
+        <span className="lc-node-composer__font-picker-current">
+          {hasOverride
+            ? "Using a node-specific imported SVG."
+            : selectedParamSetId
+              ? "Using the selected parameter set or embedded default SVG."
+              : "Using the embedded program default SVG until you import one."}
+        </span>
+        {error ? (
+          <span className="lc-node-composer__font-picker-error">{error}</span>
+        ) : null}
+      </label>
+
+      <div className="lc-editor-overlay__field">
+        <span className="lc-editor-overlay__label">
+          Source
+          <span className="lc-editor-overlay__value">{currentState.sourceName || "None"}</span>
+        </span>
+      </div>
+
+      <div className="lc-editor-overlay__field">
+        <span className="lc-editor-overlay__label">
+          Imported paths
+          <span className="lc-editor-overlay__value">
+            {currentState.paths.length} paths / {pointCount} points
+          </span>
+        </span>
+      </div>
+    </>
+  );
+}
+
 function ProgramNodeFields({
   selectedNode,
   onPatchConfig,
@@ -208,6 +351,13 @@ function ProgramNodeFields({
 
       {embeddedProgram ? (
         <p className="lc-editor-overlay__copy">{embeddedProgram.description}</p>
+      ) : null}
+
+      {programId === SVG_CONCENTRIC_OUTLINE_PROGRAM_ID ? (
+        <SvgConcentricProgramStateFields
+          selectedNode={selectedNode}
+          onPatchConfig={onPatchConfig}
+        />
       ) : null}
 
       {paramFields.length > 0 ? (

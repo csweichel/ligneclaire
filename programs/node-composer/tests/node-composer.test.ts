@@ -515,6 +515,84 @@ describe("node-composer program", () => {
     expect(document.layers[0]!.paths).toHaveLength(4);
   });
 
+  it("renders embedded svg-concentric-outline nodes from node-local svg state overrides", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "program",
+              position: { x: 40, y: 40 },
+              config: {
+                programId: "svg-concentric-outline",
+                paramSetId: "",
+                copies: 2,
+                shrinkFactor: 0.5,
+                shrinkStepMm: 0,
+                sizeMm: 100,
+                programStateJson: JSON.stringify({
+                  sourceName: "double-line.svg",
+                  paths: [
+                    {
+                      closed: false,
+                      points: [
+                        { x: 0, y: 0 },
+                        { x: 40, y: 0 },
+                      ],
+                    },
+                    {
+                      closed: false,
+                      points: [
+                        { x: 0, y: 100 },
+                        { x: 40, y: 100 },
+                      ],
+                    },
+                  ],
+                }),
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "SVG Outline",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(1);
+    expect(document.layers[0]!.paths).toHaveLength(4);
+    expect(boundsCenter(pathBounds([document.layers[0]!.paths[0]!])).y).toBeCloseTo(
+      boundsCenter(pathBounds([document.layers[0]!.paths[2]!])).y,
+      6
+    );
+    expect(boundsCenter(pathBounds([document.layers[0]!.paths[1]!])).y).toBeCloseTo(
+      boundsCenter(pathBounds([document.layers[0]!.paths[3]!])).y,
+      6
+    );
+  });
+
   it("draws text generator nodes from bundled Google font outlines", () => {
     const document = renderProgramCase(
       program,

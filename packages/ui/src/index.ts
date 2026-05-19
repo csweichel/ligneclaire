@@ -13,4 +13,5 @@ export * from "./components/textarea";
 export * from "./editorSurfaces";
 export * from "./ParameterInspector";
 export * from "./preview";
+export * from "./svgOutlineImport";
 export * from "./lib/utils";

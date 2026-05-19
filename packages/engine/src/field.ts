@@ -237,31 +237,56 @@ function traceFieldPath(
   options: VectorFieldTraceOptions,
   samplingMode: VectorFieldSamplingMode
 ): Polyline {
-  const points: Point[] = [start];
+  const backward = traceFieldDirection(field, start, options, samplingMode, -1);
+  const forward = traceFieldDirection(field, start, options, samplingMode, 1);
+
+  return {
+    points: [...backward.reverse(), start, ...forward],
+  };
+}
+
+function sampleTraceVector(
+  field: VectorField,
+  point: Point,
+  samplingMode: VectorFieldSamplingMode
+): Vector | null {
+  return samplingMode === "interpolated"
+    ? sampleInterpolatedVector(field, point)
+    : sampleNearestVector(field, point);
+}
+
+function traceFieldDirection(
+  field: VectorField,
+  start: Point,
+  options: VectorFieldTraceOptions,
+  samplingMode: VectorFieldSamplingMode,
+  direction: 1 | -1
+): Point[] {
+  const points: Point[] = [];
   let current = start;
 
   for (let step = 0; step < options.steps; step += 1) {
-    const vector =
-      samplingMode === "interpolated"
-        ? sampleInterpolatedVector(field, current)
-        : sampleNearestVector(field, current);
+    const vector = sampleTraceVector(field, current, samplingMode);
     if (!vector) {
       break;
     }
 
-    current = {
-      x: current.x + Math.cos(vector.angle) * options.segmentLength,
-      y: current.y + Math.sin(vector.angle) * options.segmentLength,
+    const deltaX = Math.cos(vector.angle) * options.segmentLength * direction;
+    const deltaY = Math.sin(vector.angle) * options.segmentLength * direction;
+    const next = {
+      x: current.x + deltaX,
+      y: current.y + deltaY,
     };
 
-    if (options.bounds && !pointInBounds(current, options.bounds)) {
+    if (options.bounds && !pointInBounds(next, options.bounds)) {
       break;
     }
 
-    points.push(current);
+    points.push(next);
+    current = next;
   }
 
-  return { points };
+  return points;
 }
 
 export function traceNearestVectorField(

@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { useState } from "react";
-import { ProgramEditorPanel } from "@ligneclaire/ui";
+import { ProgramEditorPanel, importSvgOutlineFile } from "@ligneclaire/ui";
 import type { ProgramEditorProps } from "@ligneclaire/sdk";
 import {
   countSvgOutlinePoints,
@@ -8,7 +8,6 @@ import {
   type SvgConcentricOutlineProgramState,
   type SvgConcentricOutlineSchema,
 } from "./index";
-import { importSvgOutlineFile } from "./svgImport";
 
 type Props = ProgramEditorProps<
   SvgConcentricOutlineSchema,
