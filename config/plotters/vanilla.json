@@ -2,8 +2,8 @@
   "id": "vanilla",
   "label": "Vanilla G-code (raw XY/Z)",
   "page": {
-    "widthMm": 297,
-    "heightMm": 210
+    "widthMm": 400,
+    "heightMm": 300
   },
   "gcode": {
     "unit": "mm",

@@ -127,6 +127,15 @@ function createMoveCommand(
   return parts.join(" ");
 }
 
+function createInitialTravelCommand(
+  command: "G0" | "G1",
+  x: string,
+  y: string,
+  feedRateMmPerMin?: number
+): string {
+  return createMoveCommand(command, x, y, feedRateMmPerMin);
+}
+
 function joinGcodeBlocks(blocks: readonly string[]): string {
   return `${blocks.map((block) => block.trim()).filter((block) => block.length > 0).join("\n")}\n`;
 }
@@ -163,7 +172,7 @@ export function createGwriteProfile(
   const travelFeedRateMmPerMin =
     config.gcode.travelFeedRateMmPerMin ?? config.gcode.feedRateMmPerMin;
   const penMotion = resolvePlotterPenMotion(config.gcode, penMotionOverride);
-  const travelMove = `${createMoveCommand(
+  const initialTravelMove = `${createInitialTravelCommand(
     travelCommand,
     "{x:.4f}",
     "{y:.4f}",
@@ -183,7 +192,7 @@ export function createGwriteProfile(
     config.gcode.preambleCommand ?? "",
   ]);
   const segmentFirst = joinGcodeBlocks([
-    travelMove.trimEnd(),
+    initialTravelMove.trimEnd(),
     penMotion.penDownCommand,
     `G1 F${config.gcode.feedRateMmPerMin}`,
   ]);

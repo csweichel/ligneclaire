@@ -33,6 +33,7 @@ export async function renderProgram(request: RenderRequest): Promise<RenderRespo
 
   return {
     programId: program.id,
+    canvas: document.canvas,
     svg,
     metrics,
     params: normalized.params,

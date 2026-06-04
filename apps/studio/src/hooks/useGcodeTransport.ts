@@ -132,6 +132,12 @@ function pause(ms: number): Promise<void> {
   });
 }
 
+function samplePreviewAckDelayMs(ackTimeoutMs: number): number {
+  const mean = Math.min(90, Math.max(12, ackTimeoutMs * 0.018));
+  const jitter = (Math.random() + Math.random() + Math.random()) / 3;
+  return Math.round(mean * (0.35 + jitter * 1.45));
+}
+
 function compileRegex(pattern: string): RegExp | null {
   if (!pattern) {
     return null;
@@ -911,6 +917,39 @@ export function useGcodeTransport({
     }
   }
 
+  async function previewLines(lines: readonly string[]): Promise<void> {
+    for (let index = 0; index < lines.length; index += 1) {
+      if (cancelRequestedRef.current) {
+        throw new Error("Preview cancelled.");
+      }
+
+      await waitForResume();
+
+      const line = lines[index]!;
+      updateProgress((existing) => ({
+        ...existing,
+        sentLines: index + 1,
+      }));
+      appendLog("tx", line);
+
+      await pause(samplePreviewAckDelayMs(settings.ackTimeoutMs));
+
+      if (cancelRequestedRef.current) {
+        throw new Error("Preview cancelled.");
+      }
+
+      setLastResponseValue("ok (simulated)");
+      updateProgress((existing) => ({
+        ...existing,
+        acknowledgedLines: index + 1,
+      }));
+
+      if (index === 0 || index === lines.length - 1 || (index + 1) % 50 === 0) {
+        appendLog("rx", "ok (simulated)");
+      }
+    }
+  }
+
   async function runSerialJob(
     request: SerialTransportJobRequest
   ): Promise<SerialTransportJobResult> {
@@ -1161,6 +1200,65 @@ export function useGcodeTransport({
     }
   }
 
+  async function preview(): Promise<void> {
+    const artifact =
+      preparedArtifact && preparedArtifact.snapshot === currentSnapshot
+        ? preparedArtifact
+        : await prepare();
+
+    if (!artifact) {
+      return;
+    }
+
+    cancelRequestedRef.current = false;
+    pauseRequestedRef.current = false;
+    jobStartedAtRef.current = Date.now();
+    clearErrorState();
+    replaceProgress({
+      totalLines: artifact.lines.length,
+      sentLines: 0,
+      acknowledgedLines: 0,
+      errorLines: 0,
+    });
+    setJobState("sending");
+    setStatus({
+      tone: "neutral",
+      message: `Previewing ${artifact.fileName} without sending to machine...`,
+    });
+    appendLog("system", "Starting simulated move preview. No serial commands will be sent.");
+
+    try {
+      await previewLines(artifact.lines);
+      setJobState("complete");
+      clearErrorState();
+      setStatus({
+        tone: "success",
+        message: `Previewed ${artifact.fileName}.`,
+      });
+      appendLog(
+        "system",
+        `Simulated preview complete in ${Date.now() - (jobStartedAtRef.current ?? Date.now())} ms.`
+      );
+    } catch (error) {
+      if (cancelRequestedRef.current) {
+        setJobState("cancelled");
+        setStatus({
+          tone: "neutral",
+          message: "Preview cancelled.",
+        });
+        appendLog("system", "Preview cancelled.");
+      } else {
+        setJobState("failed");
+        rememberError(error instanceof Error ? error.message : "Preview failed.");
+        setStatus({
+          tone: "error",
+          message: error instanceof Error ? error.message : "Preview failed.",
+        });
+        appendLog("error", error instanceof Error ? error.message : "Preview failed.");
+      }
+    }
+  }
+
   function pauseJob(): void {
     pauseRequestedRef.current = true;
     setJobState("paused");
@@ -1223,6 +1321,7 @@ export function useGcodeTransport({
     zeroCurrentAxes,
     zeroCurrentPosition,
     runSerialJob,
+    preview,
     send,
     pause: pauseJob,
     resume: resumeJob,

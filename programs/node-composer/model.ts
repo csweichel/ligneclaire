@@ -18,6 +18,7 @@ import {
   resolveProgramState,
   plotPalette,
   pointInPolygon,
+  sampleCubicBezier,
   sampleEpitrochoid,
   sampleFunctionPath,
   sampleGrayscaleImageGrid,
@@ -25,6 +26,7 @@ import {
   traceContinuousVectorField,
   traceNearestVectorField,
   type Bounds,
+  type CanvasSpec,
   type ParameterSchema,
   type PlotLayer,
   type Point,
@@ -88,16 +90,19 @@ type BuiltInNodeKind =
   | "circle-grid"
   | "image-circles"
   | "text"
+  | "ona-logo-contours"
   | "hamilton-path"
   | "voronoi-nested-cells"
   | "terrain-slice"
   | "trochoid"
   | "mask-circle"
+  | "mask-ona-logo"
   | "mask-rect"
   | "mask-polygon"
   | "mask-svg"
   | "mask-boolean"
   | "clip-mask"
+  | "travel-sort"
   | "path-transform"
   | "merge-paths"
   | "output-layer";
@@ -239,6 +244,7 @@ export type EmbeddedProgramEntry = Readonly<{
 type EvaluationContext = Readonly<{
   nodesById: ReadonlyMap<string, ComposerNode>;
   incomingByInputKey: ReadonlyMap<string, NodeConnection>;
+  content: Bounds;
   mode: "preview" | "export" | "validation";
 }>;
 
@@ -361,7 +367,10 @@ function regionFields(defaults: Readonly<{
   centerY: number;
   width: number;
   height: number;
-}>): readonly NodeFieldSpec[] {
+}>, limits: Readonly<{
+  maxWidth?: number;
+  maxHeight?: number;
+}> = {}): readonly NodeFieldSpec[] {
   return [
     floatField({
       key: "centerX",
@@ -385,7 +394,7 @@ function regionFields(defaults: Readonly<{
       key: "width",
       label: "Width",
       min: 16,
-      max: contentWidth,
+      max: limits.maxWidth ?? contentWidth,
       defaultValue: defaults.width,
       step: 1,
       unit: "mm",
@@ -394,7 +403,7 @@ function regionFields(defaults: Readonly<{
       key: "height",
       label: "Height",
       min: 16,
-      max: contentHeight,
+      max: limits.maxHeight ?? contentHeight,
       defaultValue: defaults.height,
       step: 1,
       unit: "mm",
@@ -430,6 +439,10 @@ const outputStyleOptions = [
   { label: "Accent", value: "accent" },
   { label: "Mask", value: "mask" },
   { label: "Water", value: "water" },
+  { label: "Black", value: "black" },
+  { label: "Blue", value: "blue" },
+  { label: "Teal", value: "teal" },
+  { label: "Light Gray", value: "light-gray" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
 const booleanMaskOptions = [
@@ -449,6 +462,8 @@ const fitModeOptions = [
   { label: "Stretch", value: "stretch" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
+const domainInput = [{ id: "domain", label: "Domain", kind: "mask" }] as const;
+
 const lineStyleOptions = [
   { label: "Solid", value: "solid" },
   { label: "Dashed", value: "dashed" },
@@ -463,6 +478,13 @@ const textFillPatternOptions = [
   { label: "Moore", value: "moore" },
   { label: "Peano", value: "peano" },
   { label: "Dragon", value: "dragon" },
+] as const satisfies readonly ChoiceFieldOption[];
+
+const onaLogoContourModeOptions = [
+  { label: "Contours", value: "contours" },
+  { label: "Centerlines", value: "centerlines" },
+  { label: "Continuous Inward", value: "continuous" },
+  { label: "Single-Stroke Contours", value: "single-stroke" },
 ] as const satisfies readonly ChoiceFieldOption[];
 
 function humanizeProgramFieldKey(key: string): string {
@@ -565,7 +587,7 @@ const builtInNodeSpecs = {
     summary:
       "Run any checked-in program as a path generator, then optionally prefill it from an existing parameter set.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [],
   },
@@ -574,7 +596,7 @@ const builtInNodeSpecs = {
     title: "Line Grid",
     summary: "Parallel hatch lines clipped to a rectangular region.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...regionFields({
@@ -608,7 +630,7 @@ const builtInNodeSpecs = {
     title: "Line",
     summary: "A centered line segment rendered as either a solid or dashed band of parallel strokes.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...centerFields({
@@ -673,7 +695,7 @@ const builtInNodeSpecs = {
     title: "Perlin Field",
     summary: "Flow-field traces sampled inside a rectangular region.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...regionFields({
@@ -746,7 +768,7 @@ const builtInNodeSpecs = {
     title: "Circle Grid",
     summary: "A regular grid of circles within a rectangular region.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...regionFields({
@@ -792,7 +814,7 @@ const builtInNodeSpecs = {
     title: "Image Circles",
     summary: "Sample the bundled reference image into hatched circles.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...regionFields({
@@ -850,7 +872,7 @@ const builtInNodeSpecs = {
     summary:
       "Outlined or pattern-filled text from bundled Google fonts, with adjustable size, weight, and rotation.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...centerFields({
@@ -935,12 +957,84 @@ const builtInNodeSpecs = {
       }),
     ],
   },
+  "ona-logo-contours": {
+    kind: "ona-logo-contours",
+    title: "Ona Logo Contours",
+    summary:
+      "Generate ordered inward and outward contour offsets from the rounded Ona logo outline.",
+    category: "paths",
+    inputs: domainInput,
+    outputs: [
+      { id: "paths", label: "All", kind: "paths" },
+      { id: "pen1", label: "Pen 1", kind: "paths" },
+      { id: "pen2", label: "Pen 2", kind: "paths" },
+      { id: "pen3", label: "Pen 3", kind: "paths" },
+      { id: "pen4", label: "Pen 4", kind: "paths" },
+    ],
+    fields: [
+      ...regionFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+        width: 120,
+        height: 120,
+      }, {
+        maxWidth: 1200,
+      }),
+      intField({
+        key: "contours",
+        label: "Outer Contours",
+        min: 1,
+        max: 20,
+        defaultValue: 14,
+      }),
+      floatField({
+        key: "spacing",
+        label: "Outer Spacing",
+        min: 0.25,
+        max: 20,
+        defaultValue: 2,
+        step: 0.05,
+        unit: "mm",
+      }),
+      intField({
+        key: "innerContours",
+        label: "Inner Contours",
+        min: 0,
+        max: 20,
+        defaultValue: 14,
+      }),
+      floatField({
+        key: "innerSpacing",
+        label: "Inner Spacing",
+        min: 0.25,
+        max: 20,
+        defaultValue: 2,
+        step: 0.05,
+        unit: "mm",
+      }),
+      choiceField({
+        key: "lineMode",
+        label: "Contour Mode",
+        defaultValue: "contours",
+        options: onaLogoContourModeOptions,
+      }),
+      floatField({
+        key: "rotationDeg",
+        label: "Rotation",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 1,
+        unit: "deg",
+      }),
+    ],
+  },
   "hamilton-path": {
     kind: "hamilton-path",
     title: "Hamilton Path",
     summary: "A seeded Hamiltonian lattice walk rendered as parallel strokes, with an optional mask domain.",
     category: "paths",
-    inputs: [{ id: "domain", label: "Domain", kind: "mask" }],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...regionFields({
@@ -1043,7 +1137,7 @@ const builtInNodeSpecs = {
     summary:
       "Scatter seeded Voronoi cells inside a rectangular region, fillet them, then emit nested scaled and rotated closed loops.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...regionFields({
@@ -1106,7 +1200,7 @@ const builtInNodeSpecs = {
     title: "Terrain Slice",
     summary: "A line-based hill slice with separate terrain and water outputs.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [
       { id: "terrain", label: "Terrain", kind: "paths" },
       { id: "water", label: "Water", kind: "paths" },
@@ -1208,7 +1302,7 @@ const builtInNodeSpecs = {
     title: "Trochoid",
     summary: "A hypotrochoid or epitrochoid figure placed on the sheet.",
     category: "paths",
-    inputs: [],
+    inputs: domainInput,
     outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
     fields: [
       ...centerFields({
@@ -1291,6 +1385,31 @@ const builtInNodeSpecs = {
         defaultValue: 54,
         step: 0.5,
         unit: "mm",
+      }),
+    ],
+  },
+  "mask-ona-logo": {
+    kind: "mask-ona-logo",
+    title: "Ona Logo Mask",
+    summary: "A reusable Ona logo silhouette for constraining generator domains.",
+    category: "masks",
+    inputs: [],
+    outputs: [{ id: "mask", label: "Mask", kind: "mask" }],
+    fields: [
+      ...regionFields({
+        centerX: contentCenter.x,
+        centerY: contentCenter.y,
+        width: 120,
+        height: 120,
+      }),
+      floatField({
+        key: "rotationDeg",
+        label: "Rotation",
+        min: -180,
+        max: 180,
+        defaultValue: 0,
+        step: 1,
+        unit: "deg",
       }),
     ],
   },
@@ -1427,6 +1546,35 @@ const builtInNodeSpecs = {
       }),
     ],
   },
+  "travel-sort": {
+    kind: "travel-sort",
+    title: "Travel Sort",
+    summary: "Reorder, reloop, and optionally merge paths to reduce pen-up travel.",
+    category: "process",
+    inputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    outputs: [{ id: "paths", label: "Paths", kind: "paths" }],
+    fields: [
+      boolField({
+        key: "allowFlip",
+        label: "Allow Flip",
+        defaultValue: true,
+      }),
+      boolField({
+        key: "reloopClosed",
+        label: "Reloop Closed",
+        defaultValue: true,
+      }),
+      floatField({
+        key: "mergeTolerance",
+        label: "Merge Tolerance",
+        min: 0,
+        max: 10,
+        defaultValue: 0.05,
+        step: 0.01,
+        unit: "mm",
+      }),
+    ],
+  },
   "path-transform": {
     kind: "path-transform",
     title: "Path Transform",
@@ -1518,6 +1666,33 @@ const builtInNodeSpecs = {
         label: "Enabled",
         defaultValue: true,
       }),
+      floatField({
+        key: "pageWidthMm",
+        label: "Page Width",
+        min: 80,
+        max: 1200,
+        defaultValue: canvas.widthMm,
+        step: 1,
+        unit: "mm",
+      }),
+      floatField({
+        key: "pageHeightMm",
+        label: "Page Height",
+        min: 80,
+        max: 1200,
+        defaultValue: canvas.heightMm,
+        step: 1,
+        unit: "mm",
+      }),
+      floatField({
+        key: "pageMarginMm",
+        label: "Page Margin",
+        min: 0,
+        max: 100,
+        defaultValue: canvas.marginMm,
+        step: 0.5,
+        unit: "mm",
+      }),
     ],
   },
 } as const satisfies Record<BuiltInNodeKind, NodeSpec>;
@@ -1556,6 +1731,30 @@ function readNumber(value: unknown, fallback: number): number {
 
 function readBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function canvasFromOutputLayerConfig(config: NodeConfig | undefined): CanvasSpec {
+  const widthMm = clamp(readNumber(config?.pageWidthMm, canvas.widthMm), 80, 1200);
+  const heightMm = clamp(readNumber(config?.pageHeightMm, canvas.heightMm), 80, 1200);
+  const maxMarginMm = Math.max(0, Math.min(widthMm, heightMm) * 0.45);
+  const marginMm = clamp(readNumber(config?.pageMarginMm, canvas.marginMm), 0, maxMarginMm);
+
+  return {
+    widthMm,
+    heightMm,
+    marginMm,
+  };
+}
+
+export function nodeComposerCanvasFromProgramState(
+  programState: NodeComposerProgramState
+): CanvasSpec {
+  const outputNode =
+    programState.nodes.find(
+      (node) => node.kind === "output-layer" && Boolean(node.config.enabled)
+    ) ?? programState.nodes.find((node) => node.kind === "output-layer");
+
+  return canvasFromOutputLayerConfig(outputNode?.config);
 }
 
 function fieldDefaultValue(field: NodeFieldSpec): NodeConfigValue {
@@ -2057,6 +2256,461 @@ function makeRegularPolygon(
   });
 }
 
+const onaLogoOuterPolygon = [
+  { x: 74, y: 0 },
+  { x: 125.714, y: 0 },
+  { x: 141.429, y: 6.857 },
+  { x: 193.143, y: 58.571 },
+  { x: 199.714, y: 74.286 },
+  { x: 199.714, y: 126 },
+  { x: 193.143, y: 141.714 },
+  { x: 141.429, y: 193.429 },
+  { x: 125.714, y: 200 },
+  { x: 74, y: 200 },
+  { x: 58, y: 193.429 },
+  { x: 6.286, y: 141.714 },
+  { x: 0, y: 126 },
+  { x: 0, y: 74.286 },
+  { x: 6.286, y: 58.286 },
+  { x: 58, y: 6.571 },
+] as const satisfies Polygon;
+
+const onaLogoInnerRect = {
+  minX: 47.0836,
+  minY: 47.3693,
+  maxX: 152.345,
+  maxY: 152.631,
+  radius: 22.4,
+} as const;
+
+function appendDistinctPoint(points: Point[], point: Point): void {
+  if (points.length > 0 && distanceBetweenPoints(points.at(-1)!, point) < 1e-6) {
+    return;
+  }
+
+  points.push(point);
+}
+
+function sampleLineTo(points: Point[], end: Point, maxSegmentLength = 3): void {
+  const start = points.at(-1);
+  if (!start) {
+    points.push(end);
+    return;
+  }
+
+  const length = distanceBetweenPoints(start, end);
+  const segments = Math.max(1, Math.ceil(length / maxSegmentLength));
+  for (let index = 1; index <= segments; index += 1) {
+    appendDistinctPoint(points, interpolatePoint(start, end, index / segments));
+  }
+}
+
+function sampleCubicTo(
+  points: Point[],
+  controlA: Point,
+  controlB: Point,
+  end: Point,
+  segments = 14
+): void {
+  const start = points.at(-1);
+  if (!start) {
+    points.push(end);
+    return;
+  }
+
+  for (const point of sampleCubicBezier(start, controlA, controlB, end, segments).points.slice(1)) {
+    appendDistinctPoint(points, point);
+  }
+}
+
+function sampleOnaLogoOuterSourcePath(): Polygon {
+  const points: Point[] = [{ x: 193.143, y: 58.5714 }];
+
+  sampleCubicTo(points, { x: 197.143, y: 62.5714 }, { x: 199.714, y: 68 }, { x: 199.714, y: 74.2857 });
+  sampleLineTo(points, { x: 199.714, y: 126 });
+  sampleCubicTo(points, { x: 199.714, y: 132.286 }, { x: 197.143, y: 137.714 }, { x: 193.143, y: 141.714 });
+  sampleLineTo(points, { x: 141.429, y: 193.429 });
+  sampleCubicTo(points, { x: 137.429, y: 197.714 }, { x: 131.714, y: 200 }, { x: 125.714, y: 200 });
+  sampleLineTo(points, { x: 74, y: 200 });
+  sampleCubicTo(points, { x: 67.7143, y: 200 }, { x: 62.2857, y: 197.714 }, { x: 58, y: 193.429 });
+  sampleLineTo(points, { x: 6.28571, y: 141.714 });
+  sampleCubicTo(points, { x: 2.28571, y: 137.714 }, { x: 0, y: 132.286 }, { x: 0, y: 126 });
+  sampleLineTo(points, { x: 0, y: 74.2857 });
+  sampleCubicTo(points, { x: 0, y: 68 }, { x: 2.28571, y: 62.5714 }, { x: 6.28571, y: 58.2857 });
+  sampleLineTo(points, { x: 58, y: 6.57143 });
+  sampleCubicTo(points, { x: 62.2857, y: 2.57143 }, { x: 67.7143, y: 0 }, { x: 74, y: 0 });
+  sampleLineTo(points, { x: 125.714, y: 0 });
+  sampleCubicTo(points, { x: 131.714, y: 0 }, { x: 137.429, y: 2.57143 }, { x: 141.429, y: 6.85714 });
+  sampleLineTo(points, { x: 193.143, y: 58.5714 });
+
+  return points.slice(0, -1);
+}
+
+function sampleOnaLogoInnerSourcePath(): Polygon {
+  const points: Point[] = [{ x: 152.345, y: 130.345 }];
+
+  sampleLineTo(points, { x: 152.345, y: 69.9407 });
+  sampleCubicTo(points, { x: 152.345, y: 57.655 }, { x: 142.345, y: 47.3693 }, { x: 130.059, y: 47.3693 });
+  sampleLineTo(points, { x: 69.655, y: 47.3693 });
+  sampleCubicTo(points, { x: 57.0836, y: 47.3693 }, { x: 47.0836, y: 57.655 }, { x: 47.0836, y: 69.9407 });
+  sampleLineTo(points, { x: 47.0836, y: 130.345 });
+  sampleCubicTo(points, { x: 47.0836, y: 142.631 }, { x: 57.0836, y: 152.631 }, { x: 69.655, y: 152.631 });
+  sampleLineTo(points, { x: 130.059, y: 152.631 });
+  sampleCubicTo(points, { x: 142.345, y: 152.631 }, { x: 152.345, y: 142.631 }, { x: 152.345, y: 130.345 });
+
+  return points.slice(0, -1);
+}
+
+const onaLogoOuterSourcePath = sampleOnaLogoOuterSourcePath();
+const onaLogoInnerSourcePath = sampleOnaLogoInnerSourcePath();
+
+function pointInRoundedRect(point: Point, rect: typeof onaLogoInnerRect): boolean {
+  if (
+    point.x < rect.minX ||
+    point.x > rect.maxX ||
+    point.y < rect.minY ||
+    point.y > rect.maxY
+  ) {
+    return false;
+  }
+
+  const innerMinX = rect.minX + rect.radius;
+  const innerMaxX = rect.maxX - rect.radius;
+  const innerMinY = rect.minY + rect.radius;
+  const innerMaxY = rect.maxY - rect.radius;
+  const nearestX = clamp(point.x, innerMinX, innerMaxX);
+  const nearestY = clamp(point.y, innerMinY, innerMaxY);
+
+  return Math.hypot(point.x - nearestX, point.y - nearestY) <= rect.radius;
+}
+
+function onaLogoPlacement(config: NodeConfig): Readonly<{
+  center: Point;
+  width: number;
+  height: number;
+  rotationRadians: number;
+}> {
+  return {
+    center: {
+      x: Number(config.centerX ?? contentCenter.x),
+      y: Number(config.centerY ?? contentCenter.y),
+    },
+    width: Number(config.width ?? 120),
+    height: Number(config.height ?? 120),
+    rotationRadians: (Number(config.rotationDeg ?? 0) / 180) * Math.PI,
+  };
+}
+
+function onaLogoPointToWorld(point: Point, placement: ReturnType<typeof onaLogoPlacement>): Point {
+  const local = {
+    x: (point.x - 100) * (placement.width / 200),
+    y: (point.y - 100) * (placement.height / 200),
+  };
+  const rotated = rotatePoint(local, placement.rotationRadians);
+
+  return {
+    x: placement.center.x + rotated.x,
+    y: placement.center.y + rotated.y,
+  };
+}
+
+function worldPointToOnaLogo(point: Point, placement: ReturnType<typeof onaLogoPlacement>): Point {
+  const local = rotatePoint(
+    {
+      x: point.x - placement.center.x,
+      y: point.y - placement.center.y,
+    },
+    -placement.rotationRadians
+  );
+
+  return {
+    x: 100 + local.x / (placement.width / 200),
+    y: 100 + local.y / (placement.height / 200),
+  };
+}
+
+function makeOnaLogoMask(config: NodeConfig): MaskShape {
+  const placement = onaLogoPlacement(config);
+  const outer = onaLogoOuterSourcePath.map((point) => onaLogoPointToWorld(point, placement));
+  const inner = onaLogoInnerSourcePath.map((point) => onaLogoPointToWorld(point, placement));
+
+  return makeMask(
+    polygonBounds(outer),
+    (point) => {
+      const sourcePoint = worldPointToOnaLogo(point, placement);
+      return (
+        pointInPolygon(sourcePoint, onaLogoOuterPolygon) &&
+        !pointInRoundedRect(sourcePoint, onaLogoInnerRect)
+      );
+    },
+    [polygonToPolyline(outer), polygonToPolyline(inner)]
+  );
+}
+
+const ONA_LOGO_CONTOUR_SAMPLES = 256;
+const ONA_LOGO_SOURCE_CENTER = { x: 100, y: 100 } as const;
+
+function rayPolylineIntersection(
+  angle: number,
+  polygon: Polygon,
+  selection: "nearest" | "farthest"
+): Point {
+  const direction = {
+    x: Math.cos(angle),
+    y: Math.sin(angle),
+  };
+  let selectedDistance = selection === "nearest"
+    ? Number.POSITIVE_INFINITY
+    : Number.NEGATIVE_INFINITY;
+  let selectedPoint: Point | null = null;
+
+  for (let index = 0; index < polygon.length; index += 1) {
+    const start = polygon[index]!;
+    const end = polygon[(index + 1) % polygon.length]!;
+    const edge = {
+      x: end.x - start.x,
+      y: end.y - start.y,
+    };
+    const denominator = direction.x * edge.y - direction.y * edge.x;
+    if (Math.abs(denominator) < 1e-9) {
+      continue;
+    }
+
+    const delta = {
+      x: start.x - ONA_LOGO_SOURCE_CENTER.x,
+      y: start.y - ONA_LOGO_SOURCE_CENTER.y,
+    };
+    const distance = (delta.x * edge.y - delta.y * edge.x) / denominator;
+    const edgeAmount = (delta.x * direction.y - delta.y * direction.x) / denominator;
+
+    if (distance < -1e-6 || edgeAmount < -1e-6 || edgeAmount > 1 + 1e-6) {
+      continue;
+    }
+
+    const better =
+      selection === "nearest"
+        ? distance < selectedDistance
+        : distance > selectedDistance;
+    if (!better) {
+      continue;
+    }
+
+    selectedDistance = distance;
+    selectedPoint = {
+      x: ONA_LOGO_SOURCE_CENTER.x + direction.x * distance,
+      y: ONA_LOGO_SOURCE_CENTER.y + direction.y * distance,
+    };
+  }
+
+  return selectedPoint ?? ONA_LOGO_SOURCE_CENTER;
+}
+
+function lerpLogoLoopPoint(angleIndex: number, amount: number): Point {
+  const angle = (angleIndex / ONA_LOGO_CONTOUR_SAMPLES) * Math.PI * 2;
+  const outer = rayPolylineIntersection(angle, onaLogoOuterSourcePath, "farthest");
+  const inner = rayPolylineIntersection(angle, onaLogoInnerSourcePath, "nearest");
+
+  return interpolatePoint(outer, inner, amount);
+}
+
+function makeOnaLogoInterpolatedLoop(amount: number, placement: ReturnType<typeof onaLogoPlacement>): Polyline {
+  return {
+    points: Array.from({ length: ONA_LOGO_CONTOUR_SAMPLES }, (_, index) =>
+      onaLogoPointToWorld(lerpLogoLoopPoint(index, amount), placement)
+    ),
+    closed: true,
+  };
+}
+
+function makeOnaLogoContinuousInwardPath(
+  contours: number,
+  placement: ReturnType<typeof onaLogoPlacement>
+): Polyline {
+  const turns = Math.max(1, contours);
+  const segmentCount = turns * ONA_LOGO_CONTOUR_SAMPLES;
+
+  return {
+    points: Array.from({ length: segmentCount + 1 }, (_, index) =>
+      onaLogoPointToWorld(lerpLogoLoopPoint(index, index / segmentCount), placement)
+    ),
+  };
+}
+
+function closePathPoints(path: Polyline): readonly Point[] {
+  if (!path.closed || path.points.length === 0) {
+    return path.points;
+  }
+
+  return [...path.points, path.points[0]!];
+}
+
+function pathStart(path: Polyline): Point | null {
+  return path.points[0] ?? null;
+}
+
+function pathEnd(path: Polyline): Point | null {
+  if (path.points.length === 0) {
+    return null;
+  }
+
+  return path.closed ? path.points[0]! : path.points.at(-1)!;
+}
+
+function reloopClosedPath(path: Polyline, startIndex: number): Polyline {
+  if (!path.closed || path.points.length < 2) {
+    return path;
+  }
+
+  const safeIndex = ((startIndex % path.points.length) + path.points.length) % path.points.length;
+  if (safeIndex === 0) {
+    return path;
+  }
+
+  return {
+    ...path,
+    points: [...path.points.slice(safeIndex), ...path.points.slice(0, safeIndex)],
+  };
+}
+
+function reloopClosedPathNear(path: Polyline, cursor: Point): Polyline {
+  if (!path.closed || path.points.length < 2) {
+    return path;
+  }
+
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < path.points.length; index += 1) {
+    const distance = distanceBetweenPoints(cursor, path.points[index]!);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+
+  return reloopClosedPath(path, bestIndex);
+}
+
+function connectLoopsIntoSingleStroke(paths: readonly Polyline[]): Polyline | null {
+  if (paths.length === 0) {
+    return null;
+  }
+
+  const connectedPoints: Point[] = [];
+  let cursor: Point | null = null;
+
+  for (const path of paths) {
+    if (path.points.length < 2) {
+      continue;
+    }
+
+    const oriented = cursor ? reloopClosedPathNear(path, cursor) : path;
+    const points = closePathPoints(oriented);
+    if (points.length < 2) {
+      continue;
+    }
+
+    connectedPoints.push(...points);
+    cursor = points.at(-1)!;
+  }
+
+  return connectedPoints.length > 1
+    ? {
+        points: connectedPoints,
+      }
+    : null;
+}
+
+function scaleOnaLogoSourcePoint(point: Point, scale: number): Point {
+  return {
+    x: ONA_LOGO_SOURCE_CENTER.x + (point.x - ONA_LOGO_SOURCE_CENTER.x) * scale,
+    y: ONA_LOGO_SOURCE_CENTER.y + (point.y - ONA_LOGO_SOURCE_CENTER.y) * scale,
+  };
+}
+
+function makeOnaLogoScaledLoop(
+  sourcePath: Polygon,
+  scale: number,
+  placement: ReturnType<typeof onaLogoPlacement>
+): Polyline {
+  return {
+    points: sourcePath.map((point) =>
+      onaLogoPointToWorld(scaleOnaLogoSourcePoint(point, scale), placement)
+    ),
+    closed: true,
+  };
+}
+
+function onaLogoContourScales(
+  contours: number,
+  spacing: number,
+  placement: ReturnType<typeof onaLogoPlacement>,
+  mode: string
+): readonly number[] {
+  if (contours <= 0) {
+    return [];
+  }
+
+  const referenceRadius = Math.max(1e-6, Math.min(placement.width, placement.height) * 0.5);
+  const scaleStep = Math.max(0, spacing) / referenceRadius;
+
+  if (mode === "centerlines") {
+    if (contours <= 1) {
+      return [];
+    }
+
+    return Array.from({ length: contours - 1 }, (_, index) => {
+      const outerScale = Math.max(0.01, 1 - scaleStep * index);
+      const innerScale = Math.max(0.01, 1 - scaleStep * (index + 1));
+      return (outerScale + innerScale) * 0.5;
+    });
+  }
+
+  return Array.from({ length: contours }, (_, index) => Math.max(0.01, 1 - scaleStep * index));
+}
+
+function buildOnaLogoContourSets(config: NodeConfig): readonly [readonly Polyline[], readonly Polyline[], readonly Polyline[], readonly Polyline[]] {
+  const placement = onaLogoPlacement(config);
+  const contours = Math.max(1, Math.min(20, Math.round(Number(config.contours ?? 14))));
+  const innerContours = Math.max(0, Math.min(20, Math.round(Number(config.innerContours ?? contours))));
+  const spacing = Math.max(0.25, Number(config.spacing ?? 2));
+  const innerSpacing = Math.max(0.25, Number(config.innerSpacing ?? spacing));
+  const mode = String(config.lineMode ?? "contours");
+  const penSets: [Polyline[], Polyline[], Polyline[], Polyline[]] = [[], [], [], []];
+
+  if (mode === "continuous") {
+    penSets[0].push(makeOnaLogoContinuousInwardPath(contours, placement));
+    return penSets;
+  }
+
+  const scaleMode = mode === "centerlines" ? "centerlines" : "contours";
+  const paths = [
+    ...onaLogoContourScales(contours, spacing, placement, scaleMode).map((scale) =>
+      makeOnaLogoScaledLoop(onaLogoOuterSourcePath, scale, placement)
+    ),
+    ...onaLogoContourScales(innerContours, innerSpacing, placement, scaleMode).map((scale) =>
+      makeOnaLogoScaledLoop(onaLogoInnerSourcePath, scale, placement)
+    ),
+  ];
+
+  if (mode === "single-stroke") {
+    const connected = connectLoopsIntoSingleStroke(paths);
+    if (connected) {
+      penSets[0].push(connected);
+    }
+    return penSets;
+  }
+
+  for (const [index, path] of paths.entries()) {
+    penSets[index % penSets.length]!.push(path);
+  }
+
+  return penSets;
+}
+
+function flattenPathSets(pathSets: readonly (readonly Polyline[])[]): readonly Polyline[] {
+  return pathSets.flatMap((paths) => paths);
+}
+
 function makeCirclePath(centerX: number, centerY: number, radius: number, segments = 48): Polyline {
   return sampleFunctionPath(
     (amount) => {
@@ -2077,6 +2731,111 @@ function reversePath(path: Polyline): Polyline {
     ...path,
     points: [...path.points].reverse(),
   };
+}
+
+function orientPathForTravel(
+  path: Polyline,
+  cursor: Point,
+  options: Readonly<{
+    allowFlip: boolean;
+    reloopClosed: boolean;
+  }>
+): Readonly<{ path: Polyline; cost: number }> {
+  if (path.closed && options.reloopClosed) {
+    const oriented = reloopClosedPathNear(path, cursor);
+    const start = pathStart(oriented);
+    return {
+      path: oriented,
+      cost: start ? distanceBetweenPoints(cursor, start) : Number.POSITIVE_INFINITY,
+    };
+  }
+
+  const start = pathStart(path);
+  const end = pathEnd(path);
+  const forwardCost = start ? distanceBetweenPoints(cursor, start) : Number.POSITIVE_INFINITY;
+
+  if (!options.allowFlip || path.closed || !end) {
+    return {
+      path,
+      cost: forwardCost,
+    };
+  }
+
+  const reverseCost = distanceBetweenPoints(cursor, end);
+  return reverseCost < forwardCost
+    ? {
+        path: reversePath(path),
+        cost: reverseCost,
+      }
+    : {
+        path,
+        cost: forwardCost,
+      };
+}
+
+function mergeTravelAdjacentPaths(
+  previous: Polyline,
+  next: Polyline,
+  tolerance: number
+): Polyline | null {
+  if (previous.closed || next.closed || tolerance <= 0) {
+    return null;
+  }
+
+  const previousEnd = pathEnd(previous);
+  const nextStart = pathStart(next);
+  if (!previousEnd || !nextStart || distanceBetweenPoints(previousEnd, nextStart) > tolerance) {
+    return null;
+  }
+
+  return {
+    points: [
+      ...previous.points,
+      ...next.points.slice(distanceBetweenPoints(previousEnd, nextStart) < 1e-6 ? 1 : 0),
+    ],
+  };
+}
+
+function travelSortPaths(
+  paths: readonly Polyline[],
+  options: Readonly<{
+    allowFlip: boolean;
+    reloopClosed: boolean;
+    mergeTolerance: number;
+  }>
+): readonly Polyline[] {
+  const remaining = paths.filter((path) => path.points.length > 1);
+  const sorted: Polyline[] = [];
+  let cursor: Point = { x: 0, y: 0 };
+
+  while (remaining.length > 0) {
+    let bestIndex = 0;
+    let best = orientPathForTravel(remaining[0]!, cursor, options);
+
+    for (let index = 1; index < remaining.length; index += 1) {
+      const candidate = orientPathForTravel(remaining[index]!, cursor, options);
+      if (candidate.cost < best.cost) {
+        bestIndex = index;
+        best = candidate;
+      }
+    }
+
+    remaining.splice(bestIndex, 1);
+    const previous = sorted.at(-1);
+    const merged = previous
+      ? mergeTravelAdjacentPaths(previous, best.path, options.mergeTolerance)
+      : null;
+
+    if (merged) {
+      sorted[sorted.length - 1] = merged;
+    } else {
+      sorted.push(best.path);
+    }
+
+    cursor = pathEnd(sorted.at(-1)!) ?? cursor;
+  }
+
+  return sorted;
 }
 
 function polylineBounds(polyline: Polyline): Bounds | null {
@@ -2169,8 +2928,15 @@ function transformPathsAroundCenter(
   return paths.map((path) => transformPolyline(path, center, transform));
 }
 
-function clipPathsToContent(paths: readonly Polyline[]): readonly Polyline[] {
-  return paths.flatMap((path) => clipPolylineToBounds(path, content));
+function clipPathsToContent(
+  paths: readonly Polyline[],
+  targetContent: Bounds
+): readonly Polyline[] {
+  return paths.flatMap((path) =>
+    path.points.every((point) => pointInBoundsInclusive(point, targetContent))
+      ? [path]
+      : clipPolylineToBounds(path, targetContent)
+  );
 }
 
 function clipPathsToPolygon(
@@ -2693,6 +3459,46 @@ function applyMaskToPaths(
   return paths.flatMap((path) => clipPolylineToMaskSampling(path, mask, mode));
 }
 
+function maskContainsWithClearance(mask: MaskShape, point: Point, clearance = 0): boolean {
+  if (!mask.contains(point)) {
+    return false;
+  }
+
+  if (clearance <= 1e-6) {
+    return true;
+  }
+
+  const diagonal = clearance / Math.SQRT2;
+  const samples = [
+    { x: point.x + clearance, y: point.y },
+    { x: point.x - clearance, y: point.y },
+    { x: point.x, y: point.y + clearance },
+    { x: point.x, y: point.y - clearance },
+    { x: point.x + diagonal, y: point.y + diagonal },
+    { x: point.x - diagonal, y: point.y + diagonal },
+    { x: point.x + diagonal, y: point.y - diagonal },
+    { x: point.x - diagonal, y: point.y - diagonal },
+  ];
+
+  return samples.every((sample) => mask.contains(sample));
+}
+
+function resolveDomainMask(
+  node: ComposerNode,
+  context: EvaluationContext,
+  evaluateNode: (nodeId: string) => RuntimeOutputs
+): MaskShape | null {
+  const domainValue = resolveNodeInput(node, "domain", "mask", context, evaluateNode);
+  return domainValue?.kind === "mask" ? domainValue.mask : null;
+}
+
+function constrainGeneratedPaths(
+  paths: readonly Polyline[],
+  domainMask: MaskShape | null
+): readonly Polyline[] {
+  return domainMask ? applyMaskToPaths(paths, domainMask, "clip") : paths;
+}
+
 function unionBounds(left: Bounds, right: Bounds): Bounds {
   return {
     minX: Math.min(left.minX, right.minX),
@@ -2857,6 +3663,14 @@ function placePolyline(polyline: Polyline, center: Point, radius: number): Polyl
 
 function styleToStroke(style: string): string {
   switch (style) {
+    case "black":
+      return "#111111";
+    case "blue":
+      return "#2563eb";
+    case "teal":
+      return "#14b8a6";
+    case "light-gray":
+      return "#d1d5db";
     case "accent":
       return plotPalette.accent;
     case "mask":
@@ -2912,7 +3726,8 @@ function programNodeParams(
 
 function renderProgramNodePaths(
   config: NodeConfig,
-  mode: EvaluationContext["mode"]
+  mode: EvaluationContext["mode"],
+  targetContent: Bounds
 ): readonly Polyline[] {
   const program = programNodeProgram(config);
   if (!program) {
@@ -2933,8 +3748,9 @@ function renderProgramNodePaths(
     fitPathsIntoBounds(
       document.layers.flatMap((layer) => layer.paths),
       contentBounds(program.canvas),
-      content
-    )
+      targetContent
+    ),
+    targetContent
   );
 }
 
@@ -2961,53 +3777,64 @@ function evaluateNodeOutputs(
   evaluateNode: (nodeId: string) => RuntimeOutputs
 ): RuntimeOutputs {
   if (node.kind === "program") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     return {
       paths: {
         kind: "paths",
-        paths: renderProgramNodePaths(node.config, context.mode),
-      },
-    };
-  }
-
-  if (node.kind === "line-grid") {
-    const bounds = makeRegionBounds(node.config);
-    return {
-      paths: {
-        kind: "paths",
-        paths: clipPathsToContent(hatchBounds(bounds, Number(node.config.spacing), Number(node.config.angleDeg))),
-      },
-    };
-  }
-
-  if (node.kind === "line") {
-    return {
-      paths: {
-        kind: "paths",
-        paths: clipPathsToContent(buildLineNodePaths(node.config)),
-      },
-    };
-  }
-
-  if (node.kind === "perlin-field") {
-    const bounds = makeRegionBounds(node.config);
-    return {
-      paths: {
-        kind: "paths",
-        paths: clipPathsToContent(
-          collectFieldPaths(Number(node.config.paths), Number(node.config.seed), bounds, {
-            columns: Number(node.config.columns),
-            rows: Number(node.config.rows),
-            segmentLength: Number(node.config.segmentLength),
-            steps: Number(node.config.steps),
-            frequency: Number(node.config.frequency),
-            continuousCurves: Boolean(node.config.continuousCurves),
-          })
+        paths: constrainGeneratedPaths(
+          renderProgramNodePaths(node.config, context.mode, context.content),
+          domainMask
         ),
       },
     };
   }
 
+  if (node.kind === "line-grid") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
+    const bounds = makeRegionBounds(node.config);
+    const paths = hatchBounds(bounds, Number(node.config.spacing), Number(node.config.angleDeg));
+    return {
+      paths: {
+        kind: "paths",
+        paths: clipPathsToContent(constrainGeneratedPaths(paths, domainMask), context.content),
+      },
+    };
+  }
+
+  if (node.kind === "line") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
+    return {
+      paths: {
+        kind: "paths",
+        paths: clipPathsToContent(
+          constrainGeneratedPaths(buildLineNodePaths(node.config), domainMask),
+          context.content
+        ),
+      },
+    };
+  }
+
+  if (node.kind === "perlin-field") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
+    const bounds = makeRegionBounds(node.config);
+    const paths = collectFieldPaths(Number(node.config.paths), Number(node.config.seed), bounds, {
+      columns: Number(node.config.columns),
+      rows: Number(node.config.rows),
+      segmentLength: Number(node.config.segmentLength),
+      steps: Number(node.config.steps),
+      frequency: Number(node.config.frequency),
+      continuousCurves: Boolean(node.config.continuousCurves),
+    });
+    return {
+      paths: {
+        kind: "paths",
+        paths: clipPathsToContent(constrainGeneratedPaths(paths, domainMask), context.content),
+      },
+    };
+  }
+
   if (node.kind === "circle-grid") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     const bounds = makeRegionBounds(node.config);
     const columns = Math.max(1, Number(node.config.columns));
     const rows = Math.max(1, Number(node.config.rows));
@@ -3019,26 +3846,29 @@ function evaluateNodeOutputs(
 
     for (let column = 0; column < columns; column += 1) {
       for (let row = 0; row < rows; row += 1) {
-        paths.push(
-          makeCirclePath(
-            bounds.minX + (column + 0.5) * dx,
-            bounds.minY + (row + 0.5) * dy,
-            Number(node.config.radius),
-            Number(node.config.segments)
-          )
-        );
+        const centerPoint = {
+          x: bounds.minX + (column + 0.5) * dx,
+          y: bounds.minY + (row + 0.5) * dy,
+        };
+        const radius = Number(node.config.radius);
+        if (domainMask && !maskContainsWithClearance(domainMask, centerPoint, radius)) {
+          continue;
+        }
+
+        paths.push(makeCirclePath(centerPoint.x, centerPoint.y, radius, Number(node.config.segments)));
       }
     }
 
     return {
       paths: {
         kind: "paths",
-        paths: clipPathsToContent(paths),
+        paths: clipPathsToContent(paths, context.content),
       },
     };
   }
 
   if (node.kind === "image-circles") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     const bounds = makeRegionBounds(node.config);
     const width = bounds.maxX - bounds.minX;
     const height = bounds.maxY - bounds.minY;
@@ -3063,6 +3893,9 @@ function evaluateNodeOutputs(
         }
 
         const radius = Math.max(0.25, darkness * Number(node.config.maxRadius));
+        if (domainMask && !maskContainsWithClearance(domainMask, { x: centerX, y: centerY }, radius)) {
+          continue;
+        }
         paths.push(makeCirclePath(centerX, centerY, radius));
 
         const minSpacing = Number(node.config.minHatchSpacing);
@@ -3099,23 +3932,54 @@ function evaluateNodeOutputs(
     return {
       paths: {
         kind: "paths",
-        paths: clipPathsToContent(paths),
+        paths: clipPathsToContent(paths, context.content),
       },
     };
   }
 
   if (node.kind === "text") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     return {
       paths: {
         kind: "paths",
-        paths: buildTextNodePaths(node.config),
+        paths: constrainGeneratedPaths(buildTextNodePaths(node.config), domainMask),
+      },
+    };
+  }
+
+  if (node.kind === "ona-logo-contours") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
+    const penSets = buildOnaLogoContourSets(node.config).map((paths) =>
+      constrainGeneratedPaths(paths, domainMask)
+    );
+    const [pen1, pen2, pen3, pen4] = penSets;
+
+    return {
+      paths: {
+        kind: "paths",
+        paths: flattenPathSets(penSets),
+      },
+      pen1: {
+        kind: "paths",
+        paths: pen1 ?? [],
+      },
+      pen2: {
+        kind: "paths",
+        paths: pen2 ?? [],
+      },
+      pen3: {
+        kind: "paths",
+        paths: pen3 ?? [],
+      },
+      pen4: {
+        kind: "paths",
+        paths: pen4 ?? [],
       },
     };
   }
 
   if (node.kind === "hamilton-path") {
-    const domainValue = resolveNodeInput(node, "domain", "mask", context, evaluateNode);
-    const domainMask = domainValue?.kind === "mask" ? domainValue.mask : null;
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     const bounds = domainMask ? domainMask.bounds : makeRegionBounds(node.config);
     const result = generateHamiltonPaths(bounds, {
       rows: Number(node.config.rows),
@@ -3129,20 +3993,22 @@ function evaluateNodeOutputs(
       cornerRadius: Number(node.config.cornerRadius),
       deflection: Number(node.config.deflection),
       drawCenterlines: Boolean(node.config.drawCenterlines),
+      domainContains: domainMask
+        ? (point, clearance) => maskContainsWithClearance(domainMask, point, clearance)
+        : undefined,
     });
 
     return {
       paths: {
         kind: "paths",
-        paths: clipPathsToContent(
-          domainMask ? applyMaskToPaths(result.paths, domainMask, "clip") : result.paths
-        ),
+        paths: clipPathsToContent(result.paths, context.content),
       },
     };
   }
 
   if (node.kind === "voronoi-nested-cells") {
-    const bounds = makeRegionBounds(node.config);
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
+    const bounds = domainMask ? domainMask.bounds : makeRegionBounds(node.config);
     const result = generateVoronoiNestedCells(bounds, {
       pointCount: Number(node.config.pointCount),
       seed: Number(node.config.randomSeed),
@@ -3155,12 +4021,13 @@ function evaluateNodeOutputs(
     return {
       paths: {
         kind: "paths",
-        paths: result.paths,
+        paths: constrainGeneratedPaths(result.paths, domainMask),
       },
     };
   }
 
   if (node.kind === "terrain-slice") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     const geometry = generateTerrainSliceGeometry({
       center: {
         x: Number(node.config.centerX),
@@ -3183,16 +4050,23 @@ function evaluateNodeOutputs(
     return {
       terrain: {
         kind: "paths",
-        paths: clipPathsToContent(geometry.aboveWaterTerrainPaths),
+        paths: clipPathsToContent(
+          constrainGeneratedPaths(geometry.aboveWaterTerrainPaths, domainMask),
+          context.content
+        ),
       },
       water: {
         kind: "paths",
-        paths: clipPathsToContent(geometry.waterPaths),
+        paths: clipPathsToContent(
+          constrainGeneratedPaths(geometry.waterPaths, domainMask),
+          context.content
+        ),
       },
     };
   }
 
   if (node.kind === "trochoid") {
+    const domainMask = resolveDomainMask(node, context, evaluateNode);
     const rollingRadius = Boolean(node.config.useEpitrochoid)
       ? Number(node.config.rollingRadius)
       : clamp(Number(node.config.rollingRadius), 1, Math.max(1, Number(node.config.fixedRadius) - 1));
@@ -3216,15 +4090,15 @@ function evaluateNodeOutputs(
       paths: {
         kind: "paths",
         paths: clipPathsToContent([
-          placePolyline(
+          ...constrainGeneratedPaths([placePolyline(
             template,
             {
               x: Number(node.config.centerX),
               y: Number(node.config.centerY),
             },
             Number(node.config.figureRadius)
-          ),
-        ]),
+          )], domainMask),
+        ], context.content),
       },
     };
   }
@@ -3246,6 +4120,15 @@ function evaluateNodeOutputs(
           [polygonToPolyline(polygon)],
           polygon
         ),
+      },
+    };
+  }
+
+  if (node.kind === "mask-ona-logo") {
+    return {
+      mask: {
+        kind: "mask",
+        mask: makeOnaLogoMask(node.config),
       },
     };
   }
@@ -3343,6 +4226,22 @@ function evaluateNodeOutputs(
     };
   }
 
+  if (node.kind === "travel-sort") {
+    const input = resolveNodeInput(node, "paths", "paths", context, evaluateNode);
+    const paths = input?.kind === "paths" ? input.paths : [];
+
+    return {
+      paths: {
+        kind: "paths",
+        paths: travelSortPaths(paths, {
+          allowFlip: Boolean(node.config.allowFlip ?? true),
+          reloopClosed: Boolean(node.config.reloopClosed ?? true),
+          mergeTolerance: Math.max(0, Number(node.config.mergeTolerance ?? 0.05)),
+        }),
+      },
+    };
+  }
+
   if (node.kind === "path-transform") {
     const input = resolveNodeInput(node, "paths", "paths", context, evaluateNode);
     const paths = input?.kind === "paths" ? input.paths : [];
@@ -3357,7 +4256,8 @@ function evaluateNodeOutputs(
             scaleX: Number(node.config.scaleX ?? 1),
             scaleY: Number(node.config.scaleY ?? 1),
             rotationDeg: Number(node.config.rotationDeg ?? 0),
-          })
+          }),
+          context.content
         ),
       },
     };
@@ -3740,16 +4640,18 @@ export function applyProgramNodeParamSet(
 export function moveNodeAnchor(
   programState: NodeComposerProgramState,
   nodeId: string,
-  point: Point
+  point: Point,
+  activeCanvas: CanvasSpec = canvas
 ): NodeComposerProgramState {
   const node = findNode(programState, nodeId);
   if (!node || !("centerX" in node.config) || !("centerY" in node.config)) {
     return programState;
   }
+  const activeContent = contentBounds(activeCanvas);
 
   return patchNodeConfig(programState, nodeId, {
-    centerX: clamp(point.x, content.minX, content.maxX),
-    centerY: clamp(point.y, content.minY, content.maxY),
+    centerX: clamp(point.x, activeContent.minX, activeContent.maxX),
+    centerY: clamp(point.y, activeContent.minY, activeContent.maxY),
   });
 }
 
@@ -3911,6 +4813,14 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
     ];
   }
 
+  if (node.kind === "ona-logo-contours") {
+    const placement = onaLogoPlacement(node.config);
+    return [
+      polygonToPolyline(onaLogoOuterSourcePath.map((point) => onaLogoPointToWorld(point, placement))),
+      polygonToPolyline(onaLogoInnerSourcePath.map((point) => onaLogoPointToWorld(point, placement))),
+    ];
+  }
+
   if (node.kind === "hamilton-path") {
     const bounds = makeRegionBounds(node.config);
     const rowStepRatio = Number(node.config.rowStepRatio ?? 1);
@@ -4012,6 +4922,10 @@ export function guidePathsForNode(node: ComposerNode): readonly Polyline[] {
     ];
   }
 
+  if (node.kind === "mask-ona-logo") {
+    return makeOnaLogoMask(node.config).outlines;
+  }
+
   if (node.kind === "mask-rect") {
     return [
       polygonToPolyline(
@@ -4068,11 +4982,14 @@ export function buildNodeComposerLayers(
   options: Readonly<{
     mode: "preview" | "export" | "validation";
     showDebug: boolean;
+    canvas?: CanvasSpec;
   }>
 ): Readonly<{
   layers: readonly PlotLayer[];
   debugLayers?: readonly PlotLayer[];
 }> {
+  const activeCanvas = options.canvas ?? nodeComposerCanvasFromProgramState(programState);
+  const activeContent = contentBounds(activeCanvas);
   const nodesById = new Map(programState.nodes.map((node) => [node.id, node]));
   const incomingByInputKey = new Map(
     programState.connections.map((connection) => [
@@ -4083,6 +5000,7 @@ export function buildNodeComposerLayers(
   const context: EvaluationContext = {
     nodesById,
     incomingByInputKey,
+    content: activeContent,
     mode: options.mode,
   };
   const cache = new Map<string, RuntimeOutputs>();
@@ -4130,7 +5048,7 @@ export function buildNodeComposerLayers(
         id: `output-${node.id}`,
         label: String(node.config.label ?? "Layer"),
         stroke: styleToStroke(String(node.config.style ?? "primary")),
-        paths: runtimeValue.paths,
+        paths: clipPathsToContent(runtimeValue.paths, activeContent),
       } satisfies PlotLayer,
     ];
   });
@@ -4141,7 +5059,10 @@ export function buildNodeComposerLayers(
           id: "node-guides",
           label: "Node Guides",
           stroke: plotPalette.mask,
-          paths: clipPathsToContent(programState.nodes.flatMap((node) => guidePathsForNode(node))),
+          paths: clipPathsToContent(
+            programState.nodes.flatMap((node) => guidePathsForNode(node)),
+            activeContent
+          ),
         } satisfies PlotLayer,
       ]
     : undefined;

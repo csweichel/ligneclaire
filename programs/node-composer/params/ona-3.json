@@ -1,0 +1,62 @@
+{
+  "programId": "node-composer",
+  "programVersion": "1.0.0",
+  "name": "Ona 3",
+  "params": {},
+  "programState": {
+    "nodes": [
+      {
+        "id": "node-26",
+        "kind": "output-layer",
+        "position": {
+          "x": 1441,
+          "y": 50
+        },
+        "config": {
+          "style": "primary",
+          "label": "Layer",
+          "enabled": true,
+          "pageWidthMm": 297,
+          "pageHeightMm": 420,
+          "pageMarginMm": 10
+        }
+      },
+      {
+        "id": "node-29",
+        "kind": "ona-logo-contours",
+        "position": {
+          "x": 706,
+          "y": 33
+        },
+        "config": {
+          "centerX": 150,
+          "centerY": 200,
+          "width": 200,
+          "height": 200,
+          "contours": 6,
+          "spacing": 6,
+          "innerContours": 3,
+          "innerSpacing": 10,
+          "lineMode": "single-stroke",
+          "rotationDeg": 0
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": {
+          "nodeId": "node-29",
+          "portId": "paths"
+        },
+        "to": {
+          "nodeId": "node-26",
+          "portId": "paths"
+        }
+      }
+    ],
+    "selectedNodeId": "node-29",
+    "nextNodeNumber": 30
+  },
+  "createdAt": "2026-05-29T14:33:10.952Z",
+  "updatedAt": "2026-06-01T08:05:47.539Z"
+}

@@ -166,6 +166,59 @@ type ProgramNodeFieldsProps = Readonly<{
   onSelectParamSet: (nodeId: string, paramSetId: string) => void;
 }>;
 
+type BasicNodeFieldsProps = Readonly<{
+  selectedNode: ComposerNode;
+  onPatchConfig: (nodeId: string, patch: Readonly<Record<string, NodeConfigValue>>) => void;
+}>;
+
+function BasicNodeFields({ selectedNode, onPatchConfig }: BasicNodeFieldsProps): JSX.Element {
+  const spec = nodeSpec(selectedNode.kind);
+
+  return (
+    <div className="lc-node-composer__field-list">
+      {spec.fields.map((field) => (
+        <FieldRow
+          key={field.key}
+          field={field}
+          value={selectedNode.config[field.key]}
+          onChange={(nextValue) => {
+            onPatchConfig(selectedNode.id, {
+              [field.key]: nextValue,
+            });
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function OnaLogoContourFields({ selectedNode, onPatchConfig }: BasicNodeFieldsProps): JSX.Element {
+  const outerContours =
+    typeof selectedNode.config.contours === "number" ? selectedNode.config.contours : 14;
+  const outerSpacing =
+    typeof selectedNode.config.spacing === "number" ? selectedNode.config.spacing : 2;
+
+  return (
+    <>
+      <BasicNodeFields selectedNode={selectedNode} onPatchConfig={onPatchConfig} />
+      <div className="lc-node-composer__asset-actions">
+        <button
+          className="studio-button studio-button--compact"
+          type="button"
+          onClick={() => {
+            onPatchConfig(selectedNode.id, {
+              innerContours: outerContours,
+              innerSpacing: outerSpacing,
+            });
+          }}
+        >
+          Sync Inner
+        </button>
+      </div>
+    </>
+  );
+}
+
 const SVG_CONCENTRIC_OUTLINE_PROGRAM_ID = "svg-concentric-outline";
 
 type SvgConcentricProgramStateFieldsProps = Readonly<{
@@ -867,21 +920,16 @@ export function NodeComposerInspector({
           selectedNode={selectedNode}
           onPatchConfig={onPatchConfig}
         />
+      ) : selectedNode.kind === "ona-logo-contours" ? (
+        <OnaLogoContourFields
+          selectedNode={selectedNode}
+          onPatchConfig={onPatchConfig}
+        />
       ) : spec.fields.length > 0 ? (
-        <div className="lc-node-composer__field-list">
-          {spec.fields.map((field) => (
-            <FieldRow
-              key={field.key}
-              field={field}
-              value={selectedNode.config[field.key]}
-              onChange={(nextValue) => {
-                onPatchConfig(selectedNode.id, {
-                  [field.key]: nextValue,
-                });
-              }}
-            />
-          ))}
-        </div>
+        <BasicNodeFields
+          selectedNode={selectedNode}
+          onPatchConfig={onPatchConfig}
+        />
       ) : (
         <p className="lc-editor-overlay__copy">
           This node is driven entirely by its incoming connections.

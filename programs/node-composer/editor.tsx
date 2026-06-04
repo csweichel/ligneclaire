@@ -22,6 +22,7 @@ import { NodeComposerOverlay } from "./overlay";
 type Props = ProgramEditorProps<NodeComposerSchema, NodeComposerProgramState>;
 
 export default function NodeComposerEditor({
+  canvas,
   preview,
   programState,
   updateProgramState,
@@ -117,7 +118,7 @@ export default function NodeComposerEditor({
             return;
           }
 
-          updateProgramState((current) => moveNodeAnchor(current, selected.id, point));
+          updateProgramState((current) => moveNodeAnchor(current, selected.id, point, canvas));
         }}
       />
     </>

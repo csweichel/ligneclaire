@@ -161,6 +161,7 @@ export type GcodeTransportModel = Readonly<{
   zeroCurrentAxes: (axes: readonly ("X" | "Y" | "Z")[]) => Promise<void>;
   zeroCurrentPosition: () => Promise<void>;
   runSerialJob: (request: SerialTransportJobRequest) => Promise<SerialTransportJobResult>;
+  preview: () => Promise<void>;
   send: () => Promise<void>;
   pause: () => void;
   resume: () => void;
@@ -171,6 +172,7 @@ export type GcodeTransportModel = Readonly<{
 }>;
 
 export type HeightMeshSettings = Readonly<{
+  marginMm: number;
   widthMm: number;
   heightMm: number;
   sampleDistanceMm: number;
@@ -216,6 +218,7 @@ export type StudioModel = Readonly<{
   current: CurrentDocumentState | null;
   dirty: boolean;
   svg: string;
+  previewCanvas: ProgramDetails["canvas"] | null;
   metrics: PlotMetrics | null;
   normalizationIssues: readonly NormalizationIssue[];
   validationIssues: readonly PlotValidationIssue[];

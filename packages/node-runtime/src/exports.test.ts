@@ -194,6 +194,38 @@ describe("createGwriteProfile", () => {
     expect(profile).toContain('line_end = """G0 Z12.5\n"""');
     expect(profile).toContain('document_end = """G0 Z12.5\nM2\n"""');
   });
+
+  it("keeps initial positioning XY-only before lowering the pen", () => {
+    const config: PlotterConfig = {
+      id: "xy-first",
+      label: "XY First",
+      page: {
+        widthMm: 297,
+        heightMm: 210,
+      },
+      gcode: {
+        unit: "mm",
+        feedRateMmPerMin: 1200,
+        travelCommand: "G1",
+        travelFeedRateMmPerMin: 900,
+        penMotion: {
+          mode: "z-depth",
+          penUpZMm: 8,
+          penDownZMm: -1,
+        },
+        verticalFlip: false,
+      },
+    };
+
+    const profile = createGwriteProfile(config);
+    const segmentFirst = /segment_first = """([\s\S]*?)"""/.exec(profile)?.[1] ?? "";
+    const lines = segmentFirst.split("\n").filter((line) => line.length > 0);
+
+    expect(lines[0]).toBe("G1 X{x:.4f} Y{y:.4f} F900");
+    expect(lines[0]).not.toContain("Z");
+    expect(lines[1]).toBe("G1 Z-1 F900");
+    expect(lines[2]).toBe("G1 F1200");
+  });
 });
 
 describe("applyHeightMeshCompensation", () => {
@@ -303,7 +335,15 @@ describe("applyHeightMeshCompensation", () => {
       createMesh([-1, 0]),
       plotter
     );
+    const lines = compensated.split("\n").filter((line) => line.length > 0);
+    const initialTravelIndex = lines.findIndex((line) => line === "G0 X0 Y50");
+    const penDownIndex = lines.findIndex((line, index) =>
+      line === "G0 Z-50" && lines[index - 1] === "G91"
+    );
 
+    expect(initialTravelIndex).toBeGreaterThan(-1);
+    expect(penDownIndex).toBeGreaterThan(initialTravelIndex);
+    expect(lines[initialTravelIndex]).not.toContain("Z");
     expect(compensated).toContain("G91\nG0 Z-50\nG90\nG1 Z-51 F1200\nG1 F1200");
   });
 

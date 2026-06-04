@@ -8,9 +8,70 @@ import type {
 import type { HeightMeshSettings } from "../types";
 
 const defaultSampleDistanceMm = 25;
+const defaultSamplerMarginMm = 20;
+const maxSamplerWidthMm = 400;
+const maxSamplerHeightMm = 300;
+const minSamplerSpanMm = 1;
 
 function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+
+  if (max < min) {
+    return min;
+  }
+
   return Math.min(max, Math.max(min, value));
+}
+
+function readPositiveLength(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) && value !== undefined ? Math.max(0, value) : fallback;
+}
+
+function samplerBounds(plotter: PlotterDeviceSummary): Readonly<{
+  originXMm: number;
+  originYMm: number;
+  widthMm: number;
+  heightMm: number;
+}> {
+  const sampler = plotter.gcode?.heightMeshSampler;
+  const pageWidthMm = Math.max(0, plotter.page.widthMm);
+  const pageHeightMm = Math.max(0, plotter.page.heightMm);
+  const originXMm = clamp(sampler?.originXMm ?? 0, 0, pageWidthMm);
+  const originYMm = clamp(sampler?.originYMm ?? 0, 0, pageHeightMm);
+  const maxWidthMm = Math.max(0, pageWidthMm - originXMm);
+  const maxHeightMm = Math.max(0, pageHeightMm - originYMm);
+
+  return {
+    originXMm,
+    originYMm,
+    widthMm: clamp(
+      readPositiveLength(sampler?.widthMm, Math.min(maxWidthMm, maxSamplerWidthMm)),
+      0,
+      Math.min(maxWidthMm, maxSamplerWidthMm)
+    ),
+    heightMm: clamp(
+      readPositiveLength(sampler?.heightMm, Math.min(maxHeightMm, maxSamplerHeightMm)),
+      0,
+      Math.min(maxHeightMm, maxSamplerHeightMm)
+    ),
+  };
+}
+
+function maxSamplerMarginMm(region: Readonly<{ widthMm: number; heightMm: number }>): number {
+  return Math.max(0, (Math.min(region.widthMm, region.heightMm) - minSamplerSpanMm) / 2);
+}
+
+function clampSamplerMarginMm(
+  region: Readonly<{ widthMm: number; heightMm: number }>,
+  marginMm: number
+): number {
+  return clamp(marginMm, 0, maxSamplerMarginMm(region));
+}
+
+function samplerSpanMm(sizeMm: number, marginMm: number): number {
+  return Math.max(minSamplerSpanMm, sizeMm - marginMm * 2);
 }
 
 function deriveSampleDistanceMm(
@@ -36,30 +97,23 @@ export function deriveDefaultHeightMeshSettings(
 ): HeightMeshSettings {
   if (!plotter) {
     return {
+      marginMm: defaultSamplerMarginMm,
       widthMm: 0,
       heightMm: 0,
       sampleDistanceMm: defaultSampleDistanceMm,
     };
   }
 
-  const sampler = plotter.gcode?.heightMeshSampler;
-  const maxWidthMm = plotter.page.widthMm - (sampler?.originXMm ?? 0);
-  const maxHeightMm = plotter.page.heightMm - (sampler?.originYMm ?? 0);
-  const widthMm = clamp(
-    sampler?.widthMm ?? maxWidthMm,
-    1,
-    maxWidthMm
-  );
-  const heightMm = clamp(
-    sampler?.heightMm ?? maxHeightMm,
-    1,
-    maxHeightMm
-  );
+  const bounds = samplerBounds(plotter);
+  const marginMm = clampSamplerMarginMm(bounds, defaultSamplerMarginMm);
+  const sampleWidthMm = samplerSpanMm(bounds.widthMm, marginMm);
+  const sampleHeightMm = samplerSpanMm(bounds.heightMm, marginMm);
 
   return {
-    widthMm,
-    heightMm,
-    sampleDistanceMm: deriveSampleDistanceMm(plotter, widthMm, heightMm),
+    marginMm,
+    widthMm: bounds.widthMm,
+    heightMm: bounds.heightMm,
+    sampleDistanceMm: deriveSampleDistanceMm(plotter, sampleWidthMm, sampleHeightMm),
   };
 }
 
@@ -68,15 +122,23 @@ export function clampHeightMeshSettings(
   settings: HeightMeshSettings
 ): HeightMeshSettings {
   if (!plotter) {
-    return settings;
+    return {
+      marginMm: Math.max(0, settings.marginMm),
+      widthMm: Math.max(0, settings.widthMm),
+      heightMm: Math.max(0, settings.heightMm),
+      sampleDistanceMm: Math.max(0.5, Math.abs(settings.sampleDistanceMm)),
+    };
   }
 
-  const maxWidthMm = plotter.page.widthMm - (plotter.gcode?.heightMeshSampler?.originXMm ?? 0);
-  const maxHeightMm = plotter.page.heightMm - (plotter.gcode?.heightMeshSampler?.originYMm ?? 0);
+  const bounds = samplerBounds(plotter);
+  const widthMm = clamp(settings.widthMm, minSamplerSpanMm, bounds.widthMm);
+  const heightMm = clamp(settings.heightMm, minSamplerSpanMm, bounds.heightMm);
+  const marginMm = clampSamplerMarginMm({ widthMm, heightMm }, settings.marginMm);
 
   return {
-    widthMm: clamp(settings.widthMm, 1, maxWidthMm),
-    heightMm: clamp(settings.heightMm, 1, maxHeightMm),
+    marginMm,
+    widthMm,
+    heightMm,
     sampleDistanceMm: Math.max(0.5, Math.abs(settings.sampleDistanceMm)),
   };
 }
@@ -90,21 +152,24 @@ export function buildHeightMeshSamplerConfig(
   }
 
   const clampedSettings = clampHeightMeshSettings(plotter, settings);
+  const sampleWidthMm = samplerSpanMm(clampedSettings.widthMm, clampedSettings.marginMm);
+  const sampleHeightMm = samplerSpanMm(clampedSettings.heightMm, clampedSettings.marginMm);
   const grid = resolveHeightMeshGrid(
-    clampedSettings.widthMm,
-    clampedSettings.heightMm,
+    sampleWidthMm,
+    sampleHeightMm,
     clampedSettings.sampleDistanceMm
   );
   const base = plotter.gcode.heightMeshSampler;
+  const bounds = samplerBounds(plotter);
 
   return {
     ...base,
     columns: grid.columns,
     rows: grid.rows,
-    originXMm: base.originXMm ?? 0,
-    originYMm: base.originYMm ?? 0,
-    widthMm: clampedSettings.widthMm,
-    heightMm: clampedSettings.heightMm,
+    originXMm: bounds.originXMm + clampedSettings.marginMm,
+    originYMm: bounds.originYMm + clampedSettings.marginMm,
+    widthMm: sampleWidthMm,
+    heightMm: sampleHeightMm,
   };
 }
 
@@ -122,9 +187,11 @@ export function buildHeightMeshGridPreview(
   }
 
   const clampedSettings = clampHeightMeshSettings(plotter, settings);
+  const sampleWidthMm = samplerSpanMm(clampedSettings.widthMm, clampedSettings.marginMm);
+  const sampleHeightMm = samplerSpanMm(clampedSettings.heightMm, clampedSettings.marginMm);
   const grid = resolveHeightMeshGrid(
-    clampedSettings.widthMm,
-    clampedSettings.heightMm,
+    sampleWidthMm,
+    sampleHeightMm,
     clampedSettings.sampleDistanceMm
   );
 

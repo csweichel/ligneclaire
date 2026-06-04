@@ -85,6 +85,7 @@ export function StudioShell({ studio }: StudioShellProps) {
       current={studio.current}
       editorComponent={studio.editorComponent}
       isRendering={studio.isRendering}
+      previewCanvas={studio.previewCanvas}
       programDetails={studio.programDetails}
       setShowEditor={studio.setShowEditor}
       setShowDebug={studio.setShowDebug}

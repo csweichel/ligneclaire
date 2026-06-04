@@ -88,6 +88,75 @@ describe("node-composer program", () => {
     expect(metrics.pathCount).toBeGreaterThan(80);
   });
 
+  it("uses configured page size and clips output to the configured content area", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "line-grid",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 80,
+                centerY: 50,
+                width: 180,
+                height: 110,
+                spacing: 10,
+                angleDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Custom Page",
+                style: "primary",
+                enabled: true,
+                pageWidthMm: 160,
+                pageHeightMm: 100,
+                pageMarginMm: 8,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "paths" },
+              to: { nodeId: "node-2", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+    const metrics = calculateDocumentMetrics(document);
+    const outputBounds = pathBounds(document.layers.flatMap((layer) => layer.paths));
+
+    expect(document.canvas).toEqual({
+      widthMm: 160,
+      heightMm: 100,
+      marginMm: 8,
+    });
+    expect(metrics.canvasBoundsMm).toEqual({
+      minX: 0,
+      minY: 0,
+      maxX: 160,
+      maxY: 100,
+    });
+    expect(outputBounds.minX).toBeGreaterThanOrEqual(8);
+    expect(outputBounds.maxX).toBeLessThanOrEqual(152);
+    expect(outputBounds.minY).toBeGreaterThanOrEqual(8);
+    expect(outputBounds.maxY).toBeLessThanOrEqual(92);
+  });
+
   it("normalizes invalid nodes and rejects bad connections", () => {
     const normalized = normalizeNodeComposerProgramState({
       nodes: [
@@ -1305,6 +1374,558 @@ describe("node-composer program", () => {
         )
       )
     ).toBe(true);
+  });
+
+  it("constrains Hamilton generation to the built-in Ona logo mask", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "mask-ona-logo",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 120,
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "hamilton-path",
+              position: { x: 340, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 160,
+                height: 240,
+                seed: 2417,
+                columns: 34,
+                rows: 34,
+                gridRotationDeg: 0,
+                latticeAngleDeg: 90,
+                rowStepRatio: 1,
+                strokeCount: 1,
+                strokeSpacing: 0.7,
+                cornerRadius: 1,
+                deflection: 0,
+                drawCenterlines: false,
+              },
+            },
+            {
+              id: "node-3",
+              kind: "output-layer",
+              position: { x: 1020, y: 40 },
+              config: {
+                label: "Ona Domain",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            {
+              from: { nodeId: "node-1", portId: "mask" },
+              to: { nodeId: "node-2", portId: "domain" },
+            },
+            {
+              from: { nodeId: "node-2", portId: "paths" },
+              to: { nodeId: "node-3", portId: "paths" },
+            },
+          ],
+          selectedNodeId: "node-2",
+          nextNodeNumber: 4,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    const paths = document.layers[0]?.paths ?? [];
+    expect(paths.length).toBeGreaterThan(8);
+    expect(
+      paths.flatMap((path) => path.points).some((point) => {
+        const dx = Math.abs(point.x - 105);
+        const dy = Math.abs(point.y - 148.5);
+        return dx < 20 && dy < 20;
+      })
+    ).toBe(false);
+  });
+
+  it("renders ordered Ona logo contour offsets with four pen outputs", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "ona-logo-contours",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 120,
+                contours: 12,
+                spacing: 2,
+                innerContours: 12,
+                innerSpacing: 2,
+                lineMode: "contours",
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 700, y: 40 },
+              config: {
+                label: "Black",
+                style: "black",
+                enabled: true,
+              },
+            },
+            {
+              id: "node-3",
+              kind: "output-layer",
+              position: { x: 700, y: 180 },
+              config: {
+                label: "Blue",
+                style: "blue",
+                enabled: true,
+              },
+            },
+            {
+              id: "node-4",
+              kind: "output-layer",
+              position: { x: 700, y: 320 },
+              config: {
+                label: "Teal",
+                style: "teal",
+                enabled: true,
+              },
+            },
+            {
+              id: "node-5",
+              kind: "output-layer",
+              position: { x: 700, y: 460 },
+              config: {
+                label: "Light Gray",
+                style: "light-gray",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "pen1" }, to: { nodeId: "node-2", portId: "paths" } },
+            { from: { nodeId: "node-1", portId: "pen2" }, to: { nodeId: "node-3", portId: "paths" } },
+            { from: { nodeId: "node-1", portId: "pen3" }, to: { nodeId: "node-4", portId: "paths" } },
+            { from: { nodeId: "node-1", portId: "pen4" }, to: { nodeId: "node-5", portId: "paths" } },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 6,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    expect(document.layers).toHaveLength(4);
+    expect(document.layers.map((layer) => layer.paths.length)).toEqual([6, 6, 6, 6]);
+    expect(document.layers.map((layer) => layer.stroke)).toEqual([
+      "#111111",
+      "#2563eb",
+      "#14b8a6",
+      "#d1d5db",
+    ]);
+
+    const allPaths = document.layers.flatMap((layer) => layer.paths);
+    expect(allPaths).toHaveLength(24);
+    expect(allPaths.every((path) => path.closed === true)).toBe(true);
+
+    const firstBounds = pathBounds([document.layers[0]!.paths[0]!]);
+    const lastBounds = pathBounds([document.layers[3]!.paths.at(-2)!]);
+    expect(firstBounds.maxX - firstBounds.minX).toBeGreaterThan(lastBounds.maxX - lastBounds.minX);
+  });
+
+  it("allows Ona logo contour widths larger than the default A4 content width", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "ona-logo-contours",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 140,
+                centerY: 148.5,
+                width: 240,
+                height: 120,
+                contours: 1,
+                spacing: 2,
+                innerContours: 0,
+                innerSpacing: 2,
+                lineMode: "contours",
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 700, y: 40 },
+              config: {
+                label: "Wide Contour",
+                style: "primary",
+                enabled: true,
+                pageWidthMm: 280,
+                pageHeightMm: 297,
+                pageMarginMm: 10,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "paths" }, to: { nodeId: "node-2", portId: "paths" } },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    const bounds = pathBounds(document.layers[0]?.paths ?? []);
+
+    expect(document.canvas.widthMm).toBe(280);
+    expect(bounds.maxX - bounds.minX).toBeGreaterThan(220);
+  });
+
+  it("can draw centerlines between fewer than eight Ona logo contours", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "ona-logo-contours",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 120,
+                contours: 4,
+                spacing: 4,
+                innerContours: 4,
+                innerSpacing: 4,
+                lineMode: "centerlines",
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 700, y: 40 },
+              config: {
+                label: "Centerlines",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "paths" }, to: { nodeId: "node-2", portId: "paths" } },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    const paths = document.layers[0]?.paths ?? [];
+    expect(paths).toHaveLength(6);
+    expect(paths.every((path) => path.closed === true)).toBe(true);
+
+    const firstBounds = pathBounds([paths[0]!]);
+    const lastBounds = pathBounds([paths.at(-2)!]);
+    expect(firstBounds.maxX - firstBounds.minX).toBeGreaterThan(lastBounds.maxX - lastBounds.minX);
+  });
+
+  it("can configure Ona logo interior contours separately", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "ona-logo-contours",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 120,
+                contours: 5,
+                spacing: 2,
+                innerContours: 2,
+                innerSpacing: 6,
+                lineMode: "contours",
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 700, y: 40 },
+              config: {
+                label: "Contours",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "paths" }, to: { nodeId: "node-2", portId: "paths" } },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    const paths = document.layers[0]?.paths ?? [];
+    expect(paths).toHaveLength(7);
+    expect(paths.every((path) => path.closed === true)).toBe(true);
+  });
+
+  it("can draw the Ona logo as one continuous inward shrinking line", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "ona-logo-contours",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 120,
+                contours: 4,
+                spacing: 2,
+                innerContours: 4,
+                innerSpacing: 2,
+                lineMode: "continuous",
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 700, y: 40 },
+              config: {
+                label: "Continuous",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "paths" }, to: { nodeId: "node-2", portId: "paths" } },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+
+    const paths = document.layers[0]?.paths ?? [];
+    expect(paths).toHaveLength(1);
+    expect(paths[0]!.closed).not.toBe(true);
+    expect(paths[0]!.points).toHaveLength(1025);
+
+    const start = paths[0]!.points[0]!;
+    const end = paths[0]!.points.at(-1)!;
+    expect(Math.abs(start.x - 105)).toBeGreaterThan(Math.abs(end.x - 105));
+  });
+
+  it("can connect Ona logo contours into one single-stroke path", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "ona-logo-contours",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 105,
+                centerY: 148.5,
+                width: 120,
+                height: 120,
+                contours: 4,
+                spacing: 3,
+                innerContours: 0,
+                innerSpacing: 3,
+                lineMode: "single-stroke",
+                rotationDeg: 0,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "output-layer",
+              position: { x: 700, y: 40 },
+              config: {
+                label: "Single Stroke",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "paths" }, to: { nodeId: "node-2", portId: "paths" } },
+          ],
+          selectedNodeId: "node-1",
+          nextNodeNumber: 3,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+    const metrics = calculateDocumentMetrics(document);
+    const paths = document.layers[0]?.paths ?? [];
+
+    expect(paths).toHaveLength(1);
+    expect(paths[0]!.closed).not.toBe(true);
+    expect(paths[0]!.points.length).toBeGreaterThan(400);
+    expect(metrics.pathCount).toBe(1);
+    expect(metrics.penUpDistanceMm).toBe(0);
+  });
+
+  it("can sort a path stream to reduce travel before output", () => {
+    const document = renderProgramCase(
+      program,
+      {
+        ...defaultSet,
+        programState: {
+          nodes: [
+            {
+              id: "node-1",
+              kind: "line",
+              position: { x: 40, y: 40 },
+              config: {
+                centerX: 150,
+                centerY: 50,
+                length: 20,
+                angleDeg: 0,
+                style: "solid",
+                thickness: 0.35,
+                dashLength: 8,
+                dashGap: 4,
+              },
+            },
+            {
+              id: "node-2",
+              kind: "line",
+              position: { x: 40, y: 180 },
+              config: {
+                centerX: 20,
+                centerY: 50,
+                length: 20,
+                angleDeg: 0,
+                style: "solid",
+                thickness: 0.35,
+                dashLength: 8,
+                dashGap: 4,
+              },
+            },
+            {
+              id: "node-3",
+              kind: "merge-paths",
+              position: { x: 350, y: 90 },
+              config: {},
+            },
+            {
+              id: "node-4",
+              kind: "travel-sort",
+              position: { x: 600, y: 90 },
+              config: {
+                allowFlip: true,
+                reloopClosed: true,
+                mergeTolerance: 0,
+              },
+            },
+            {
+              id: "node-5",
+              kind: "output-layer",
+              position: { x: 850, y: 90 },
+              config: {
+                label: "Sorted",
+                style: "primary",
+                enabled: true,
+              },
+            },
+          ],
+          connections: [
+            { from: { nodeId: "node-1", portId: "paths" }, to: { nodeId: "node-3", portId: "a" } },
+            { from: { nodeId: "node-2", portId: "paths" }, to: { nodeId: "node-3", portId: "b" } },
+            { from: { nodeId: "node-3", portId: "paths" }, to: { nodeId: "node-4", portId: "paths" } },
+            { from: { nodeId: "node-4", portId: "paths" }, to: { nodeId: "node-5", portId: "paths" } },
+          ],
+          selectedNodeId: "node-4",
+          nextNodeNumber: 6,
+        },
+      },
+      {
+        caseName: "default",
+        showDebug: false,
+      }
+    );
+    const paths = document.layers[0]?.paths ?? [];
+    const firstBounds = pathBounds([paths[0]!]);
+    const secondBounds = pathBounds([paths[1]!]);
+
+    expect(paths).toHaveLength(2);
+    expect(firstBounds.minX).toBeCloseTo(10, 6);
+    expect(secondBounds.minX).toBeCloseTo(140, 6);
   });
 
   it("renders Voronoi nested cell generator nodes as closed loops", () => {

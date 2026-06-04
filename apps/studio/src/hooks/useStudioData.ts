@@ -233,6 +233,7 @@ export function useStudioData(): StudioModel {
   const [current, setCurrent] = useState<CurrentDocumentState | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [svg, setSvg] = useState("");
+  const [previewCanvas, setPreviewCanvas] = useState<RenderResponse["canvas"] | null>(null);
   const [metrics, setMetrics] = useState<RenderResponse["metrics"] | null>(null);
   const [validationIssues, setValidationIssues] = useState<RenderResponse["validationIssues"]>([]);
   const [normalizationIssues, setNormalizationIssues] = useState<RenderResponse["normalizationIssues"]>([]);
@@ -457,6 +458,7 @@ export function useStudioData(): StudioModel {
     setParamSetList(emptyParamSetList);
     setCurrent(null);
     setSvg("");
+    setPreviewCanvas(null);
     setMetrics(null);
     setValidationIssues([]);
     setNormalizationIssues([]);
@@ -586,6 +588,7 @@ export function useStudioData(): StudioModel {
     )
       .then((response) => {
         setSvg(response.svg);
+        setPreviewCanvas(response.canvas);
         setMetrics(response.metrics);
         setValidationIssues(response.validationIssues);
         setNormalizationIssues(response.normalizationIssues);
@@ -1246,6 +1249,7 @@ export function useStudioData(): StudioModel {
     current,
     dirty,
     svg,
+    previewCanvas,
     metrics,
     normalizationIssues,
     validationIssues,

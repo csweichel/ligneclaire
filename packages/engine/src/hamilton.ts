@@ -16,10 +16,12 @@ export type HamiltonPathOptions = Readonly<{
   rowStepRatio?: number;
   nodeOffsets?: Readonly<Record<number, Point>>;
   mixSteps?: number;
+  domainContains?: (point: Point, clearance: number) => boolean;
 }>;
 
 export type HamiltonPathResult = Readonly<{
   centerline: Polyline;
+  centerlines: readonly Polyline[];
   paths: readonly Polyline[];
   baseNodes: readonly Point[];
   rows: number;
@@ -118,6 +120,7 @@ function normalizeOptions(options: HamiltonPathOptions): NormalizedHamiltonPathO
 function emptyResult(gridBounds: Bounds, options: NormalizedHamiltonPathOptions): HamiltonPathResult {
   return {
     centerline: { points: [] },
+    centerlines: [],
     paths: [],
     baseNodes: [],
     rows: options.rows,
@@ -595,6 +598,92 @@ function toPolyline(
   };
 }
 
+function toDomainCenterlines(
+  baseNodes: readonly Point[],
+  rows: number,
+  cols: number,
+  domainContains: (point: Point, clearance: number) => boolean,
+  clearance: number
+): readonly Polyline[] {
+  const active = Array.from({ length: rows }, (_, row) =>
+    Array.from({ length: cols }, (_, col) =>
+      domainContains(baseNodes[row * cols + col]!, clearance)
+    )
+  );
+  const used = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => false)
+  );
+  const centerlines: Polyline[] = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      if (!active[row]![col] || used[row]![col]) {
+        continue;
+      }
+
+      const points: Point[] = [];
+      let currentRow = row;
+      let currentCol = col;
+      let direction = 1;
+
+      while (currentRow < rows && active[currentRow]![currentCol] && !used[currentRow]![currentCol]) {
+        let startCol = currentCol;
+        let endCol = currentCol;
+
+        while (
+          startCol - 1 >= 0 &&
+          active[currentRow]![startCol - 1] &&
+          !used[currentRow]![startCol - 1]
+        ) {
+          startCol -= 1;
+        }
+
+        while (
+          endCol + 1 < cols &&
+          active[currentRow]![endCol + 1] &&
+          !used[currentRow]![endCol + 1]
+        ) {
+          endCol += 1;
+        }
+
+        const rowStart = direction > 0 ? currentCol : currentCol;
+        const rowEnd = direction > 0 ? endCol : startCol;
+        for (
+          let runCol = rowStart;
+          direction > 0 ? runCol <= rowEnd : runCol >= rowEnd;
+          runCol += direction
+        ) {
+          if (!active[currentRow]![runCol] || used[currentRow]![runCol]) {
+            continue;
+          }
+
+          used[currentRow]![runCol] = true;
+          appendPoint(points, baseNodes[currentRow * cols + runCol]!);
+        }
+
+        currentCol = rowEnd;
+        const nextRow = currentRow + 1;
+        if (
+          nextRow >= rows ||
+          !active[nextRow]![currentCol] ||
+          used[nextRow]![currentCol]
+        ) {
+          break;
+        }
+
+        currentRow = nextRow;
+        direction *= -1;
+      }
+
+      if (points.length > 1) {
+        centerlines.push({ points });
+      }
+    }
+  }
+
+  return centerlines;
+}
+
 function applyNodeOffsets(
   baseNodes: readonly Point[],
   nodeOffsets: Readonly<Record<number, Point>>
@@ -662,17 +751,29 @@ export function generateHamiltonPaths(
   }
 
   const positionedNodes = applyNodeOffsets(fit.baseNodes, normalized.nodeOffsets);
-  const centerline = toPolyline(path, positionedNodes);
-  const paths = offsets.map((offset) =>
-    roundPolylineCorners(
-      buildLanePolyline(centerline, offset, normalized.deflection),
-      normalized.cornerRadius,
-      offset
+  const centerlines = options.domainContains
+    ? toDomainCenterlines(
+        positionedNodes,
+        normalized.rows,
+        normalized.cols,
+        options.domainContains,
+        maxOffset + normalized.deflection
+      )
+    : [toPolyline(path, positionedNodes)];
+  const centerline = centerlines[0] ?? { points: [] };
+  const paths = centerlines.flatMap((line) =>
+    offsets.map((offset) =>
+      roundPolylineCorners(
+        buildLanePolyline(line, offset, normalized.deflection),
+        normalized.cornerRadius,
+        offset
+      )
     )
   );
 
   return {
     centerline,
+    centerlines,
     paths,
     baseNodes: positionedNodes,
     rows: normalized.rows,

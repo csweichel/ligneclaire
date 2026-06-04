@@ -17,6 +17,7 @@ import { Eyebrow } from "../common/StudioPrimitives";
 type PreviewPaneProps = Readonly<{
   programDetails: ProgramDetails | null;
   current: CurrentDocumentState | null;
+  previewCanvas: ProgramDetails["canvas"] | null;
   svg: string;
   editorComponent: EditorComponent | null;
   isRendering: boolean;
@@ -41,6 +42,7 @@ const fallbackCanvas = {
 export function PreviewPane({
   programDetails,
   current,
+  previewCanvas,
   svg,
   editorComponent,
   isRendering,
@@ -65,10 +67,10 @@ export function PreviewPane({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
-  const canvas = programDetails?.canvas ?? fallbackCanvas;
+  const canvas = previewCanvas ?? programDetails?.canvas ?? fallbackCanvas;
   const hasInteractiveEditor = Boolean(editorComponent && current && programDetails);
   const showEditorControls = hasInteractiveEditor && showEditor;
-  const editorCanvas = showEditorControls && programDetails ? programDetails.canvas : null;
+  const editorCanvas = showEditorControls && programDetails ? canvas : null;
   const editorInstance = showEditorControls ? editorComponent : null;
   const currentDocument = showEditorControls ? current : null;
 

@@ -190,6 +190,13 @@ export function MachineControlPerspective({
     ]);
   }
 
+  async function moveXyToZero(): Promise<void> {
+    await runManualJob("Move XY to zero", [
+      "G90",
+      `${travelCommand} X0 Y0 F${formatSignedDistance(travelFeedRate)}`,
+    ]);
+  }
+
   async function zeroAxes(axes: readonly ("X" | "Y" | "Z")[]): Promise<void> {
     await studio.transport.zeroCurrentAxes(axes);
   }
@@ -508,6 +515,17 @@ export function MachineControlPerspective({
                         Move to zero
                       </Button>
                       <Button
+                        disabled={!canRunManualCommand}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setStepMenuOpen(false);
+                          void moveXyToZero();
+                        }}
+                      >
+                        Move XY to zero
+                      </Button>
+                      <Button
                         disabled={!canZeroPosition}
                         size="sm"
                         variant="outline"
@@ -667,6 +685,7 @@ export function MachineControlPerspective({
             <Field label="Width">
               <Input
                 className="h-9"
+                max={400}
                 min={1}
                 step={1}
                 type="number"
@@ -682,6 +701,7 @@ export function MachineControlPerspective({
             <Field label="Height">
               <Input
                 className="h-9"
+                max={300}
                 min={1}
                 step={1}
                 type="number"
@@ -695,7 +715,22 @@ export function MachineControlPerspective({
             </Field>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+            <Field label="Margin">
+              <Input
+                className="h-9"
+                min={0}
+                step={1}
+                type="number"
+                value={studio.heightMesh.settings.marginMm}
+                onChange={(event) => {
+                  studio.heightMesh.updateSettings({
+                    marginMm: Number(event.currentTarget.value) || 0,
+                  });
+                }}
+              />
+            </Field>
+
             <Field label="Sampling dist">
               <Input
                 className="h-9"
@@ -791,6 +826,15 @@ export function MachineControlPerspective({
               Preview
             </span>
             <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={!canPrepare || busy}
+                variant="outline"
+                onClick={() => {
+                  void studio.transport.preview();
+                }}
+              >
+                Preview Moves
+              </Button>
               <Button
                 disabled={sendDisabled}
                 variant="default"

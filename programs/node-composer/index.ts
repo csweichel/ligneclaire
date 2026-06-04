@@ -7,6 +7,7 @@ import {
   buildNodeComposerLayers,
   canvas,
   defaultNodeComposerProgramState,
+  nodeComposerCanvasFromProgramState,
   nodeComposerParamSchema,
   normalizeNodeComposerProgramState,
   selectNodeComposerRenderState,
@@ -45,19 +46,24 @@ export const program = defineProgram({
   },
   editor: lazyEditor(() => import("./editor")),
   render(ctx: NodeComposerRenderContext) {
+    const activeCanvas = nodeComposerCanvasFromProgramState(ctx.programState);
     const { layers, debugLayers } = buildNodeComposerLayers(ctx.programState, {
       mode: ctx.mode,
       showDebug: ctx.showDebug,
+      canvas: activeCanvas,
     });
 
     return {
-      canvas,
+      canvas: activeCanvas,
       layers,
       debugLayers,
       metadata: {
         programId: "node-composer",
         version: PROGRAM_VERSION,
         mode: ctx.mode,
+        pageWidthMm: String(activeCanvas.widthMm),
+        pageHeightMm: String(activeCanvas.heightMm),
+        pageMarginMm: String(activeCanvas.marginMm),
         nodeCount: String(ctx.programState.nodes.length),
         connectionCount: String(ctx.programState.connections.length),
       },

@@ -5,6 +5,7 @@ import type {
   HeightMeshSamplerConfig,
   NormalizationIssue,
   ParameterSchema,
+  CanvasSpec,
   PlotMetrics,
   PlotValidationIssue,
   ValidationBudget,
@@ -68,6 +69,7 @@ export type RenderRequest = Readonly<{
 
 export type RenderResponse = Readonly<{
   programId: string;
+  canvas: CanvasSpec;
   svg: string;
   metrics: PlotMetrics;
   params: Readonly<Record<string, unknown>>;

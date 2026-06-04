@@ -114,6 +114,7 @@ export function HeightMeshSamplerModal({
                 <span className="studio-field__label">Sheet width</span>
                 <input
                   className="studio-input studio-input--compact"
+                  max={400}
                   min={1}
                   step={1}
                   type="number"
@@ -130,6 +131,7 @@ export function HeightMeshSamplerModal({
                 <span className="studio-field__label">Sheet height</span>
                 <input
                   className="studio-input studio-input--compact"
+                  max={300}
                   min={1}
                   step={1}
                   type="number"
@@ -137,6 +139,22 @@ export function HeightMeshSamplerModal({
                   onChange={(event) => {
                     studio.heightMesh.updateSettings({
                       heightMm: Number(event.currentTarget.value) || 1,
+                    });
+                  }}
+                />
+              </label>
+
+              <label className="studio-field">
+                <span className="studio-field__label">Margin</span>
+                <input
+                  className="studio-input studio-input--compact"
+                  min={0}
+                  step={1}
+                  type="number"
+                  value={studio.heightMesh.settings.marginMm}
+                  onChange={(event) => {
+                    studio.heightMesh.updateSettings({
+                      marginMm: Number(event.currentTarget.value) || 0,
                     });
                   }}
                 />
