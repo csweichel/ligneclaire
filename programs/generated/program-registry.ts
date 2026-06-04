@@ -17,6 +17,7 @@ import { program as hilbertLoopsGradientProgram } from "../hilbert-loops-gradien
 import { program as hilbertThickGradientProgram } from "../hilbert-thick-gradient/index";
 import { program as imageCirclesProgram } from "../image-circles/index";
 import { program as imageJiggleProgram } from "../image-jiggle/index";
+import { program as imageLineDrawingProgram } from "../image-line-drawing/index";
 import { program as isometricRibbonsProgram } from "../isometric-ribbons/index";
 import { program as kochCurvesProgram } from "../koch-curves/index";
 import { program as logoProgram } from "../logo/index";
@@ -32,4 +33,4 @@ import { program as trochoidProgram } from "../trochoid/index";
 import { program as voronoiNestedCellsProgram } from "../voronoi-nested-cells/index";
 import { program as wavesProgram } from "../waves/index";
 
-export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, delaunayPathsProgram, dragonCurveProgram, fieldProgram, hamiltonPathsProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, isometricRibbonsProgram, kochCurvesProgram, logoProgram, mooreCurveProgram, nodeComposerProgram, peanoCurveProgram, referencePosterProgram, sculptureScanProgram, svgConcentricOutlineProgram, terrainSlicesProgram, tilepathGridProgram, trochoidProgram, voronoiNestedCellsProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];
+export const programRegistry = [clipFieldProgram, continuousContourProgram, curveProgram, delaunayPathsProgram, dragonCurveProgram, fieldProgram, hamiltonPathsProgram, helloWorldProgram, hilbertDensityProgram, hilbertLoopsGradientProgram, hilbertThickGradientProgram, imageCirclesProgram, imageJiggleProgram, imageLineDrawingProgram, isometricRibbonsProgram, kochCurvesProgram, logoProgram, mooreCurveProgram, nodeComposerProgram, peanoCurveProgram, referencePosterProgram, sculptureScanProgram, svgConcentricOutlineProgram, terrainSlicesProgram, tilepathGridProgram, trochoidProgram, voronoiNestedCellsProgram, wavesProgram] as const satisfies readonly ProgramDefinition<any, any>[];

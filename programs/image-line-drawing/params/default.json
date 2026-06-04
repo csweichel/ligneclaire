@@ -1,0 +1,16 @@
+{
+  "programId": "image-line-drawing",
+  "programVersion": "1.0.0",
+  "name": "Default",
+  "params": {
+    "maxImageDimension": 128,
+    "levels": 4,
+    "darknessFloor": 0.18,
+    "contrast": 1.15,
+    "simplifyMm": 0.25,
+    "minSegmentMm": 1.2
+  },
+  "programState": {},
+  "createdAt": "2026-06-04T12:00:00.000Z",
+  "updatedAt": "2026-06-04T12:00:00.000Z"
+}

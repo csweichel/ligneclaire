@@ -17,6 +17,7 @@ import { program as hilbertLoopsGradientProgram } from "../hilbert-loops-gradien
 import { program as hilbertThickGradientProgram } from "../hilbert-thick-gradient/index";
 import { program as imageCirclesProgram } from "../image-circles/index";
 import { program as imageJiggleProgram } from "../image-jiggle/index";
+import { program as imageLineDrawingProgram } from "../image-line-drawing/index";
 import { program as isometricRibbonsProgram } from "../isometric-ribbons/index";
 import { program as kochCurvesProgram } from "../koch-curves/index";
 import { program as logoProgram } from "../logo/index";
@@ -271,6 +272,24 @@ export const nodeComposerProgramRegistry = [
             "stepsPerLine": 600,
             "maxAmplitude": 2.375,
             "maxFrequency": 0.59
+          },
+        programState: {}
+      }
+    ]
+  },
+  {
+    program: imageLineDrawingProgram,
+    paramSets: [
+      {
+        slug: "default",
+        name: "Default",
+        params: {
+            "maxImageDimension": 128,
+            "levels": 4,
+            "darknessFloor": 0.18,
+            "contrast": 1.15,
+            "simplifyMm": 0.25,
+            "minSegmentMm": 1.2
           },
         programState: {}
       }
